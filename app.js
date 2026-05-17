@@ -2589,24 +2589,45 @@ async function searchStremioStreams(anime, episodeNumber) {
   const results = [];
 
   for (const addon of addons) {
-    for (const id of ids) {
-      try {
-        const streams = await fetchApiJson(`/api/stremio/streams?url=${encodeURIComponent(addon.url)}&type=series&id=${encodeURIComponent(id)}`);
-        streams.forEach((stream) => results.push({ ...stream, addonName: addon.name, stremioId: id }));
-        if (streams.length) break;
-      } catch (error) {
-        // Try the next ID/addon.
+    const types = await stremioTypesForAddon(addon);
+    let found = false;
+    for (const type of types) {
+      for (const id of ids) {
+        try {
+          const streams = await fetchApiJson(`/api/stremio/streams?url=${encodeURIComponent(addon.url)}&type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`);
+          streams.forEach((stream) => results.push({ ...stream, addonName: addon.name, stremioId: id, stremioType: type }));
+          if (streams.length) {
+            found = true;
+            break;
+          }
+        } catch (error) {
+          // Try the next ID/type/addon.
+        }
       }
+      if (found) break;
     }
   }
 
   return results;
 }
 
+async function stremioTypesForAddon(addon) {
+  const fallback = ["series", "anime", "movie"];
+  try {
+    const manifest = await fetchApiJson(`/api/stremio/manifest?url=${encodeURIComponent(addon.url)}`);
+    const types = Array.isArray(manifest.types) ? manifest.types : [];
+    return [...new Set([...types, ...fallback])];
+  } catch (error) {
+    return fallback;
+  }
+}
+
 function stremioIdCandidates(anime, episodeNumber) {
   const ids = [];
   if (anime.malId) ids.push(`mal:${anime.malId}:${episodeNumber}`);
   if (anime.apiId) ids.push(`anilist:${anime.apiId}:${episodeNumber}`);
+  if (anime.malId) ids.push(`mal:${anime.malId}`);
+  if (anime.apiId) ids.push(`anilist:${anime.apiId}`);
   return ids;
 }
 
@@ -2684,10 +2705,12 @@ function buildMagnetLink(infoHash, name) {
 function renderStreamingSources(container, results, anime, episodeNumber, stremioStreams = []) {
   const extensionHtml = extensionSourceCards("anime");
   const stremioHtml = stremioSourceCards(stremioStreams);
+  const stremioStatusHtml = stremioAddonStatusHtml(stremioStreams);
   if (!results.length && !stremioStreams.length) {
     container.innerHTML = `
       ${extensionHtml}
       ${stremioHtml}
+      ${stremioStatusHtml}
       <div class="empty" style="padding: 16px; text-align: center;">
         <p class="muted">No sources available</p>
         <p class="muted" style="font-size: 12px;">Nyaa may be blocking requests, or this title may need a different search name.</p>
@@ -2704,7 +2727,7 @@ function renderStreamingSources(container, results, anime, episodeNumber, stremi
     return;
   }
 
-  container.innerHTML = `${extensionHtml}${stremioHtml}${results
+  container.innerHTML = `${extensionHtml}${stremioHtml}${stremioStatusHtml}${results
     .slice(0, 5)
     .map((result) => {
       const seeders = result.seeders || 0;
@@ -2762,6 +2785,17 @@ function stremioSourceCards(streams) {
           </div>
         `;
       }).join("")}
+    </div>
+  `;
+}
+
+function stremioAddonStatusHtml(streams) {
+  const addons = stremioAddons();
+  if (!addons.length || streams.length) return "";
+  return `
+    <div class="empty" style="padding: 12px; text-align: center; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 12px;">
+      <p class="muted" style="margin: 0;">${addons.length} Stremio addon${addons.length === 1 ? "" : "s"} enabled, but none returned streams for this AniList/MAL episode ID.</p>
+      <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Try another addon, or one that supports MAL/AniList anime IDs.</p>
     </div>
   `;
 }
