@@ -147,6 +147,13 @@
                   <span>Auto-play Next Episode</span>
                 </label>
               </div>
+
+              <div class="form-group">
+                <label>Backend API URL</label>
+                <input type="url" data-api-base-url placeholder="https://your-backend.example.com" aria-label="Backend API URL">
+                <button class="btn secondary" data-api-test-btn type="button">Test Backend</button>
+                <p class="muted" style="font-size: 12px; margin: 0;">Use your Pterodactyl backend URL here. Local default is http://localhost:3000.</p>
+              </div>
             </div>
           </section>
 
@@ -408,7 +415,8 @@
         cursor: pointer;
       }
 
-      .form-group select {
+      .form-group select,
+      .form-group input[type="url"] {
         padding: 8px 12px;
         border: 1px solid var(--line);
         border-radius: 8px;
@@ -498,6 +506,66 @@
         gap: 12px;
       }
 
+      .extensions-browser {
+        display: grid;
+        gap: 14px;
+      }
+
+      .extensions-toolbar {
+        display: grid;
+        grid-template-columns: minmax(180px, 1fr) 150px auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .extensions-toolbar input[type="search"],
+      .extensions-toolbar select {
+        min-height: 38px;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--solid) 60%, transparent);
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .extensions-nsfw-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .extensions-summary {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .extensions-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      }
+
+      .extensions-pagination span {
+        min-width: 96px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .extensions-pagination button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
       .extension-card {
         display: grid;
         gap: 10px;
@@ -549,6 +617,17 @@
         font-weight: 700;
       }
 
+      .extension-nsfw {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 2px 5px;
+        border-radius: 999px;
+        background: rgba(255, 107, 107, 0.14);
+        color: #ff9b9b;
+        font-size: 9px;
+        vertical-align: middle;
+      }
+
       .extension-toggle {
         width: 40px;
         height: 20px;
@@ -598,6 +677,10 @@
         }
 
         .extensions-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .extensions-toolbar {
           grid-template-columns: 1fr;
         }
       }

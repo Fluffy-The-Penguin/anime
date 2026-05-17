@@ -5,6 +5,8 @@ const THEME_KEY = "anitrack-theme";
 const SETTINGS_KEY = "anitrack-settings-v1";
 const DETAIL_CACHE_KEY = "anitrack-last-detail";
 const BROWSE_PAGE_SIZE = 28;
+const API_BASE_KEY = "anitrack-api-base";
+const DEFAULT_API_BASE_URL = "http://localhost:3000";
 const fallbackImage = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80";
 
 applyStoredTheme();
@@ -1912,7 +1914,7 @@ function escapeHtml(value) {
 }
 
 function escapeAttr(value) {
-  return escapeHtml(value || "");
+  return escapeHtml(value || "").replace(/'/g, "&#39;");
 }
 
 function create(tag, className) {
@@ -1933,6 +1935,17 @@ function showToast(message) {
   toast.classList.add("show");
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
+function apiBaseUrl() {
+  const value = state.settings.apiBaseUrl || localStorage.getItem(API_BASE_KEY) || window.ANITRACK_API_BASE_URL || DEFAULT_API_BASE_URL;
+  return String(value).trim().replace(/\/+$/, "");
+}
+
+async function fetchApiJson(path) {
+  const response = await fetch(`${apiBaseUrl()}${path}`);
+  if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+  return response.json();
 }
 
 async function initSettingsPage() {
@@ -2028,6 +2041,27 @@ async function initSettingsPage() {
     persistSettings();
   });
 
+  const apiInput = document.querySelector("[data-api-base-url]");
+  apiInput.value = state.settings.apiBaseUrl || localStorage.getItem(API_BASE_KEY) || DEFAULT_API_BASE_URL;
+  apiInput.addEventListener("change", (e) => {
+    state.settings.apiBaseUrl = e.target.value.trim().replace(/\/+$/, "");
+    localStorage.setItem(API_BASE_KEY, state.settings.apiBaseUrl);
+    persistSettings();
+    showToast("Backend API URL saved");
+  });
+
+  document.querySelector("[data-api-test-btn]").addEventListener("click", async () => {
+    state.settings.apiBaseUrl = apiInput.value.trim().replace(/\/+$/, "");
+    localStorage.setItem(API_BASE_KEY, state.settings.apiBaseUrl);
+    persistSettings();
+    try {
+      const health = await fetchApiJson("/health");
+      showToast(health.ok ? "Backend connected" : "Backend responded unexpectedly");
+    } catch (error) {
+      showToast("Backend connection failed");
+    }
+  });
+
   // Data management
   document.querySelector("[data-export-btn]").addEventListener("click", exportLibrary);
   document.querySelector("[data-import-btn]").addEventListener("click", () => {
@@ -2057,16 +2091,7 @@ async function loadAnimeExtensionsNew() {
   container.innerHTML = '<div class="loading-state">Loading anime sources...</div>';
 
   try {
-    const response = await fetch(
-      "https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json"
-    );
-    const data = await response.json();
-    
-    // Handle different response structures
-    let extensions = data.extensions || data || [];
-    if (!Array.isArray(extensions)) {
-      extensions = Object.values(extensions);
-    }
+    const extensions = await fetchApiJson("/api/extensions/anime?limit=2000");
 
     if (!extensions.length) {
       container.innerHTML = '<div class="loading-state">No anime sources available</div>';
@@ -2075,11 +2100,15 @@ async function loadAnimeExtensionsNew() {
 
     renderExtensionsGrid(
       container,
-      extensions.slice(0, 15).map((ext) => ({
+      extensions.map((ext) => ({
+        type: "anime",
         id: ext.id || ext.pkg || ext.name,
         name: ext.name || "Unknown",
         version: ext.version || "1.0",
-        description: ext.description || ext.lang || "Anime source",
+        description: ext.description || `${ext.lang || "Unknown language"} anime source`,
+        lang: ext.lang || "unknown",
+        nsfw: Boolean(ext.nsfw),
+        url: ext.url || ext.sources?.[0]?.baseUrl || "",
       }))
     );
   } catch (error) {
@@ -2095,16 +2124,7 @@ async function loadMangaExtensionsNew() {
   container.innerHTML = '<div class="loading-state">Loading manga readers...</div>';
 
   try {
-    const response = await fetch(
-      "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json"
-    );
-    const data = await response.json();
-
-    // Handle different response structures
-    let extensions = data.extensions || data || [];
-    if (!Array.isArray(extensions)) {
-      extensions = Object.values(extensions);
-    }
+    const extensions = await fetchApiJson("/api/extensions/manga?limit=2000");
 
     if (!extensions.length) {
       container.innerHTML = '<div class="loading-state">No manga readers available</div>';
@@ -2113,11 +2133,15 @@ async function loadMangaExtensionsNew() {
 
     renderExtensionsGrid(
       container,
-      extensions.slice(0, 15).map((ext) => ({
+      extensions.map((ext) => ({
+        type: "manga",
         id: ext.id || ext.key || ext.name,
         name: ext.name || "Unknown",
         version: ext.versionCode || ext.version || "1.0",
-        description: ext.description || "Manga reader",
+        description: ext.description || `${ext.lang || "Unknown language"} manga source`,
+        lang: ext.lang || "unknown",
+        nsfw: Boolean(ext.nsfw),
+        url: ext.url || ext.sources?.[0]?.baseUrl || "",
       }))
     );
   } catch (error) {
@@ -2127,23 +2151,105 @@ async function loadMangaExtensionsNew() {
 }
 
 function renderExtensionsGrid(container, extensions) {
-  container.innerHTML = extensions
-    .map(
-      (ext) => `
-    <div class="extension-card">
-      <h4>${escapeHtml(ext.name)}</h4>
-      <p>${escapeHtml(ext.description)}</p>
-      <div class="extension-footer">
-        <span class="extension-version">v${escapeHtml(ext.version)}</span>
-        <input type="checkbox" class="extension-toggle" data-ext-id="${ext.id}" aria-label="Enable ${ext.name}">
+  const catalog = JSON.parse(localStorage.getItem("extension-catalog") || "{}");
+  extensions.forEach((ext) => {
+    catalog[String(ext.id)] = ext;
+  });
+  localStorage.setItem("extension-catalog", JSON.stringify(catalog));
+
+  const pageSize = 30;
+  let currentPage = 1;
+  const langs = [...new Set(extensions.map((ext) => ext.lang || "unknown"))].sort((a, b) => a.localeCompare(b));
+
+  container.innerHTML = `
+    <div class="extensions-browser">
+      <div class="extensions-toolbar">
+        <input data-extension-search type="search" placeholder="Search ${escapeAttr(extensions[0]?.type || "")} extensions..." aria-label="Search extensions">
+        <select data-extension-lang aria-label="Filter extension language">
+          <option value="">All languages</option>
+          ${langs.map((lang) => `<option value="${escapeAttr(lang)}">${escapeHtml(lang)}</option>`).join("")}
+        </select>
+        <label class="extensions-nsfw-toggle"><input data-extension-nsfw type="checkbox"> Include NSFW</label>
+      </div>
+      <div class="extensions-summary" data-extension-summary></div>
+      <div class="extensions-grid" data-extension-results></div>
+      <div class="extensions-pagination">
+        <button class="btn secondary" data-extension-prev type="button">Previous</button>
+        <span data-extension-page></span>
+        <button class="btn secondary" data-extension-next type="button">Next</button>
       </div>
     </div>
-  `
-    )
-    .join("");
+  `;
 
-  // Restore toggle states
-  container.querySelectorAll(".extension-toggle").forEach((toggle) => {
+  const searchInput = container.querySelector("[data-extension-search]");
+  const langSelect = container.querySelector("[data-extension-lang]");
+  const nsfwToggle = container.querySelector("[data-extension-nsfw]");
+  const results = container.querySelector("[data-extension-results]");
+  const summary = container.querySelector("[data-extension-summary]");
+  const pageLabel = container.querySelector("[data-extension-page]");
+  const prevButton = container.querySelector("[data-extension-prev]");
+  const nextButton = container.querySelector("[data-extension-next]");
+
+  const renderPage = () => {
+    const query = searchInput.value.trim().toLowerCase();
+    const lang = langSelect.value;
+    const includeNsfw = nsfwToggle.checked;
+    const filtered = extensions.filter((ext) => {
+      const haystack = `${ext.name} ${ext.description} ${ext.lang}`.toLowerCase();
+      return (!query || haystack.includes(query)) && (!lang || ext.lang === lang) && (includeNsfw || !ext.nsfw);
+    });
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    currentPage = Math.min(currentPage, totalPages);
+    const pageItems = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+    summary.textContent = `${filtered.length} of ${extensions.length} extensions`;
+    pageLabel.textContent = `Page ${currentPage} / ${totalPages}`;
+    prevButton.disabled = currentPage <= 1;
+    nextButton.disabled = currentPage >= totalPages;
+    results.innerHTML = pageItems.length ? pageItems.map(extensionCardHtml).join("") : '<div class="loading-state">No extensions match your filters</div>';
+    bindExtensionToggles(results);
+  };
+
+  searchInput.addEventListener("input", () => {
+    currentPage = 1;
+    renderPage();
+  });
+  langSelect.addEventListener("change", () => {
+    currentPage = 1;
+    renderPage();
+  });
+  nsfwToggle.addEventListener("change", () => {
+    currentPage = 1;
+    renderPage();
+  });
+  prevButton.addEventListener("click", () => {
+    currentPage = Math.max(1, currentPage - 1);
+    renderPage();
+  });
+  nextButton.addEventListener("click", () => {
+    currentPage += 1;
+    renderPage();
+  });
+
+  renderPage();
+}
+
+function extensionCardHtml(ext) {
+  return `
+    <div class="extension-card">
+      <h4>${escapeHtml(ext.name)}${ext.nsfw ? ' <span class="extension-nsfw">NSFW</span>' : ""}</h4>
+      <p>${escapeHtml(ext.description)}</p>
+      <div class="extension-footer">
+        <span class="extension-version">${escapeHtml(ext.lang || "unknown")} / v${escapeHtml(ext.version)}</span>
+        ${ext.url ? `<a class="btn secondary" href="${escapeAttr(ext.url)}" target="_blank" rel="noreferrer" style="min-height: 32px; padding: 6px 10px; font-size: 12px;">Open</a>` : ""}
+        <input type="checkbox" class="extension-toggle" data-ext-id="${escapeAttr(ext.id)}" aria-label="Enable ${escapeAttr(ext.name)}">
+      </div>
+    </div>
+  `;
+}
+
+function bindExtensionToggles(root) {
+  root.querySelectorAll(".extension-toggle").forEach((toggle) => {
     const enabled = JSON.parse(localStorage.getItem("enabled-extensions") || "{}");
     toggle.checked = enabled[toggle.dataset.extId] || false;
 
@@ -2151,6 +2257,41 @@ function renderExtensionsGrid(container, extensions) {
       const enabled = JSON.parse(localStorage.getItem("enabled-extensions") || "{}");
       enabled[toggle.dataset.extId] = toggle.checked;
       localStorage.setItem("enabled-extensions", JSON.stringify(enabled));
+    });
+  });
+}
+
+function enabledExtensionLinks(type) {
+  const enabled = JSON.parse(localStorage.getItem("enabled-extensions") || "{}");
+  const catalog = JSON.parse(localStorage.getItem("extension-catalog") || "{}");
+  return Object.values(catalog).filter((ext) => ext.type === type && enabled[String(ext.id)] && ext.url);
+}
+
+function extensionSourceCards(type) {
+  const links = enabledExtensionLinks(type);
+  if (!links.length) return "";
+
+  return `
+    <div class="extension-source-list" style="display: grid; gap: 8px; margin-bottom: 12px;">
+      <h4 style="margin: 0 0 4px; font-size: 14px;">Enabled extension sources</h4>
+      ${links.map((ext) => `
+        <div class="source-item">
+          <div class="source-info">
+            <h4>${escapeHtml(ext.name)}</h4>
+            <p>${escapeHtml(ext.description || "Extension source")}</p>
+          </div>
+          <button class="source-open-extension" data-extension-url="${escapeAttr(ext.url)}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">Open</button>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function bindExtensionSourceButtons(container) {
+  container.querySelectorAll("[data-extension-url]").forEach((button) => {
+    button.addEventListener("click", () => {
+      window.open(button.dataset.extensionUrl, "_blank", "noreferrer");
+      showToast("Opening extension source");
     });
   });
 }
@@ -2336,6 +2477,7 @@ async function loadEpisode(anime, episode, episodeNumber) {
       <p>Searching for streaming sources...</p>
     </div>
   `;
+  sources.innerHTML = '<p class="muted">Searching Nyaa RSS...</p>';
 
   try {
     // Search for streams using Nyaa
@@ -2357,7 +2499,7 @@ async function loadEpisode(anime, episode, episodeNumber) {
   }
 
   // Setup mark as watched button
-  document.querySelector("[data-mark-watched]").addEventListener("click", () => {
+  document.querySelector("[data-mark-watched]").onclick = () => {
     if (!state.current && anime) {
       state.current = anime;
     }
@@ -2375,115 +2517,135 @@ async function loadEpisode(anime, episode, episodeNumber) {
     persistLibrary();
     document.querySelector(`[data-episode-item][data-episode-number="${episodeNumber}"]`)?.classList.add("watched");
     showToast(`Marked Episode ${episodeNumber} as watched`);
-  });
+  };
 }
 
 async function searchNyaaStreams(animeTitle, episodeNumber) {
-  try {
-    // Multiple query formats to try
-    const queries = [
-      `${animeTitle} ${episodeNumber}`,
-      `${animeTitle} - ${episodeNumber}`,
-      `[${animeTitle}] ${episodeNumber}`,
-      `${animeTitle} episode ${episodeNumber}`,
-    ];
-
-    for (const query of queries) {
-      try {
-        const response = await fetch(
-          `https://nyaa.si/api/v1/search?q=${encodeURIComponent(query)}&c=1_2&s=seeders&o=desc`,
-          { timeout: 5000 }
-        );
-        
-        if (!response.ok) continue;
-
-        const data = await response.json();
-        if (data.results?.length > 0) {
-          return data.results;
-        }
-      } catch (e) {
-        continue;
-      }
-    }
-
-    return [];
-  } catch (error) {
-    console.error("Stream search error:", error);
-    return [];
-  }
+  return fetchApiJson(`/api/torrents/anime?title=${encodeURIComponent(animeTitle)}&episode=${encodeURIComponent(episodeNumber)}`);
 }
 
 async function searchNyaaMangaTorrents(mangaTitle, chapterNumber) {
-  try {
-    // Multiple query formats to try for manga
-    const queries = [
-      `${mangaTitle} ${chapterNumber}`,
-      `${mangaTitle} - chapter ${chapterNumber}`,
-      `${mangaTitle} ch ${chapterNumber}`,
-      `${mangaTitle} chapter ${chapterNumber}`,
-    ];
+  return fetchApiJson(`/api/torrents/manga?title=${encodeURIComponent(mangaTitle)}&chapter=${encodeURIComponent(chapterNumber)}`);
+}
 
+async function searchNyaaRss(queries, categories) {
+  for (const category of categories) {
     for (const query of queries) {
+      const url = `https://nyaa.si/?page=rss&q=${encodeURIComponent(query)}&c=${category}&f=0`;
       try {
-        const response = await fetch(
-          `https://nyaa.si/api/v1/search?q=${encodeURIComponent(query)}&c=6_0&s=seeders&o=desc`,
-          { timeout: 5000 }
-        );
-        
-        if (!response.ok) continue;
-
-        const data = await response.json();
-        if (data.results?.length > 0) {
-          return data.results;
-        }
-      } catch (e) {
-        continue;
+        const xmlText = await fetchTextWithCorsFallback(url);
+        const results = parseNyaaRss(xmlText);
+        if (results.length) return results;
+      } catch (error) {
+        console.warn("Nyaa RSS search failed:", query, category, error);
       }
     }
-
-    return [];
-  } catch (error) {
-    console.error("Manga search error:", error);
-    return [];
   }
+
+  return [];
+}
+
+async function fetchTextWithCorsFallback(url) {
+  const urls = [
+    url,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  ];
+
+  for (const candidate of urls) {
+    try {
+      const response = await fetch(candidate);
+      if (response.ok) return response.text();
+    } catch (error) {
+      // Try the next URL.
+    }
+  }
+
+  throw new Error("All torrent search endpoints failed");
+}
+
+function parseNyaaRss(xmlText) {
+  const xml = new DOMParser().parseFromString(xmlText, "application/xml");
+  if (xml.querySelector("parsererror")) return [];
+
+  return [...xml.querySelectorAll("item")]
+    .map((item) => {
+      const name = item.querySelector("title")?.textContent?.trim() || "Unknown torrent";
+      const link = item.querySelector("link")?.textContent?.trim() || "";
+      const infoHash = item.getElementsByTagNameNS("https://nyaa.si/xmlns/nyaa", "infoHash")[0]?.textContent?.trim() || "";
+      const seeders = Number(item.getElementsByTagNameNS("https://nyaa.si/xmlns/nyaa", "seeders")[0]?.textContent || 0);
+      const leechers = Number(item.getElementsByTagNameNS("https://nyaa.si/xmlns/nyaa", "leechers")[0]?.textContent || 0);
+      const size = item.getElementsByTagNameNS("https://nyaa.si/xmlns/nyaa", "size")[0]?.textContent?.trim() || "";
+      const category = item.getElementsByTagNameNS("https://nyaa.si/xmlns/nyaa", "category")[0]?.textContent?.trim() || "";
+
+      return {
+        name,
+        link,
+        magnet_uri: infoHash ? buildMagnetLink(infoHash, name) : link,
+        seeders,
+        leechers,
+        size,
+        category,
+      };
+    })
+    .sort((a, b) => b.seeders - a.seeders);
+}
+
+function buildMagnetLink(infoHash, name) {
+  const trackers = [
+    "udp://tracker.opentrackr.org:1337/announce",
+    "udp://open.stealth.si:80/announce",
+    "udp://tracker.openbittorrent.com:6969/announce",
+  ];
+  return `magnet:?xt=urn:btih:${encodeURIComponent(infoHash)}&dn=${encodeURIComponent(name)}${trackers.map((tracker) => `&tr=${encodeURIComponent(tracker)}`).join("")}`;
 }
 
 function renderStreamingSources(container, results, anime, episodeNumber) {
+  const extensionHtml = extensionSourceCards("anime");
   if (!results.length) {
     container.innerHTML = `
+      ${extensionHtml}
       <div class="empty" style="padding: 16px; text-align: center;">
         <p class="muted">No sources available</p>
+        <p class="muted" style="font-size: 12px;">Nyaa may be blocking requests, or this title may need a different search name.</p>
+      </div>
+    `;
+    bindExtensionSourceButtons(container);
+    document.querySelector("[data-video-player]").innerHTML = `
+      <div class="player-loading">
+        <p style="color: var(--red);">No torrent sources found</p>
+        <p class="muted" style="font-size: 12px;">Try another episode or search the title manually.</p>
       </div>
     `;
     return;
   }
 
-  container.innerHTML = results
+  container.innerHTML = `${extensionHtml}${results
     .slice(0, 5)
     .map((result) => {
       const seeders = result.seeders || 0;
       const leechers = result.leechers || 0;
       const quality = extractQuality(result.name);
       const seeds = seeders > 0 ? `${seeders} seeders` : "No seeders";
+      const target = result.magnet_uri || result.link;
 
       return `
         <div class="source-item">
           <div class="source-info">
             <h4>${escapeHtml(quality || "Unknown Quality")}</h4>
             <p>${escapeHtml(result.name.substring(0, 60))}...</p>
-            <p style="font-size: 11px; margin-top: 4px;">👥 ${seeds}</p>
+            <p style="font-size: 11px; margin-top: 4px;">${escapeHtml(seeds)}${result.size ? ` / ${escapeHtml(result.size)}` : ""}</p>
           </div>
-          <button class="source-play" data-magnet-link="${escapeAttr(result.magnet_uri)}" type="button">▶ Play</button>
+          <button class="source-play" data-magnet-link="${escapeAttr(target)}" type="button">Open</button>
         </div>
       `;
     })
-    .join("");
+    .join("")}`;
 
   // Add play button handlers
+  bindExtensionSourceButtons(container);
   container.querySelectorAll(".source-play").forEach((btn) => {
     btn.addEventListener("click", () => {
       const magnetLink = btn.dataset.magnetLink;
-      // Open in default torrent client or show info
       window.open(magnetLink, "_blank");
       showToast("Opening torrent in your default client");
     });
@@ -2492,23 +2654,27 @@ function renderStreamingSources(container, results, anime, episodeNumber) {
   document.querySelector("[data-video-player]").innerHTML = `
     <div class="player-loading">
       <p>Select a source above to stream</p>
-      <p class="muted" style="font-size: 12px;">⚠ Requires a torrent client (qBittorrent, Transmission, etc.)</p>
+      <p class="muted" style="font-size: 12px;">Requires a torrent client or streaming torrent app.</p>
     </div>
   `;
 }
 
 function renderMangaTorrentSources(container, results, manga, chapterNumber) {
+  const extensionHtml = extensionSourceCards("manga");
   if (!results.length) {
     container.innerHTML = `
+      ${extensionHtml}
       <div class="empty" style="padding: 16px; text-align: center;">
         <p class="muted">No torrent sources available</p>
         <p class="muted" style="font-size: 12px;">Try searching manually on Nyaa.si</p>
       </div>
     `;
+    bindExtensionSourceButtons(container);
     return;
   }
 
   container.innerHTML = `
+    ${extensionHtml}
     <div style="margin-top: 16px;">
       <h4 style="margin: 0 0 12px; font-size: 14px;">📥 Available Torrents</h4>
       ${results
@@ -2517,15 +2683,16 @@ function renderMangaTorrentSources(container, results, manga, chapterNumber) {
           const seeders = result.seeders || 0;
           const quality = extractQuality(result.name);
           const seeds = seeders > 0 ? `${seeders} seeders` : "No seeders";
+          const target = result.magnet_uri || result.link;
 
           return `
             <div class="source-item" style="display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--soft) 50%, transparent); margin-bottom: 8px;">
               <div class="source-info">
                 <h4 style="margin: 0 0 4px; font-size: 12px;">${escapeHtml(quality || "Unknown Quality")}</h4>
                 <p style="margin: 0; font-size: 11px; color: var(--muted);">${escapeHtml(result.name.substring(0, 50))}...</p>
-                <p style="font-size: 10px; margin-top: 4px; color: var(--muted);">👥 ${seeds}</p>
+                <p style="font-size: 10px; margin-top: 4px; color: var(--muted);">${escapeHtml(seeds)}${result.size ? ` / ${escapeHtml(result.size)}` : ""}</p>
               </div>
-              <button class="source-play" data-magnet-link="${escapeAttr(result.magnet_uri)}" type="button" style="min-width: 50px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: rgba(72, 219, 251, 0.1); color: var(--blue); font-size: 11px; cursor: pointer; white-space: nowrap;">📥 Torrent</button>
+              <button class="source-play" data-magnet-link="${escapeAttr(target)}" type="button" style="min-width: 50px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: rgba(72, 219, 251, 0.1); color: var(--blue); font-size: 11px; cursor: pointer; white-space: nowrap;">Torrent</button>
             </div>
           `;
         })
@@ -2534,6 +2701,7 @@ function renderMangaTorrentSources(container, results, manga, chapterNumber) {
   `;
 
   // Add play button handlers
+  bindExtensionSourceButtons(container);
   container.querySelectorAll(".source-play").forEach((btn) => {
     btn.addEventListener("click", () => {
       const magnetLink = btn.dataset.magnetLink;
@@ -2712,11 +2880,21 @@ async function loadChapter(manga, chapter, chapterNumber) {
     try {
       const torrentData = await searchNyaaMangaTorrents(manga.title, chapterNumber);
       renderMangaTorrentSources(sources, torrentData, manga, chapterNumber);
+      display.innerHTML = `
+        <div style="padding: 20px; text-align: center; color: var(--muted);">
+          <p>Chapter ${chapterNumber}</p>
+          <p style="font-size: 12px;">Use the torrent sources below, or open an enabled manga extension source from Settings.</p>
+          <div style="margin-top: 20px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--soft) 40%, transparent);">
+            <p style="margin: 0 0 8px;"><strong>${escapeHtml(chapter.title)}</strong></p>
+            <p style="margin: 0; font-size: 12px;">${escapeHtml(chapter.description)}</p>
+          </div>
+        </div>
+      `;
       
       if (torrentData.length === 0) {
         display.innerHTML = `
           <div style="padding: 20px; text-align: center; color: var(--muted);">
-            <p>📖 Chapter ${chapterNumber}</p>
+            <p>Chapter ${chapterNumber}</p>
             <p style="font-size: 12px;">No direct provider available. Use torrent sources below.</p>
             <div style="margin-top: 20px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--soft) 40%, transparent);">
               <p style="margin: 0 0 8px;"><strong>${escapeHtml(chapter.title)}</strong></p>
@@ -2730,6 +2908,12 @@ async function loadChapter(manga, chapter, chapterNumber) {
         <div class="empty" style="padding: 16px; text-align: center;">
           <p class="muted">Could not load manga sources</p>
           <p class="muted" style="font-size: 12px;">Try searching manually</p>
+        </div>
+      `;
+      display.innerHTML = `
+        <div style="padding: 20px; text-align: center; color: var(--muted);">
+          <p>Chapter ${chapterNumber}</p>
+          <p style="font-size: 12px;">Torrent search failed. Try again later or use an extension source from Settings.</p>
         </div>
       `;
     }
