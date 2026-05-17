@@ -5,6 +5,7 @@ const THEME_KEY = "anitrack-theme";
 const SETTINGS_KEY = "anitrack-settings-v1";
 const DETAIL_CACHE_KEY = "anitrack-last-detail";
 const MANGA_CHAPTER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const MANGA_PAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const BROWSE_PAGE_SIZE = 28;
 const API_BASE_KEY = "anitrack-api-base";
 const DEFAULT_API_BASE_URL = "http://localhost:3000";
@@ -627,7 +628,7 @@ async function fetchMangaFeed(feed, pageNumber = 1) {
     `query (${defs}) {
       Page(page: $page, perPage: ${BROWSE_PAGE_SIZE}) {
         media(${filter}) {
-          id title { romaji english native } description(asHtml: false) chapters volumes averageScore popularity seasonYear status format genres bannerImage coverImage { extraLarge large color }
+          id title { romaji english native } synonyms description(asHtml: false) chapters volumes averageScore popularity seasonYear status format genres bannerImage coverImage { extraLarge large color }
         }
       }
     }`,
@@ -642,7 +643,7 @@ async function fetchMangaLatest(pageNumber = 1) {
     `query ($page: Int) {
       Page(page: $page, perPage: 12) {
         media(${filter}) {
-          id title { romaji english native } description(asHtml: false) chapters volumes averageScore popularity seasonYear status format genres bannerImage coverImage { extraLarge large color }
+          id title { romaji english native } synonyms description(asHtml: false) chapters volumes averageScore popularity seasonYear status format genres bannerImage coverImage { extraLarge large color }
         }
       }
     }`,
@@ -656,7 +657,7 @@ async function fetchMangaDetails(apiId) {
   const data = await anilistQuery(
     `query ($id: Int) {
       Media(${filter}) {
-        id title { romaji english native } description(asHtml: false) chapters volumes averageScore popularity seasonYear status format genres bannerImage
+        id title { romaji english native } synonyms description(asHtml: false) chapters volumes averageScore popularity seasonYear status format genres bannerImage
         coverImage { extraLarge large color }
         staff(perPage: 1) { nodes { name { full } } }
       }
@@ -678,7 +679,7 @@ async function searchManga(query, pageNumber = 1) {
     `query (${defs}) {
       Page(page: $page, perPage: ${BROWSE_PAGE_SIZE}) {
         media(${filter}) {
-          id title { romaji english native } description(asHtml: false) chapters volumes averageScore popularity seasonYear status format genres bannerImage coverImage { extraLarge large color }
+          id title { romaji english native } synonyms description(asHtml: false) chapters volumes averageScore popularity seasonYear status format genres bannerImage coverImage { extraLarge large color }
         }
       }
     }`,
@@ -734,7 +735,11 @@ function mapAniList(item) {
 }
 
 function mapAniListManga(item) {
-  const title = item.title.english || item.title.romaji || "Untitled";
+  const englishTitle = item.title.english || "";
+  const romajiTitle = item.title.romaji || "";
+  const nativeTitle = item.title.native || "";
+  const title = englishTitle || romajiTitle || nativeTitle || "Untitled";
+  const alternativeTitles = uniqueStrings([englishTitle, ...(item.synonyms || []), romajiTitle, nativeTitle]).filter((name) => normalizeSearchText(name) !== normalizeSearchText(title));
   return {
     id: `manga-${item.id}`,
     apiId: item.id,
@@ -742,7 +747,10 @@ function mapAniListManga(item) {
     type: "manga",
     displayType: item.format || "Manga",
     title,
-    nativeTitle: item.title.native || "",
+    englishTitle,
+    romajiTitle,
+    nativeTitle,
+    alternativeTitles,
     description: clean(item.description) || "No synopsis available.",
     image: item.coverImage.extraLarge || item.coverImage.large || fallbackImage,
     banner: item.bannerImage || "",
@@ -1584,7 +1592,7 @@ function writeCachedMangaChapters(sourceId, chapters) {
 }
 
 function mangaChapterCacheKey(sourceId) {
-  return `manga-chapters:${sourceId}`;
+  return `manga-chapters-v2:${sourceId}`;
 }
 
 function renderMangaDetailChapterList(container, manga, source, pageNumber = 1) {
@@ -1602,7 +1610,10 @@ function renderMangaDetailChapterList(container, manga, source, pageNumber = 1) 
   container.innerHTML = `
     ${pageChapters.map((chapter) => `
     <button type="button" class="chapter-row detail-chapter-row detail-manga-chapter-row" data-detail-read-chapter data-chapter-data="${escapeAttr(JSON.stringify(chapter))}">
-      <span>${escapeHtml(chapter.title || `Chapter ${chapter.number}`)}</span>
+      <div class="detail-chapter-text">
+        <strong>Ch ${escapeHtml(chapter.number || "?")}</strong>
+        <span>${escapeHtml(chapter.title || `Chapter ${chapter.number}`)}</span>
+      </div>
       <small>${escapeHtml(chapter.date || "Date TBA")}</small>
     </button>
     `).join("")}
@@ -3222,15 +3233,43 @@ async function loadMangaSourceMatches(manga) {
   try {
     const providers = enabledMangaProviderIds();
     if (!providers.length) return [];
-    const matches = await fetchApiJson(`/api/manga/search?title=${encodeURIComponent(manga.title)}&providers=${encodeURIComponent(providers.join(","))}`);
-    return matches
-      .map((match) => ({ ...match, score: titleSimilarity(manga.title, match.title) }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
+    const searchTitles = mangaSourceSearchTitles(manga);
+    const results = await Promise.allSettled(searchTitles.map((title) =>
+      fetchApiJson(`/api/manga/search?title=${encodeURIComponent(title)}&providers=${encodeURIComponent(providers.join(","))}`)
+        .then((matches) => matches.map((match) => ({ ...match, searchTitle: title })))
+    ));
+    const matches = results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+    return bestMangaSourceMatches(matches, searchTitles, providers);
   } catch (error) {
     showToast("Could not search manga sources");
     return [];
   }
+}
+
+function mangaSourceSearchTitles(manga) {
+  return uniqueStrings([
+    manga.englishTitle,
+    ...(manga.alternativeTitles || []),
+    manga.title,
+    manga.romajiTitle,
+    manga.nativeTitle,
+  ]).filter((title) => title.length > 1).slice(0, 8);
+}
+
+function bestMangaSourceMatches(matches, titles, providers) {
+  const byProvider = new Map();
+  for (const match of matches || []) {
+    if (!match?.provider || !providers.includes(match.provider)) continue;
+    const scored = { ...match, score: sourceTitleScore(titles, match.title) };
+    if (scored.score < 0.15) continue;
+    const current = byProvider.get(match.provider);
+    if (!current || scored.score > current.score) byProvider.set(match.provider, scored);
+  }
+  return providers.map((provider) => byProvider.get(provider)).filter(Boolean);
+}
+
+function sourceTitleScore(titles, candidate) {
+  return titles.reduce((best, title, index) => Math.max(best, titleSimilarity(title, candidate) - index * 0.01), 0);
 }
 
 function renderMangaSourceSelector(matches, manga) {
@@ -3404,6 +3443,16 @@ function normalizeSearchText(value) {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function uniqueStrings(values) {
+  const seen = new Set();
+  return values.map((value) => String(value || "").trim()).filter((value) => {
+    const key = normalizeSearchText(value);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function renderChaptersList(chapters, manga) {
   const container = document.querySelector("[data-chapters-list]");
   const select = document.querySelector("[data-chapter-select]");
@@ -3470,7 +3519,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
 
   if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral" || chapter.provider === "flamecomics" || chapter.provider === "rizzcomic" || chapter.provider === "toonily") && chapter.id) {
     try {
-      const data = await fetchApiJson(`/api/manga/pages?chapterId=${encodeURIComponent(chapter.id)}`);
+      const data = await fetchMangaPagesCached(chapter.id);
       if (data.pages?.length) {
         renderChapterPages(display, data.pages, chapter);
         if (sources) {
@@ -3560,20 +3609,50 @@ function renderChapterPages(display, pages, chapter) {
   display.appendChild(wrapper);
   display.scrollTop = 0;
 
-  const loadNext = (index) => {
-    if (index >= pages.length) return;
+  const images = pages.map((url, index) => {
     const image = document.createElement("img");
     image.className = "chapter-page-image";
     image.alt = `${chapter.title} page ${index + 1}`;
     image.decoding = "async";
-    image.loading = "eager";
-    image.addEventListener("load", () => loadNext(index + 1), { once: true });
-    image.addEventListener("error", () => loadNext(index + 1), { once: true });
+    image.loading = index < 4 ? "eager" : "lazy";
+    image.dataset.src = url;
     wrapper.appendChild(image);
-    image.src = pages[index];
+    return image;
+  });
+
+  let nextIndex = 0;
+  const loadWindow = () => {
+    const limit = Math.max(2, Math.min(4, currentReadingMode() === "single" ? 2 : 4));
+    while (nextIndex < images.length && images[nextIndex].src) nextIndex += 1;
+    while (nextIndex < images.length && images.filter((image) => image.dataset.loading === "true").length < limit) {
+      const image = images[nextIndex];
+      image.dataset.loading = "true";
+      image.addEventListener("load", () => { delete image.dataset.loading; loadWindow(); }, { once: true });
+      image.addEventListener("error", () => { delete image.dataset.loading; loadWindow(); }, { once: true });
+      image.src = image.dataset.src;
+      nextIndex += 1;
+    }
   };
 
-  loadNext(0);
+  loadWindow();
+}
+
+async function fetchMangaPagesCached(chapterId) {
+  const key = `manga-pages:${chapterId}`;
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(key) || "null");
+    if (cached && Date.now() - cached.time < MANGA_PAGE_CACHE_TTL_MS && Array.isArray(cached.pages)) return { pages: cached.pages };
+  } catch (error) {
+    // Page URL cache is optional.
+  }
+
+  const data = await fetchApiJson(`/api/manga/pages?chapterId=${encodeURIComponent(chapterId)}`);
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ time: Date.now(), pages: data.pages || [] }));
+  } catch (error) {
+    // Ignore storage limits.
+  }
+  return data;
 }
 
 function markMangaChapterRead(manga, chapterNumber) {
