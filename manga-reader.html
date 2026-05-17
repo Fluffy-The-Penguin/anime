@@ -75,30 +75,33 @@
       </div>
     </main>
 
+    <button class="reader-top-button" data-reader-top type="button" aria-label="Go to top">^</button>
+
     <style>
       body[data-page="reader"] {
-        background: linear-gradient(145deg, #000 0%, var(--bg-2) 54%, #000 100%);
+        background: #000;
+      }
+
+      body[data-page="reader"] > .topbar {
+        display: none !important;
+      }
+
+      body[data-page="reader"] main.shell {
+        width: 100%;
       }
 
       .reader-container {
         display: block;
-        margin: 24px 0;
+        margin: 0;
       }
 
       .reader-main {
         display: grid;
-        gap: 16px;
+        gap: 8px;
       }
 
       .reader-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 16px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: color-mix(in srgb, var(--solid) 50%, transparent);
+        display: none;
       }
 
       .reader-header h2 {
@@ -117,10 +120,7 @@
         grid-template-columns: auto minmax(180px, 1fr) auto;
         gap: 10px;
         align-items: center;
-        padding: 12px 16px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: color-mix(in srgb, var(--solid) 45%, transparent);
+        padding: 8px 12px 0;
       }
 
       .reader-source-bar label {
@@ -134,9 +134,9 @@
       .reader-source-bar select {
         min-height: 36px;
         padding: 7px 10px;
-        border: 1px solid var(--line);
+        border: 0;
         border-radius: 9px;
-        background: color-mix(in srgb, var(--solid) 65%, transparent);
+        background: #0b0b0b;
         color: var(--text);
         font-size: 13px;
       }
@@ -146,10 +146,7 @@
         grid-template-columns: auto minmax(160px, 1fr) auto minmax(150px, 220px);
         gap: 10px;
         align-items: center;
-        padding: 12px 16px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: color-mix(in srgb, var(--solid) 45%, transparent);
+        padding: 8px 12px;
       }
 
       .reader-control-bar label {
@@ -163,19 +160,19 @@
       .reader-control-bar select {
         min-height: 36px;
         padding: 7px 10px;
-        border: 1px solid var(--line);
+        border: 0;
         border-radius: 9px;
-        background: color-mix(in srgb, var(--solid) 65%, transparent);
+        background: #0b0b0b;
         color: var(--text);
         font-size: 13px;
       }
 
       .chapter-display {
         min-height: 400px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
+        border: 0;
+        border-radius: 0;
         background: #000;
-        padding: 12px;
+        padding: 0;
         overflow: hidden;
       }
 
@@ -254,10 +251,9 @@
       }
 
       .manga-sources-card {
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: color-mix(in srgb, var(--solid) 50%, transparent);
-        padding: 16px;
+        border: 0;
+        background: transparent;
+        padding: 8px 12px;
       }
 
       .reader-footer {
@@ -265,10 +261,7 @@
         grid-template-columns: 1fr auto 1fr;
         gap: 16px;
         align-items: center;
-        padding: 16px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: color-mix(in srgb, var(--solid) 50%, transparent);
+        padding: 8px 12px 16px;
       }
 
       .chapter-info {
@@ -279,6 +272,22 @@
 
       .reader-footer .btn {
         min-height: 38px;
+      }
+
+      .reader-top-button {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 40;
+        width: 42px;
+        height: 42px;
+        border: 0;
+        border-radius: 999px;
+        background: #111;
+        color: var(--text);
+        font-size: 20px;
+        font-weight: 800;
+        line-height: 1;
       }
 
       .chapters-list[hidden] {

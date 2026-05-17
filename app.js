@@ -2987,6 +2987,10 @@ async function initReaderPage() {
 
   setupReadingMode();
 
+  document.querySelector("[data-reader-top]")?.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
   // Setup source and chapter list
   const mangaSources = await loadMangaSourceMatches(manga);
   renderMangaSourceSelector(mangaSources, manga);
