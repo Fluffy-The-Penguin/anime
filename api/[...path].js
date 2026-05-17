@@ -1,0 +1,27 @@
+const DEFAULT_BACKEND_URL = "http://fi10.bot-hosting.net:21204";
+
+module.exports = async function handler(req, res) {
+  const backendUrl = (process.env.ANITRACK_BACKEND_URL || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
+  const path = Array.isArray(req.query.path) ? req.query.path.join("/") : req.query.path || "";
+  const query = new URLSearchParams(req.query);
+  query.delete("path");
+
+  const target = `${backendUrl}/api/${path}${query.toString() ? `?${query}` : ""}`;
+  await proxyRequest(req, res, target);
+};
+
+async function proxyRequest(req, res, target) {
+  try {
+    const response = await fetch(target, {
+      method: req.method,
+      headers: { Accept: "application/json" },
+    });
+
+    const body = await response.text();
+    res.status(response.status);
+    res.setHeader("Content-Type", response.headers.get("content-type") || "application/json");
+    res.send(body);
+  } catch (error) {
+    res.status(502).json({ error: "Backend proxy failed" });
+  }
+}
