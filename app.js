@@ -2770,19 +2770,78 @@ function stremioAddonStatusHtml(streams) {
 
 function bindStremioSourceButtons(container) {
   container.querySelectorAll("[data-stremio-url]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const url = button.dataset.stremioUrl;
       if (!url) return showToast("No playable URL on this stream");
       if (url.startsWith("http")) {
-        const player = document.querySelector("[data-video-player]");
-        player.innerHTML = `<video controls autoplay style="width: 100%; height: 100%; background: #000;"><source src="${escapeAttr(url)}"></video>`;
-        showToast("Loading Stremio stream");
+        await playHttpStream(url);
         return;
       }
       window.open(url, "_blank");
       showToast("Opening stream externally");
     });
   });
+}
+
+async function playHttpStream(url) {
+  const player = document.querySelector("[data-video-player]");
+  player.innerHTML = `<video data-active-video controls autoplay playsinline style="width: 100%; height: 100%; background: #000;"></video>`;
+  const video = player.querySelector("[data-active-video]");
+
+  video.addEventListener("error", () => {
+    player.innerHTML = `
+      <div class="player-loading">
+        <p style="color: var(--red);">This stream format could not be played.</p>
+        <p class="muted" style="font-size: 12px;">The source may require HLS, CORS headers, or a different player.</p>
+      </div>
+    `;
+  }, { once: true });
+
+  const isHls = url.includes(".m3u8") || url.includes("application/vnd.apple.mpegurl");
+  if (isHls && video.canPlayType("application/vnd.apple.mpegurl")) {
+    video.src = url;
+    showToast("Loading HLS stream");
+    return;
+  }
+
+  if (isHls) {
+    try {
+      await loadHlsLibrary();
+      if (window.Hls?.isSupported()) {
+        const hls = new window.Hls({ enableWorker: true });
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(window.Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            hls.destroy();
+            video.dispatchEvent(new Event("error"));
+          }
+        });
+        showToast("Loading HLS stream");
+        return;
+      }
+    } catch (error) {
+      video.dispatchEvent(new Event("error"));
+      return;
+    }
+  }
+
+  video.src = url;
+  showToast("Loading stream");
+}
+
+function loadHlsLibrary() {
+  if (window.Hls) return Promise.resolve();
+  if (loadHlsLibrary.promise) return loadHlsLibrary.promise;
+
+  loadHlsLibrary.promise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js";
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return loadHlsLibrary.promise;
 }
 
 function renderMangaTorrentSources(container, results, manga, chapterNumber) {
