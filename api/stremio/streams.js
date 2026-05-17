@@ -19,6 +19,10 @@ async function proxyJson(res, target) {
         "Accept": "application/json,text/plain,*/*",
       },
     });
+    if (response.status === 404) {
+      res.status(200).json([]);
+      return;
+    }
     const body = await response.text();
     res.status(response.status);
     res.setHeader("Content-Type", response.headers.get("content-type") || "application/json");
