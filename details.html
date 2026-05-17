@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Anime and manga details with local tracking controls." />
+    <title>AniTrack | Details</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body data-page="details">
+    <header class="topbar shell">
+      <a class="brand" href="index.html"><span>AT</span>AniTrack</a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="anime.html">Anime</a>
+        <a href="manga.html">Manga</a>
+        <a href="library.html">Library</a>
+      </nav>
+    </header>
+
+    <main class="shell">
+      <section class="details-shell" data-details-root aria-live="polite">
+        <div class="details-loading panel">Loading details...</div>
+      </section>
+    </main>
+  </body>
+</html>

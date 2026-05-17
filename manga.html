@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Track manga progress with AniList data." />
+    <title>AniTrack | Manga</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body data-page="manga">
+    <header class="topbar shell">
+      <a class="brand" href="index.html"><span>AT</span>AniTrack</a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="anime.html">Anime</a>
+        <a class="active" href="manga.html">Manga</a>
+        <a href="library.html">Library</a>
+      </nav>
+    </header>
+
+    <main class="shell">
+      <section class="browse-page">
+        <form class="browse-toolbar" data-browse-form>
+          <label class="browse-search"><span>⌕</span><input data-browse-search type="search" placeholder="Search manga" autocomplete="off"><button class="search-clear" data-clear-search type="button" aria-label="Clear search">×</button></label>
+          <button class="btn browse-submit" type="submit">Search</button>
+          <div class="genre-filter" data-genre-filter>
+            <span>Genre</span>
+            <button class="genre-toggle" data-genre-toggle type="button">Any genre</button>
+            <div class="genre-menu" data-genre-menu>
+              <label><input type="checkbox" value="Action">Action</label><label><input type="checkbox" value="Adventure">Adventure</label><label><input type="checkbox" value="Comedy">Comedy</label><label><input type="checkbox" value="Drama">Drama</label><label><input type="checkbox" value="Ecchi">Ecchi</label><label><input type="checkbox" value="Fantasy">Fantasy</label><label><input type="checkbox" value="Horror">Horror</label><label><input type="checkbox" value="Mahou Shoujo">Mahou Shoujo</label><label><input type="checkbox" value="Mecha">Mecha</label><label><input type="checkbox" value="Music">Music</label><label><input type="checkbox" value="Mystery">Mystery</label><label><input type="checkbox" value="Psychological">Psychological</label><label><input type="checkbox" value="Romance">Romance</label><label><input type="checkbox" value="Sci-Fi">Sci-Fi</label><label><input type="checkbox" value="Slice of Life">Slice of Life</label><label><input type="checkbox" value="Sports">Sports</label><label><input type="checkbox" value="Supernatural">Supernatural</label><label><input type="checkbox" value="Thriller">Thriller</label>
+            </div>
+          </div>
+          <label>Year <input data-year-filter type="number" min="1940" max="2035" placeholder="Year"></label>
+          <label>Status <select data-status-filter><option value="">Any</option><option value="RELEASING">Publishing</option><option value="FINISHED">Completed</option><option value="NOT_YET_RELEASED">Upcoming</option><option value="HIATUS">Hiatus</option><option value="CANCELLED">Cancelled</option></select></label>
+          <label>Sort <select data-sort-filter><option value="top">Top Manga</option><option value="popular">Popular</option><option value="publishing">Publishing</option></select></label>
+          <button class="btn secondary" data-reset-filters type="button">Reset</button>
+        </form>
+        <div class="browse-title"><h1 data-heading>Top Manga</h1><span data-page-label>Page 1</span></div>
+        <div class="browse-grid" data-grid aria-live="polite"></div>
+        <div class="pager" data-pager>
+          <button class="pager-btn" data-page-prev type="button">‹</button>
+          <div class="page-numbers" data-page-numbers></div>
+          <button class="pager-btn" data-page-next type="button">›</button>
+        </div>
+      </section>
+
+    </main>
+  </body>
+</html>
