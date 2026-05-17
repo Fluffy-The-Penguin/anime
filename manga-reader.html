@@ -31,6 +31,12 @@
             </div>
           </div>
 
+          <div class="reader-source-bar" data-manga-source-bar hidden>
+            <label for="manga-source-select">Source</label>
+            <select id="manga-source-select" data-manga-source-select></select>
+            <span class="muted" data-manga-source-status>Searching sources...</span>
+          </div>
+
           <div class="chapter-display" data-chapter-display>
             <div class="reader-loading">
               <div class="spinner"></div>
@@ -109,6 +115,35 @@
       .reader-top-actions {
         display: flex;
         gap: 8px;
+      }
+
+      .reader-source-bar {
+        display: grid;
+        grid-template-columns: auto minmax(180px, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 12px 16px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--solid) 45%, transparent);
+      }
+
+      .reader-source-bar label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .reader-source-bar select {
+        min-height: 36px;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: color-mix(in srgb, var(--solid) 65%, transparent);
+        color: var(--text);
+        font-size: 13px;
       }
 
       .chapter-display {
@@ -333,6 +368,10 @@
         }
 
         .reader-footer {
+          grid-template-columns: 1fr;
+        }
+
+        .reader-source-bar {
           grid-template-columns: 1fr;
         }
 

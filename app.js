@@ -2985,9 +2985,10 @@ async function initReaderPage() {
   document.title = `AniTrack | ${manga.title}`;
   document.querySelector("[data-manga-title]").textContent = manga.title;
 
-  // Setup chapter list
-  const chapters = await loadMangaChapters(manga);
-  renderChaptersList(chapters, manga);
+  // Setup source and chapter list
+  const mangaSources = await loadMangaSourceMatches(manga);
+  renderMangaSourceSelector(mangaSources, manga);
+  await loadMangaSourceChapters(manga, mangaSources);
 
   // Setup chapter search
   const searchInput = document.querySelector("[data-chapters-search] input");
@@ -3024,11 +3025,7 @@ async function initReaderPage() {
     if (next) next.click();
   });
 
-  // Load first chapter by default
-  const firstChapter = document.querySelector("[data-chapter-item]");
-  if (firstChapter) {
-    firstChapter.click();
-  }
+  // Source loading triggers the first chapter automatically.
 }
 
 function buildChapters(manga) {
@@ -3048,29 +3045,113 @@ function buildChapters(manga) {
   return chapters;
 }
 
-async function loadMangaChapters(manga) {
+async function loadMangaSourceMatches(manga) {
   try {
     const matches = await fetchApiJson(`/api/manga/search?title=${encodeURIComponent(manga.title)}`);
-    const ranked = matches
+    return matches
       .map((match) => ({ ...match, score: titleSimilarity(manga.title, match.title) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
+  } catch (error) {
+    showToast("Could not search manga sources");
+    return [];
+  }
+}
 
-    for (const match of ranked) {
+function renderMangaSourceSelector(matches, manga) {
+  const bar = document.querySelector("[data-manga-source-bar]");
+  const select = document.querySelector("[data-manga-source-select]");
+  const status = document.querySelector("[data-manga-source-status]");
+  if (!bar || !select || !status) return;
+
+  if (!matches.length) {
+    bar.hidden = false;
+    select.innerHTML = '<option value="">Generated list</option>';
+    select.disabled = true;
+    status.textContent = "No provider matches found";
+    return;
+  }
+
+  bar.hidden = false;
+  select.disabled = false;
+  select.innerHTML = matches.map((match) => `
+    <option value="${escapeAttr(match.id)}">${escapeHtml(providerLabel(match.provider))}: ${escapeHtml(match.title)}</option>
+  `).join("");
+
+  const saved = localStorage.getItem(mangaSourceKey(manga));
+  if (saved && matches.some((match) => match.id === saved)) {
+    select.value = saved;
+  }
+
+  status.textContent = `${matches.length} source${matches.length === 1 ? "" : "s"} found`;
+  select.onchange = async () => {
+    localStorage.setItem(mangaSourceKey(manga), select.value);
+    await loadMangaSourceChapters(manga, matches, select.value);
+  };
+}
+
+async function loadMangaSourceChapters(manga, matches, preferredId) {
+  const container = document.querySelector("[data-chapters-list]");
+  const display = document.querySelector("[data-chapter-display]");
+  const status = document.querySelector("[data-manga-source-status]");
+  const select = document.querySelector("[data-manga-source-select]");
+
+  container.innerHTML = `
+    <div class="chapters-loading">
+      <div class="spinner"></div>
+      <p>Loading chapters...</p>
+    </div>
+  `;
+  display.innerHTML = `
+    <div class="reader-loading">
+      <div class="spinner"></div>
+      <p>Loading source...</p>
+    </div>
+  `;
+
+  try {
+    const ordered = orderMangaSources(matches, preferredId || localStorage.getItem(mangaSourceKey(manga)));
+
+    for (const match of ordered) {
+      if (select) select.value = match.id;
+      if (status) status.textContent = `Loading ${providerLabel(match.provider)}...`;
       const chapters = await fetchApiJson(`/api/manga/chapters?mangaId=${encodeURIComponent(match.id)}`);
       if (!chapters.length) continue;
 
-      manga.provider = "mangadex";
+      manga.provider = match.provider;
       manga.providerId = match.id;
       manga.providerTitle = match.title;
-      return chapters.map((chapter) => ({ ...chapter, image: manga.image }));
+
+      if (select) select.value = match.id;
+      localStorage.setItem(mangaSourceKey(manga), match.id);
+      if (status) status.textContent = `${providerLabel(match.provider)} / ${chapters.length} chapters`;
+
+      renderChaptersList(chapters.map((chapter) => ({ ...chapter, image: manga.image })), manga);
+      document.querySelector("[data-chapter-item]")?.click();
+      return;
     }
 
-    throw new Error("No MangaDex chapters");
+    throw new Error("No source chapters");
   } catch (error) {
-    showToast("Using generated chapter list; MangaDex did not return chapters");
-    return buildChapters(manga);
+    showToast("Using generated chapter list; providers did not return chapters");
+    if (status) status.textContent = "Generated chapter list";
+    renderChaptersList(buildChapters(manga), manga);
+    document.querySelector("[data-chapter-item]")?.click();
   }
+}
+
+function orderMangaSources(matches, preferredId) {
+  const copy = [...matches];
+  if (!preferredId) return copy;
+  return copy.sort((a, b) => (a.id === preferredId ? -1 : b.id === preferredId ? 1 : 0));
+}
+
+function mangaSourceKey(manga) {
+  return `manga-source:${manga.apiId || manga.id || manga.title}`;
+}
+
+function providerLabel(provider) {
+  return ({ mangadex: "MangaDex", asura: "Asura Scans" }[provider] || provider || "Source");
 }
 
 function titleSimilarity(a, b) {
@@ -3139,7 +3220,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
     </div>
   `;
 
-  if (chapter.provider === "mangadex" && chapter.id) {
+  if ((chapter.provider === "mangadex" || chapter.provider === "asura") && chapter.id) {
     try {
       const data = await fetchApiJson(`/api/manga/pages?chapterId=${encodeURIComponent(chapter.id)}`);
       if (data.pages?.length) {
@@ -3149,7 +3230,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
         if (sources) {
           sources.innerHTML = `
             <div class="empty" style="padding: 12px; text-align: center;">
-              <p class="muted" style="margin: 0;">Reading from MangaDex (${data.pages.length} pages)</p>
+              <p class="muted" style="margin: 0;">Reading from ${chapter.provider === "asura" ? "Asura Scans" : "MangaDex"} (${data.pages.length} pages)</p>
             </div>
           `;
         }
