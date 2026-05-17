@@ -154,6 +154,16 @@
                 <button class="btn secondary" data-api-test-btn type="button">Test Backend</button>
                 <p class="muted" style="font-size: 12px; margin: 0;">Use your Pterodactyl backend URL here. Local default is http://localhost:3000.</p>
               </div>
+
+              <div class="form-group">
+                <label>Stremio Addons</label>
+                <div class="stremio-addon-row">
+                  <input type="url" data-stremio-addon-url placeholder="https://addon.example/manifest.json" aria-label="Stremio addon manifest URL">
+                  <button class="btn secondary" data-stremio-add-btn type="button">Add Addon</button>
+                </div>
+                <div class="stremio-addon-list" data-stremio-addon-list></div>
+                <p class="muted" style="font-size: 12px; margin: 0;">Add Stremio addon manifest URLs. Streams appear in the anime player when an addon supports the title ID.</p>
+              </div>
             </div>
           </section>
 
@@ -424,6 +434,43 @@
         color: var(--text);
         font-size: 13px;
         font-weight: 600;
+      }
+
+      .stremio-addon-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+      }
+
+      .stremio-addon-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .stremio-addon-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--soft) 45%, transparent);
+      }
+
+      .stremio-addon-item strong {
+        display: block;
+        font-size: 13px;
+      }
+
+      .stremio-addon-item span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .checkbox-label {
@@ -699,6 +746,11 @@
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
           gap: 6px;
+        }
+
+        .stremio-addon-row,
+        .stremio-addon-item {
+          grid-template-columns: 1fr;
         }
 
         .settings-sidebar h2 {
