@@ -124,7 +124,7 @@
         grid-template-columns: auto minmax(0, 360px) auto;
         gap: 10px;
         align-items: center;
-        padding: 8px 12px 0;
+        padding: 8px 12px;
         max-width: calc(100vw - 24px);
         border-radius: 14px;
         background: rgba(0, 0, 0, 0.78);
@@ -352,13 +352,17 @@
 
       body.reader-images-ready.reader-controls-visible .reader-source-bar:not([hidden]) {
         top: max(12px, env(safe-area-inset-top));
-        left: max(104px, calc(env(safe-area-inset-left) + 104px));
+        left: max(106px, calc(env(safe-area-inset-left) + 106px));
         right: max(12px, env(safe-area-inset-right));
+        grid-template-columns: auto minmax(140px, 320px) minmax(0, auto);
+        justify-content: start;
       }
 
       body.reader-images-ready.reader-controls-visible .reader-control-bar {
-        top: calc(max(12px, env(safe-area-inset-top)) + 48px);
-        left: max(12px, env(safe-area-inset-left));
+        top: calc(max(12px, env(safe-area-inset-top)) + 52px);
+        left: 50%;
+        width: max-content;
+        transform: translateX(-50%);
       }
 
       .reader-bottom-back {
@@ -431,6 +435,8 @@
           top: calc(max(12px, env(safe-area-inset-top)) + 116px);
           left: max(12px, env(safe-area-inset-left));
           right: max(12px, env(safe-area-inset-right));
+          width: auto;
+          transform: none;
         }
 
         .reader-pages[data-mode="double"] {

@@ -93,6 +93,7 @@ function injectChrome() {
         ${(page === "anime" || page === "manga") ? `<button class="icon-btn nav-search-toggle" data-browse-filter-toggle type="button" aria-label="Show search and filters" aria-expanded="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 18.4a7.7 7.7 0 1 1 5.4-13.1 7.7 7.7 0 0 1 0 10.8l4.1 4.1-2 2-4.1-4.1a7.6 7.6 0 0 1-3.4.8Zm0-3a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Z"/></svg>
         </button>` : ""}
+        <button class="icon-btn theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">${themeIcon()}</button>
         <div class="profile-menu">
           <button class="icon-btn profile-btn" data-profile-toggle type="button" aria-label="Open profile settings">AT</button>
           <div class="profile-popover" data-profile-popover>
@@ -106,7 +107,6 @@ function injectChrome() {
             </div>
           </div>
         </div>
-        <button class="icon-btn theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">${themeIcon()}</button>
       </div>`
     );
   }
@@ -3343,16 +3343,11 @@ function compactText(value, maxLength) {
 }
 
 function setupReaderControlsVisibility() {
-  const display = document.querySelector("[data-chapter-display]");
-  if (!display) return;
-
   document.body.classList.remove("reader-controls-visible", "reader-images-ready");
-  display.addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     if (event.target.closest("button, a, select, input, textarea, label")) return;
-    const rect = display.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const x = (event.clientX - rect.left) / rect.width;
-    const y = (event.clientY - rect.top) / rect.height;
+    const x = event.clientX / Math.max(1, window.innerWidth);
+    const y = event.clientY / Math.max(1, window.innerHeight);
     if (x < 0.25 || x > 0.75 || y < 0.15 || y > 0.85) return;
     document.body.classList.toggle("reader-controls-visible");
   });
