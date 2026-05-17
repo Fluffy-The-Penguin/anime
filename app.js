@@ -13,6 +13,9 @@ const MANGA_SOURCES = [
   { id: "asura", name: "Asura Scans", description: "Good for webtoon/manhwa titles hosted by Asura." },
   { id: "mangakatana", name: "MangaKatana", description: "Broad manga/manhwa catalog with many chapter lists." },
   { id: "weebcentral", name: "WeebCentral", description: "Large web manga catalog with fast chapter lists and page images." },
+  { id: "flamecomics", name: "Flame Comics", description: "Scanlation source with Flame-hosted webtoon chapters." },
+  { id: "rizzcomic", name: "Rizz Comic", description: "WordPress manga/manhwa source with fast chapter pages." },
+  { id: "toonily", name: "Toonily", description: "Large manhwa catalog; availability may depend on upstream anti-bot checks." },
 ];
 const fallbackImage = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80";
 
@@ -3329,7 +3332,7 @@ function mangaSourceKey(manga) {
 }
 
 function providerLabel(provider) {
-  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral" }[provider] || provider || "Source");
+  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", toonily: "Toonily" }[provider] || provider || "Source");
 }
 
 function mangaSourceOptionLabel(source, count = null) {
@@ -3465,7 +3468,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
     </div>
   `;
 
-  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral") && chapter.id) {
+  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral" || chapter.provider === "flamecomics" || chapter.provider === "rizzcomic" || chapter.provider === "toonily") && chapter.id) {
     try {
       const data = await fetchApiJson(`/api/manga/pages?chapterId=${encodeURIComponent(chapter.id)}`);
       if (data.pages?.length) {
