@@ -38,7 +38,7 @@
               <span>🎬</span> Anime Extensions
             </button>
             <button class="settings-nav-btn" data-section="extensions-manga" type="button">
-              <span>📖</span> Manga Extensions
+              <span>📖</span> Manga Sources
             </button>
             <button class="settings-nav-btn" data-section="data" type="button">
               <span>💾</span> Data
@@ -179,11 +179,11 @@
             </div>
           </section>
 
-          <!-- Manga Extensions Section -->
+          <!-- Manga Sources Section -->
           <section class="settings-section" data-section-content="extensions-manga">
             <div class="section-header">
-              <h2>Manga Extensions</h2>
-              <p class="muted">Manage manga reading sources</p>
+              <h2>Manga Sources</h2>
+              <p class="muted">Choose which real manga providers AniTrack should search</p>
             </div>
 
             <div class="extensions-grid" data-manga-extensions>
@@ -248,8 +248,8 @@
 
       .settings-layout {
         display: grid;
-        grid-template-columns: 220px minmax(0, 1fr);
-        gap: 28px;
+        grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+        gap: clamp(16px, 3vw, 28px);
         margin: 24px 0;
         align-items: start;
       }
@@ -259,7 +259,10 @@
         top: 100px;
         max-height: calc(100vh - 120px);
         overflow-y: auto;
-        padding-right: 12px;
+        padding: 14px;
+        border: 1px solid color-mix(in srgb, var(--theme-primary) 14%, var(--line));
+        border-radius: 18px;
+        background: color-mix(in srgb, var(--solid) 52%, transparent);
       }
 
       .settings-sidebar::-webkit-scrollbar {
@@ -317,6 +320,7 @@
       .settings-content {
         display: grid;
         gap: 24px;
+        min-width: 0;
       }
 
       .settings-section {
@@ -326,7 +330,8 @@
         box-shadow: var(--shadow);
         backdrop-filter: blur(20px);
         border-radius: 18px;
-        padding: 24px;
+        padding: clamp(16px, 3vw, 24px);
+        overflow: hidden;
       }
 
       .settings-section.active {
@@ -427,6 +432,8 @@
 
       .form-group select,
       .form-group input[type="url"] {
+        width: 100%;
+        min-width: 0;
         padding: 8px 12px;
         border: 1px solid var(--line);
         border-radius: 8px;
@@ -549,7 +556,7 @@
 
       .extensions-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
         gap: 12px;
       }
 
@@ -719,7 +726,7 @@
 
       @media (max-width: 900px) {
         .settings-layout {
-          grid-template-columns: 180px minmax(0, 1fr);
+          grid-template-columns: minmax(160px, 200px) minmax(0, 1fr);
           gap: 20px;
         }
 
@@ -735,17 +742,23 @@
       @media (max-width: 720px) {
         .settings-layout {
           grid-template-columns: 1fr;
-          gap: 16px;
+          gap: 12px;
+          margin-top: 12px;
         }
 
         .settings-sidebar {
-          position: static;
+          position: sticky;
+          top: 0;
+          z-index: 20;
           max-height: none;
-          overflow-y: visible;
-          padding-right: 0;
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-          gap: 6px;
+          overflow-x: auto;
+          overflow-y: hidden;
+          margin: 0 -18px;
+          padding: 10px 18px;
+          border-width: 0 0 1px;
+          border-radius: 0;
+          background: color-mix(in srgb, var(--bg) 88%, transparent);
+          backdrop-filter: blur(16px);
         }
 
         .stremio-addon-row,
@@ -758,15 +771,19 @@
         }
 
         .settings-nav {
-          grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-          gap: 6px;
+          display: flex;
+          gap: 8px;
+          min-width: max-content;
         }
 
         .settings-nav-btn {
-          font-size: 11px;
-          padding: 8px;
-          flex-direction: column;
+          flex: 0 0 auto;
+          font-size: 12px;
+          padding: 9px 11px;
+          flex-direction: row;
           text-align: center;
+          white-space: nowrap;
+          background: color-mix(in srgb, var(--soft) 35%, transparent);
         }
 
         .settings-nav-btn.active {
@@ -776,7 +793,7 @@
         }
 
         .settings-section {
-          padding: 16px;
+          border-radius: 14px;
         }
 
         .section-header {
@@ -790,6 +807,12 @@
         .theme-buttons,
         .button-group {
           grid-template-columns: 1fr;
+        }
+
+        .extensions-pagination,
+        .extension-footer,
+        .color-input-row {
+          flex-wrap: wrap;
         }
 
         .about-item {

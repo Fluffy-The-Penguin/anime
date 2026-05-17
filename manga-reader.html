@@ -23,6 +23,8 @@
       <div class="reader-container">
         <!-- Reader Main Section -->
         <section class="reader-main">
+          <button class="reader-back-button" data-reader-back type="button" aria-label="Go back">&lt;- Back</button>
+
           <div class="reader-header">
             <h2 data-manga-title>Manga Title</h2>
             <div class="reader-top-actions">
@@ -70,6 +72,8 @@
             <span class="chapter-info" data-chapter-info>Chapter Loading</span>
             <button class="btn secondary" data-next-chapter type="button">Next →</button>
           </div>
+
+          <button class="btn secondary reader-bottom-back" data-reader-back type="button">&lt;- Back</button>
         </section>
 
       </div>
@@ -283,6 +287,26 @@
         min-height: 38px;
       }
 
+      .reader-back-button {
+        position: fixed;
+        top: max(12px, env(safe-area-inset-top));
+        left: max(12px, env(safe-area-inset-left));
+        z-index: 9999;
+        min-height: 34px;
+        border: 0;
+        border-radius: 999px;
+        padding: 0 12px;
+        background: #161616;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .reader-bottom-back {
+        justify-self: center;
+        margin-bottom: 18px;
+      }
+
       .reader-top-button {
         position: fixed;
         right: 18px;
@@ -326,7 +350,8 @@
         }
 
         .reader-control-bar {
-          grid-template-columns: 1fr;
+          grid-template-columns: auto 92px auto 128px;
+          overflow-x: auto;
         }
 
         .reader-pages[data-mode="double"] {

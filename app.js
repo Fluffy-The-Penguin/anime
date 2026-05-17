@@ -4,9 +4,15 @@ const LEGACY_STORAGE_KEYS = ["anitrack-library-v2"];
 const THEME_KEY = "anitrack-theme";
 const SETTINGS_KEY = "anitrack-settings-v1";
 const DETAIL_CACHE_KEY = "anitrack-last-detail";
+const MANGA_CHAPTER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const BROWSE_PAGE_SIZE = 28;
 const API_BASE_KEY = "anitrack-api-base";
 const DEFAULT_API_BASE_URL = "http://localhost:3000";
+const MANGA_SOURCES = [
+  { id: "mangadex", name: "MangaDex", description: "Official open manga API. Best for licensed scanlation metadata and stable pages." },
+  { id: "asura", name: "Asura Scans", description: "Good for webtoon/manhwa titles hosted by Asura." },
+  { id: "mangakatana", name: "MangaKatana", description: "Broad manga/manhwa catalog with many chapter lists." },
+];
 const fallbackImage = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80";
 
 applyStoredTheme();
@@ -59,6 +65,10 @@ function init() {
 }
 
 function setupMobileNavMode() {
+  if (page === "reader") {
+    document.body.classList.remove("is-scrolled", "mobile-nav-floating");
+    return;
+  }
   const media = window.matchMedia?.("(max-width: 720px)");
   const update = () => {
     const isMobile = media ? media.matches : window.innerWidth <= 720;
@@ -1495,46 +1505,112 @@ async function initMangaDetailSources(root, manga) {
     const savedSource = localStorage.getItem(mangaSourceKey(manga));
     if (savedSource && matches.some((match) => match.id === savedSource)) sourceSelect.value = savedSource;
 
-    const sourceResults = await Promise.all(matches.map(async (match) => {
-      try {
-        const chapters = await fetchApiJson(`/api/manga/chapters?mangaId=${encodeURIComponent(match.id)}`);
-        return { ...match, chapters: chapters.map((chapter) => ({ ...chapter, image: manga.image })) };
-      } catch (error) {
-        return { ...match, chapters: [] };
-      }
-    }));
+    const sourceResults = matches.map((match) => {
+      const cached = readCachedMangaChapters(match.id);
+      return {
+        ...match,
+        chapters: cached ? cached.map((chapter) => ({ ...chapter, image: manga.image })) : null,
+        chapterCount: cached?.length || Number(match.chapterCount || 0),
+      };
+    });
 
-    const renderSource = () => {
+    const renderOptions = () => {
+      sourceSelect.innerHTML = sourceResults.map((item) => {
+        const count = Array.isArray(item.chapters) ? item.chapters.length : item.chapterCount || "?";
+        return `<option value="${escapeAttr(item.id)}">${escapeHtml(providerLabel(item.provider))}: ${escapeHtml(item.title)} (${count})</option>`;
+      }).join("");
+    };
+
+    const renderSource = async () => {
       const source = sourceResults.find((item) => item.id === sourceSelect.value) || sourceResults[0];
       localStorage.setItem(mangaSourceKey(manga), source.id);
-      sourceCount.textContent = `${source.chapters.length} chapter${source.chapters.length === 1 ? "" : "s"}`;
-      sourceSelect.innerHTML = sourceResults.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(providerLabel(item.provider))}: ${escapeHtml(item.title)} (${item.chapters.length})</option>`).join("");
+      renderOptions();
       sourceSelect.value = source.id;
+
+      if (!Array.isArray(source.chapters)) {
+        sourceCount.textContent = source.chapterCount ? `${source.chapterCount} chapters / loading list...` : "Loading chapters...";
+        chapterList.innerHTML = '<div class="empty">Loading chapters from this source...</div>';
+        try {
+          source.chapters = await fetchMangaChaptersCached(source, manga);
+        } catch (error) {
+          source.chapters = [];
+        }
+        source.chapterCount = source.chapters.length;
+        renderOptions();
+        sourceSelect.value = source.id;
+      }
+
+      sourceCount.textContent = `${source.chapters.length} chapter${source.chapters.length === 1 ? "" : "s"}`;
       renderMangaDetailChapterList(chapterList, manga, source);
     };
 
     sourceSelect.addEventListener("change", renderSource);
-    renderSource();
+    await renderSource();
   } catch (error) {
     sourceSelect.innerHTML = '<option value="">Source unavailable</option>';
     sourceCount.textContent = "Could not load chapters";
   }
 }
 
-function renderMangaDetailChapterList(container, manga, source) {
+async function fetchMangaChaptersCached(source, manga) {
+  const cached = readCachedMangaChapters(source.id);
+  if (cached) return cached.map((chapter) => ({ ...chapter, image: manga.image }));
+
+  const chapters = await fetchApiJson(`/api/manga/chapters?mangaId=${encodeURIComponent(source.id)}`);
+  writeCachedMangaChapters(source.id, chapters);
+  return chapters.map((chapter) => ({ ...chapter, image: manga.image }));
+}
+
+function readCachedMangaChapters(sourceId) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(mangaChapterCacheKey(sourceId)) || "null");
+    if (!cached || Date.now() - cached.time > MANGA_CHAPTER_CACHE_TTL_MS || !Array.isArray(cached.chapters)) return null;
+    return cached.chapters;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeCachedMangaChapters(sourceId, chapters) {
+  try {
+    localStorage.setItem(mangaChapterCacheKey(sourceId), JSON.stringify({ time: Date.now(), chapters }));
+  } catch (error) {
+    // Cache is optional; continue if browser storage is full or blocked.
+  }
+}
+
+function mangaChapterCacheKey(sourceId) {
+  return `manga-chapters:${sourceId}`;
+}
+
+function renderMangaDetailChapterList(container, manga, source, pageNumber = 1) {
   if (!source.chapters.length) {
     container.innerHTML = '<div class="empty">No chapters returned by this source.</div>';
     return;
   }
 
   const chapters = [...source.chapters].sort(compareChaptersDesc);
-  container.innerHTML = chapters.map((chapter) => `
+  const pageSize = 40;
+  const totalPages = Math.max(1, Math.ceil(chapters.length / pageSize));
+  const currentPage = Math.min(Math.max(1, pageNumber), totalPages);
+  const pageChapters = chapters.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  container.innerHTML = `
+    ${pageChapters.map((chapter) => `
     <button type="button" class="chapter-row detail-chapter-row" data-detail-read-chapter data-chapter-data="${escapeAttr(JSON.stringify(chapter))}">
       <img src="${escapeAttr(chapter.image || manga.image || fallbackImage)}" alt="${escapeAttr(chapter.title)} thumbnail" loading="lazy">
       <span>${escapeHtml(chapter.title || `Chapter ${chapter.number}`)}</span>
       <small>${escapeHtml(chapter.date || "Date TBA")}</small>
     </button>
-  `).join("");
+    `).join("")}
+    ${totalPages > 1 ? `
+      <div class="detail-chapter-pagination">
+        <button class="btn secondary" data-detail-chapter-prev type="button" ${currentPage <= 1 ? "disabled" : ""}>Previous</button>
+        <span>Page ${currentPage} / ${totalPages}</span>
+        <button class="btn secondary" data-detail-chapter-next type="button" ${currentPage >= totalPages ? "disabled" : ""}>Next</button>
+      </div>
+    ` : ""}
+  `;
 
   container.querySelectorAll("[data-detail-read-chapter]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1551,6 +1627,9 @@ function renderMangaDetailChapterList(container, manga, source) {
       window.location.href = `manga-reader.html?type=${manga.type}&id=${manga.apiId}`;
     });
   });
+
+  container.querySelector("[data-detail-chapter-prev]")?.addEventListener("click", () => renderMangaDetailChapterList(container, manga, source, currentPage - 1));
+  container.querySelector("[data-detail-chapter-next]")?.addEventListener("click", () => renderMangaDetailChapterList(container, manga, source, currentPage + 1));
 }
 
 function compareChaptersDesc(a, b) {
@@ -1751,10 +1830,19 @@ function animeQueryDefs(baseDefs) {
 
 function loadSettings() {
   try {
-    return { allowAdult: false, ...(JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}) };
+    return { allowAdult: false, mangaSources: defaultMangaSources(), ...(JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}) };
   } catch (error) {
-    return { allowAdult: false };
+    return { allowAdult: false, mangaSources: defaultMangaSources() };
   }
+}
+
+function defaultMangaSources() {
+  return Object.fromEntries(MANGA_SOURCES.map((source) => [source.id, true]));
+}
+
+function enabledMangaProviderIds() {
+  const enabled = { ...defaultMangaSources(), ...(state.settings.mangaSources || {}) };
+  return MANGA_SOURCES.filter((source) => enabled[source.id]).map((source) => source.id);
 }
 
 function persistSettings() {
@@ -2257,33 +2345,26 @@ async function loadMangaExtensionsNew() {
   const container = document.querySelector("[data-manga-extensions]");
   if (!container) return;
 
-  container.innerHTML = '<div class="loading-state">Loading manga readers...</div>';
+  const enabled = { ...defaultMangaSources(), ...(state.settings.mangaSources || {}) };
+  container.innerHTML = MANGA_SOURCES.map((source) => `
+    <div class="extension-card">
+      <h4>${escapeHtml(source.name)}</h4>
+      <p>${escapeHtml(source.description)}</p>
+      <div class="extension-footer">
+        <span class="extension-version">Real source</span>
+        <input type="checkbox" class="extension-toggle" data-manga-provider-toggle="${escapeAttr(source.id)}" aria-label="Enable ${escapeAttr(source.name)}" ${enabled[source.id] ? "checked" : ""}>
+      </div>
+    </div>
+  `).join("");
 
-  try {
-    const extensions = await fetchApiJson("/api/extensions/manga?limit=2000");
-
-    if (!extensions.length) {
-      container.innerHTML = '<div class="loading-state">No manga readers available</div>';
-      return;
-    }
-
-    renderExtensionsGrid(
-      container,
-      extensions.map((ext) => ({
-        type: "manga",
-        id: ext.id || ext.key || ext.name,
-        name: ext.name || "Unknown",
-        version: ext.versionCode || ext.version || "1.0",
-        description: ext.description || `${ext.lang || "Unknown language"} manga source`,
-        lang: ext.lang || "unknown",
-        nsfw: Boolean(ext.nsfw),
-        url: ext.url || ext.sources?.[0]?.baseUrl || "",
-      }))
-    );
-  } catch (error) {
-    console.error("Failed to load manga extensions:", error);
-    container.innerHTML = '<div class="loading-state">Failed to load manga readers</div>';
-  }
+  container.querySelectorAll("[data-manga-provider-toggle]").forEach((toggle) => {
+    toggle.addEventListener("change", () => {
+      state.settings.mangaSources = { ...defaultMangaSources(), ...(state.settings.mangaSources || {}) };
+      state.settings.mangaSources[toggle.dataset.mangaProviderToggle] = toggle.checked;
+      persistSettings();
+      showToast(`${toggle.checked ? "Enabled" : "Disabled"} ${providerLabel(toggle.dataset.mangaProviderToggle)}`);
+    });
+  });
 }
 
 function renderExtensionsGrid(container, extensions) {
@@ -2404,6 +2485,7 @@ function enabledExtensionLinks(type) {
 }
 
 function extensionSourceCards(type) {
+  if (type === "manga") return "";
   const links = enabledExtensionLinks(type);
   if (!links.length) return "";
 
@@ -3075,6 +3157,12 @@ async function initReaderPage() {
   document.querySelector("[data-reader-top]")?.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
+  document.querySelectorAll("[data-reader-back]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (history.length > 1) history.back();
+      else window.location.href = `details.html?type=${type}&id=${apiId || manga.apiId}`;
+    });
+  });
 
   // Setup source and chapter list
   const mangaSources = await loadMangaSourceMatches(manga);
@@ -3116,7 +3204,9 @@ function buildChapters(manga) {
 
 async function loadMangaSourceMatches(manga) {
   try {
-    const matches = await fetchApiJson(`/api/manga/search?title=${encodeURIComponent(manga.title)}`);
+    const providers = enabledMangaProviderIds();
+    if (!providers.length) return [];
+    const matches = await fetchApiJson(`/api/manga/search?title=${encodeURIComponent(manga.title)}&providers=${encodeURIComponent(providers.join(","))}`);
     return matches
       .map((match) => ({ ...match, score: titleSimilarity(manga.title, match.title) }))
       .sort((a, b) => b.score - a.score)
@@ -3226,7 +3316,7 @@ function mangaSourceKey(manga) {
 }
 
 function providerLabel(provider) {
-  return ({ mangadex: "MangaDex", asura: "Asura Scans" }[provider] || provider || "Source");
+  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana" }[provider] || provider || "Source");
 }
 
 function readerStartChapter(manga, providerId) {
@@ -3340,7 +3430,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
     </div>
   `;
 
-  if ((chapter.provider === "mangadex" || chapter.provider === "asura") && chapter.id) {
+  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana") && chapter.id) {
     try {
       const data = await fetchApiJson(`/api/manga/pages?chapterId=${encodeURIComponent(chapter.id)}`);
       if (data.pages?.length) {
@@ -3348,7 +3438,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
         if (sources) {
           sources.innerHTML = `
             <div class="empty" style="padding: 12px; text-align: center;">
-              <p class="muted" style="margin: 0;">Reading from ${chapter.provider === "asura" ? "Asura Scans" : "MangaDex"} (${data.pages.length} pages)</p>
+              <p class="muted" style="margin: 0;">Reading from ${providerLabel(chapter.provider)} (${data.pages.length} pages)</p>
             </div>
           `;
         }
@@ -3356,7 +3446,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
         return;
       }
     } catch (error) {
-      showToast("Could not load MangaDex pages; trying torrents");
+      showToast("Could not load provider pages; trying torrents");
     }
   }
 
@@ -3430,7 +3520,6 @@ function renderChapterPages(display, pages, chapter) {
   display.innerHTML = "";
   display.appendChild(wrapper);
   display.scrollTop = 0;
-  window.scrollTo({ top: Math.max(display.getBoundingClientRect().top + window.scrollY - 90, 0), behavior: "smooth" });
 
   const loadNext = (index) => {
     if (index >= pages.length) return;
