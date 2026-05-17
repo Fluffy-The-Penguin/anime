@@ -120,11 +120,18 @@
       }
 
       .reader-source-bar {
-        display: grid;
-        grid-template-columns: auto minmax(180px, 1fr) auto;
+        display: none;
+        grid-template-columns: auto minmax(0, 360px) auto;
         gap: 10px;
         align-items: center;
         padding: 8px 12px 0;
+        max-width: calc(100vw - 24px);
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.78);
+      }
+
+      body.reader-controls-visible .reader-source-bar:not([hidden]) {
+        display: grid;
       }
 
       .reader-source-bar label {
@@ -135,7 +142,16 @@
         letter-spacing: 0.05em;
       }
 
+      .reader-source-bar .muted {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
       .reader-source-bar select {
+        width: min(360px, 52vw);
+        max-width: 100%;
         min-height: 36px;
         padding: 7px 10px;
         border: 0;
@@ -143,15 +159,25 @@
         background: #0b0b0b;
         color: var(--text);
         font-size: 13px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .reader-control-bar {
-        display: grid;
+        display: none;
         grid-template-columns: auto max-content auto max-content;
         gap: 10px;
         align-items: center;
         justify-content: start;
         padding: 8px 12px;
+        max-width: calc(100vw - 24px);
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.78);
+      }
+
+      body.reader-controls-visible .reader-control-bar {
+        display: grid;
       }
 
       .reader-control-bar label {
@@ -288,7 +314,9 @@
       }
 
       .reader-back-button {
-        position: fixed;
+        display: none;
+        align-items: center;
+        position: static;
         top: max(12px, env(safe-area-inset-top));
         left: max(12px, env(safe-area-inset-left));
         z-index: 9999;
@@ -302,6 +330,37 @@
         font-weight: 800;
       }
 
+      body.reader-controls-visible .reader-back-button {
+        display: inline-flex;
+        justify-self: start;
+        margin: 12px 12px 0;
+      }
+
+      body.reader-images-ready.reader-controls-visible .reader-back-button,
+      body.reader-images-ready.reader-controls-visible .reader-source-bar,
+      body.reader-images-ready.reader-controls-visible .reader-control-bar {
+        position: fixed;
+        z-index: 9999;
+        margin: 0;
+        backdrop-filter: blur(14px);
+      }
+
+      body.reader-images-ready.reader-controls-visible .reader-back-button {
+        top: max(12px, env(safe-area-inset-top));
+        left: max(12px, env(safe-area-inset-left));
+      }
+
+      body.reader-images-ready.reader-controls-visible .reader-source-bar:not([hidden]) {
+        top: max(12px, env(safe-area-inset-top));
+        left: max(104px, calc(env(safe-area-inset-left) + 104px));
+        right: max(12px, env(safe-area-inset-right));
+      }
+
+      body.reader-images-ready.reader-controls-visible .reader-control-bar {
+        top: calc(max(12px, env(safe-area-inset-top)) + 48px);
+        left: max(12px, env(safe-area-inset-left));
+      }
+
       .reader-bottom-back {
         justify-self: center;
         margin-bottom: 18px;
@@ -312,7 +371,7 @@
         right: 18px;
         bottom: 18px;
         z-index: 9999;
-        display: grid;
+        display: none;
         place-items: center;
         width: 42px;
         height: 42px;
@@ -324,6 +383,10 @@
         font-weight: 800;
         line-height: 1;
         opacity: 1;
+      }
+
+      body.reader-controls-visible .reader-top-button {
+        display: grid;
       }
 
       .chapters-list[hidden] {
@@ -349,9 +412,25 @@
           grid-template-columns: 1fr;
         }
 
+        .reader-source-bar select {
+          width: min(100%, calc(100vw - 48px));
+        }
+
         .reader-control-bar {
           grid-template-columns: auto 92px auto 128px;
           overflow-x: auto;
+        }
+
+        body.reader-images-ready.reader-controls-visible .reader-source-bar:not([hidden]) {
+          top: calc(max(12px, env(safe-area-inset-top)) + 46px);
+          left: max(12px, env(safe-area-inset-left));
+          right: max(12px, env(safe-area-inset-right));
+        }
+
+        body.reader-images-ready.reader-controls-visible .reader-control-bar {
+          top: calc(max(12px, env(safe-area-inset-top)) + 116px);
+          left: max(12px, env(safe-area-inset-left));
+          right: max(12px, env(safe-area-inset-right));
         }
 
         .reader-pages[data-mode="double"] {

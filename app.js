@@ -12,6 +12,7 @@ const MANGA_SOURCES = [
   { id: "mangadex", name: "MangaDex", description: "Official open manga API. Best for licensed scanlation metadata and stable pages." },
   { id: "asura", name: "Asura Scans", description: "Good for webtoon/manhwa titles hosted by Asura." },
   { id: "mangakatana", name: "MangaKatana", description: "Broad manga/manhwa catalog with many chapter lists." },
+  { id: "weebcentral", name: "WeebCentral", description: "Large web manga catalog with fast chapter lists and page images." },
 ];
 const fallbackImage = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80";
 
@@ -1501,7 +1502,7 @@ async function initMangaDetailSources(root, manga) {
       return;
     }
 
-    sourceSelect.innerHTML = matches.map((match) => `<option value="${escapeAttr(match.id)}">${escapeHtml(providerLabel(match.provider))}: ${escapeHtml(match.title)}</option>`).join("");
+    sourceSelect.innerHTML = matches.map((match) => `<option value="${escapeAttr(match.id)}">${escapeHtml(mangaSourceOptionLabel(match))}</option>`).join("");
     const savedSource = localStorage.getItem(mangaSourceKey(manga));
     if (savedSource && matches.some((match) => match.id === savedSource)) sourceSelect.value = savedSource;
 
@@ -1517,7 +1518,7 @@ async function initMangaDetailSources(root, manga) {
     const renderOptions = () => {
       sourceSelect.innerHTML = sourceResults.map((item) => {
         const count = Array.isArray(item.chapters) ? item.chapters.length : item.chapterCount || "?";
-        return `<option value="${escapeAttr(item.id)}">${escapeHtml(providerLabel(item.provider))}: ${escapeHtml(item.title)} (${count})</option>`;
+        return `<option value="${escapeAttr(item.id)}">${escapeHtml(mangaSourceOptionLabel(item, count))}</option>`;
       }).join("");
     };
 
@@ -1597,8 +1598,7 @@ function renderMangaDetailChapterList(container, manga, source, pageNumber = 1) 
 
   container.innerHTML = `
     ${pageChapters.map((chapter) => `
-    <button type="button" class="chapter-row detail-chapter-row" data-detail-read-chapter data-chapter-data="${escapeAttr(JSON.stringify(chapter))}">
-      <img src="${escapeAttr(chapter.image || manga.image || fallbackImage)}" alt="${escapeAttr(chapter.title)} thumbnail" loading="lazy">
+    <button type="button" class="chapter-row detail-chapter-row detail-manga-chapter-row" data-detail-read-chapter data-chapter-data="${escapeAttr(JSON.stringify(chapter))}">
       <span>${escapeHtml(chapter.title || `Chapter ${chapter.number}`)}</span>
       <small>${escapeHtml(chapter.date || "Date TBA")}</small>
     </button>
@@ -3153,6 +3153,7 @@ async function initReaderPage() {
   document.querySelector("[data-manga-title]").textContent = manga.title;
 
   setupReadingMode();
+  setupReaderControlsVisibility();
 
   document.querySelector("[data-reader-top]")?.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -3234,7 +3235,7 @@ function renderMangaSourceSelector(matches, manga) {
   bar.hidden = false;
   select.disabled = false;
   select.innerHTML = matches.map((match) => `
-    <option value="${escapeAttr(match.id)}">${escapeHtml(providerLabel(match.provider))}: ${escapeHtml(match.title)}</option>
+    <option value="${escapeAttr(match.id)}">${escapeHtml(mangaSourceOptionLabel(match))}</option>
   `).join("");
 
   const saved = localStorage.getItem(mangaSourceKey(manga));
@@ -3316,7 +3317,33 @@ function mangaSourceKey(manga) {
 }
 
 function providerLabel(provider) {
-  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana" }[provider] || provider || "Source");
+  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral" }[provider] || provider || "Source");
+}
+
+function mangaSourceOptionLabel(source, count = null) {
+  const suffix = count == null ? "" : ` (${count})`;
+  return `${providerLabel(source.provider)}: ${compactText(source.title, 34)}${suffix}`;
+}
+
+function compactText(value, maxLength) {
+  const text = String(value || "").trim();
+  return text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…` : text;
+}
+
+function setupReaderControlsVisibility() {
+  const display = document.querySelector("[data-chapter-display]");
+  if (!display) return;
+
+  document.body.classList.remove("reader-controls-visible", "reader-images-ready");
+  display.addEventListener("click", (event) => {
+    if (event.target.closest("button, a, select, input, textarea, label")) return;
+    const rect = display.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const x = (event.clientX - rect.left) / rect.width;
+    const y = (event.clientY - rect.top) / rect.height;
+    if (x < 0.25 || x > 0.75 || y < 0.15 || y > 0.85) return;
+    document.body.classList.toggle("reader-controls-visible");
+  });
 }
 
 function readerStartChapter(manga, providerId) {
@@ -3421,6 +3448,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
   const sources = document.querySelector("[data-manga-sources]");
 
   info.textContent = `${chapter.title} (${chapterNumber}/${manga.total || "?"})`;
+  document.body.classList.remove("reader-images-ready");
 
   // Show loading
   display.innerHTML = `
@@ -3430,7 +3458,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
     </div>
   `;
 
-  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana") && chapter.id) {
+  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral") && chapter.id) {
     try {
       const data = await fetchApiJson(`/api/manga/pages?chapterId=${encodeURIComponent(chapter.id)}`);
       if (data.pages?.length) {
@@ -3512,6 +3540,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
 }
 
 function renderChapterPages(display, pages, chapter) {
+  document.body.classList.add("reader-images-ready");
   const wrapper = document.createElement("div");
   wrapper.className = "reader-pages";
   wrapper.dataset.readerPages = "";

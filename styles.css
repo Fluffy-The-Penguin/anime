@@ -1644,15 +1644,22 @@ body[data-page="details"] .details-panel {
 
 .detail-episode-head .detail-source-picker {
   min-width: 0;
+  max-width: min(420px, 100%);
+  overflow: hidden;
 }
 
 .detail-source-picker select {
+  width: min(320px, 46vw);
+  max-width: 100%;
   min-height: 30px;
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 8px;
   padding: 4px 8px;
   background: rgba(5, 7, 12, 0.86);
   color: #f2f2f5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-list-filter {
@@ -1739,6 +1746,10 @@ body[data-page="details"] .details-panel {
   width: 112px;
   height: 64px;
   border-radius: 2px;
+}
+
+.detail-manga-chapter-row {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .detail-chapter-row span {
