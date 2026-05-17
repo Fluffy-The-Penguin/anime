@@ -396,7 +396,7 @@ async function initDetailsPage() {
 
   try {
     const freshItem = type === "anime" ? await fetchAnimeDetails(apiId) : await fetchMangaDetails(apiId);
-    state.current = { ...freshItem, ...state.library[freshItem.id] };
+    state.current = mergeFreshDetail(freshItem, state.library[freshItem.id]);
     renderDetails(root, state.current);
   } catch (error) {
     if (cachedItem) {
@@ -1504,6 +1504,19 @@ function renderDetailsError(root, message) {
   root.innerHTML = `<div class="details-loading panel"><h2>Details unavailable</h2><p class="muted">${escapeHtml(message)}</p><a class="btn" href="anime.html">Browse Anime</a></div>`;
 }
 
+function mergeFreshDetail(freshItem, trackedItem) {
+  if (!trackedItem) return freshItem;
+  return {
+    ...trackedItem,
+    ...freshItem,
+    status: trackedItem.status || freshItem.status,
+    progress: trackedItem.progress ?? 0,
+    rating: trackedItem.rating ?? "",
+    notes: trackedItem.notes ?? "",
+    updatedAt: trackedItem.updatedAt || freshItem.updatedAt,
+  };
+}
+
 async function initMangaDetailSources(root, manga) {
   const sourceSelect = root.querySelector("[data-detail-manga-source]");
   const sourceCount = root.querySelector("[data-detail-manga-source-count]");
@@ -1643,7 +1656,7 @@ function sourceResultWithCache(match, manga) {
 }
 
 async function searchMangaProviderMatch(manga, provider, customTitle = "") {
-  const searchTitles = customTitle ? uniqueStrings([customTitle, ...mangaSourceSearchTitles(manga)]).slice(0, 8) : mangaSourceSearchTitles(manga);
+  const searchTitles = customTitle ? uniqueStrings([customTitle, ...mangaSourceSearchTitles(manga)]) : mangaSourceSearchTitles(manga);
   const results = await Promise.allSettled(searchTitles.map((title) =>
     fetchApiJson(`/api/manga/search?title=${encodeURIComponent(title)}&providers=${encodeURIComponent(provider)}`)
       .then((matches) => matches.map((match) => ({ ...match, searchTitle: title })))
@@ -3326,7 +3339,7 @@ async function loadMangaSourceMatches(manga, customTitle = "") {
   try {
     const providers = enabledMangaProviderIds();
     if (!providers.length) return [];
-    const searchTitles = customTitle ? uniqueStrings([customTitle, ...mangaSourceSearchTitles(manga)]).slice(0, 8) : mangaSourceSearchTitles(manga);
+    const searchTitles = customTitle ? uniqueStrings([customTitle, ...mangaSourceSearchTitles(manga)]) : mangaSourceSearchTitles(manga);
     const results = await Promise.allSettled(searchTitles.map((title) =>
       fetchApiJson(`/api/manga/search?title=${encodeURIComponent(title)}&providers=${encodeURIComponent(providers.join(","))}`)
         .then((matches) => matches.map((match) => ({ ...match, searchTitle: title })))
@@ -3346,7 +3359,7 @@ function mangaSourceSearchTitles(manga) {
     manga.title,
     manga.romajiTitle,
     manga.nativeTitle,
-  ]).filter((title) => title.length > 1).slice(0, 8);
+  ]).filter((title) => title.length > 1);
 }
 
 function bestMangaSourceMatches(matches, titles, providers) {
