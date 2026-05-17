@@ -1642,6 +1642,19 @@ body[data-page="details"] .details-panel {
   background: transparent;
 }
 
+.detail-episode-head .detail-source-picker {
+  min-width: 0;
+}
+
+.detail-source-picker select {
+  min-height: 30px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: rgba(5, 7, 12, 0.86);
+  color: #f2f2f5;
+}
+
 .detail-list-filter {
   margin-bottom: 18px;
   padding: 20px 14px;
@@ -3952,5 +3965,29 @@ body[data-page="manga"].browse-filters-open .browse-toolbar {
   max-height: 520px !important;
   opacity: 1 !important;
   transform: translateY(0) !important;
+  pointer-events: auto !important;
+}
+
+body[data-page="reader"] > .topbar,
+body[data-page="reader"] > .topbar.shell,
+body[data-page="reader"] > .topbar.shell .brand,
+body[data-page="reader"] > .topbar.shell .nav,
+body[data-page="reader"] > .topbar.shell .top-actions,
+body[data-page="reader"] > .topbar.shell .menu-toggle,
+body[data-page="reader"] .mobile-bottom-nav {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body[data-page="reader"] .reader-top-button {
+  position: fixed !important;
+  right: max(14px, env(safe-area-inset-right)) !important;
+  bottom: max(14px, env(safe-area-inset-bottom)) !important;
+  z-index: 9999 !important;
+  display: grid !important;
+  place-items: center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
   pointer-events: auto !important;
 }

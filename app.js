@@ -1435,15 +1435,16 @@ function renderDetails(root, item, isTemporary = false) {
         </main>
       </div>
       <section class="detail-episodes">
-        <div class="detail-episode-head">
-          <h2>${active.type === "anime" ? "Episodes" : "Chapters"}</h2>
-          <button type="button">${active.type === "anime" ? "English Dub" : "Source"}</button>
+          <div class="detail-episode-head">
+            <h2>${active.type === "anime" ? "Episodes" : "Chapters"}</h2>
+          ${active.type === "manga" ? `<label class="detail-source-picker">Source <select data-detail-manga-source><option>Loading sources...</option></select></label>` : `<button type="button">English Dub</button>`}
+          ${active.type === "manga" ? `<span data-detail-manga-source-count>Loading chapters...</span>` : ""}
           <button type="button">Hide Watched ${active.type === "anime" ? "Episodes" : "Chapters"}</button>
           <span>${chapters.length ? "1" : "0"} / 1</span>
           <label>⌕ <input type="search" placeholder="Manually search for ${active.type}..." aria-label="Filter episodes"></label>
         </div>
         <div class="detail-list-filter">All ⌕ <span>|</span> ${escapeHtml(active.title)}</div>
-        <div class="chapter-list detail-chapter-list">${chapters.map((chapter, index) => `<button type="button" data-plus-progress class="chapter-row detail-chapter-row"><img src="${escapeAttr(chapter.image || active.image || fallbackImage)}" alt="${escapeAttr(chapter.title)} thumbnail" loading="lazy"><span>${index + 1}. ${escapeHtml(chapter.title)}</span><small>${escapeHtml(chapter.time)}</small></button>`).join("")}</div>
+        <div class="chapter-list detail-chapter-list" data-detail-chapter-list>${chapters.map((chapter, index) => `<button type="button" ${active.type === "anime" ? "data-plus-progress" : ""} class="chapter-row detail-chapter-row"><img src="${escapeAttr(chapter.image || active.image || fallbackImage)}" alt="${escapeAttr(chapter.title)} thumbnail" loading="lazy"><span>${index + 1}. ${escapeHtml(chapter.title)}</span><small>${escapeHtml(chapter.time)}</small></button>`).join("")}</div>
       </section>
     </section>
   `;
@@ -1458,6 +1459,7 @@ function renderDetails(root, item, isTemporary = false) {
     sessionStorage.setItem("reader-manga", JSON.stringify(active));
     window.location.href = `manga-reader.html?type=${active.type}&id=${active.apiId}`;
   });
+  if (active.type === "manga") initMangaDetailSources(root, active);
   root.querySelector("[data-minus-progress]").addEventListener("click", () => {
     const progress = root.querySelector("[data-track-progress]");
     progress.value = Math.max(0, Number(progress.value || 0) - 1);
@@ -1473,6 +1475,89 @@ function renderDetails(root, item, isTemporary = false) {
 
 function renderDetailsError(root, message) {
   root.innerHTML = `<div class="details-loading panel"><h2>Details unavailable</h2><p class="muted">${escapeHtml(message)}</p><a class="btn" href="anime.html">Browse Anime</a></div>`;
+}
+
+async function initMangaDetailSources(root, manga) {
+  const sourceSelect = root.querySelector("[data-detail-manga-source]");
+  const sourceCount = root.querySelector("[data-detail-manga-source-count]");
+  const chapterList = root.querySelector("[data-detail-chapter-list]");
+  if (!sourceSelect || !sourceCount || !chapterList) return;
+
+  try {
+    const matches = await loadMangaSourceMatches(manga);
+    if (!matches.length) {
+      sourceSelect.innerHTML = '<option value="">No sources</option>';
+      sourceCount.textContent = "0 chapters";
+      return;
+    }
+
+    sourceSelect.innerHTML = matches.map((match) => `<option value="${escapeAttr(match.id)}">${escapeHtml(providerLabel(match.provider))}: ${escapeHtml(match.title)}</option>`).join("");
+    const savedSource = localStorage.getItem(mangaSourceKey(manga));
+    if (savedSource && matches.some((match) => match.id === savedSource)) sourceSelect.value = savedSource;
+
+    const sourceResults = await Promise.all(matches.map(async (match) => {
+      try {
+        const chapters = await fetchApiJson(`/api/manga/chapters?mangaId=${encodeURIComponent(match.id)}`);
+        return { ...match, chapters: chapters.map((chapter) => ({ ...chapter, image: manga.image })) };
+      } catch (error) {
+        return { ...match, chapters: [] };
+      }
+    }));
+
+    const renderSource = () => {
+      const source = sourceResults.find((item) => item.id === sourceSelect.value) || sourceResults[0];
+      localStorage.setItem(mangaSourceKey(manga), source.id);
+      sourceCount.textContent = `${source.chapters.length} chapter${source.chapters.length === 1 ? "" : "s"}`;
+      sourceSelect.innerHTML = sourceResults.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(providerLabel(item.provider))}: ${escapeHtml(item.title)} (${item.chapters.length})</option>`).join("");
+      sourceSelect.value = source.id;
+      renderMangaDetailChapterList(chapterList, manga, source);
+    };
+
+    sourceSelect.addEventListener("change", renderSource);
+    renderSource();
+  } catch (error) {
+    sourceSelect.innerHTML = '<option value="">Source unavailable</option>';
+    sourceCount.textContent = "Could not load chapters";
+  }
+}
+
+function renderMangaDetailChapterList(container, manga, source) {
+  if (!source.chapters.length) {
+    container.innerHTML = '<div class="empty">No chapters returned by this source.</div>';
+    return;
+  }
+
+  const chapters = [...source.chapters].sort(compareChaptersDesc);
+  container.innerHTML = chapters.map((chapter) => `
+    <button type="button" class="chapter-row detail-chapter-row" data-detail-read-chapter data-chapter-data="${escapeAttr(JSON.stringify(chapter))}">
+      <img src="${escapeAttr(chapter.image || manga.image || fallbackImage)}" alt="${escapeAttr(chapter.title)} thumbnail" loading="lazy">
+      <span>${escapeHtml(chapter.title || `Chapter ${chapter.number}`)}</span>
+      <small>${escapeHtml(chapter.date || "Date TBA")}</small>
+    </button>
+  `).join("");
+
+  container.querySelectorAll("[data-detail-read-chapter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const chapter = JSON.parse(button.dataset.chapterData);
+      const readerManga = { ...manga, provider: source.provider, providerId: source.id, providerTitle: source.title };
+      sessionStorage.setItem("reader-manga", JSON.stringify(readerManga));
+      sessionStorage.setItem("reader-start-chapter", JSON.stringify({
+        mangaKey: mangaSourceKey(manga),
+        providerId: source.id,
+        chapterId: chapter.id,
+        chapterNumber: String(chapter.number || ""),
+      }));
+      localStorage.setItem(mangaSourceKey(manga), source.id);
+      window.location.href = `manga-reader.html?type=${manga.type}&id=${manga.apiId}`;
+    });
+  });
+}
+
+function compareChaptersDesc(a, b) {
+  const left = Number.parseFloat(a.number);
+  const right = Number.parseFloat(b.number);
+  if (Number.isFinite(left) && Number.isFinite(right)) return right - left;
+  return String(b.number || b.title || "").localeCompare(String(a.number || a.title || ""), undefined, { numeric: true });
 }
 
 function saveCurrent(silent = false) {
@@ -3111,7 +3196,13 @@ async function loadMangaSourceChapters(manga, matches, preferredId) {
       if (status) status.textContent = `${providerLabel(match.provider)} / ${chapters.length} chapters`;
 
       renderChaptersList(chapters.map((chapter) => ({ ...chapter, image: manga.image })), manga);
-      document.querySelector("[data-chapter-item]")?.click();
+      const start = readerStartChapter(manga, match.id);
+      const startButton = start ? [...document.querySelectorAll("[data-chapter-item]")].find((button) =>
+        (start.chapterId && button.dataset.chapterId === start.chapterId) ||
+        (start.chapterNumber && button.dataset.chapterNumber === start.chapterNumber)
+      ) : null;
+      (startButton || document.querySelector("[data-chapter-item]"))?.click();
+      if (startButton) sessionStorage.removeItem("reader-start-chapter");
       return;
     }
 
@@ -3136,6 +3227,16 @@ function mangaSourceKey(manga) {
 
 function providerLabel(provider) {
   return ({ mangadex: "MangaDex", asura: "Asura Scans" }[provider] || provider || "Source");
+}
+
+function readerStartChapter(manga, providerId) {
+  try {
+    const data = JSON.parse(sessionStorage.getItem("reader-start-chapter"));
+    if (!data || data.mangaKey !== mangaSourceKey(manga) || data.providerId !== providerId) return null;
+    return data;
+  } catch (error) {
+    return null;
+  }
 }
 
 function setupReadingMode() {
@@ -3187,6 +3288,7 @@ function renderChaptersList(chapters, manga) {
         class="chapter-item ${index === 0 ? "active" : ""} ${isRead ? "read" : ""}"
         data-chapter-item
         data-chapter-index="${index}"
+        data-chapter-id="${escapeAttr(ch.id || "")}"
         data-chapter-number="${ch.number}"
         data-chapter-title="${escapeAttr(ch.title)}"
         data-chapter-data="${escapeAttr(JSON.stringify(ch))}"
