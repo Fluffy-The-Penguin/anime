@@ -143,9 +143,10 @@
 
       .reader-control-bar {
         display: grid;
-        grid-template-columns: auto minmax(160px, 1fr) auto minmax(150px, 220px);
+        grid-template-columns: auto max-content auto max-content;
         gap: 10px;
         align-items: center;
+        justify-content: start;
         padding: 8px 12px;
       }
 
@@ -165,6 +166,14 @@
         background: #0b0b0b;
         color: var(--text);
         font-size: 13px;
+      }
+
+      [data-chapter-select] {
+        width: 92px;
+      }
+
+      [data-reading-mode] {
+        width: 128px;
       }
 
       .chapter-display {

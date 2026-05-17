@@ -3201,7 +3201,7 @@ function renderChaptersList(chapters, manga) {
 
   if (select) {
     select.innerHTML = chapters.map((ch, index) => `
-      <option value="${index}">Ch ${escapeHtml(ch.number)} - ${escapeHtml(ch.title)}</option>
+      <option value="${index}">Ch ${escapeHtml(ch.number)}</option>
     `).join("");
     select.onchange = () => {
       container.querySelector(`[data-chapter-item][data-chapter-index="${select.value}"]`)?.click();
