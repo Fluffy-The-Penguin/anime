@@ -1465,6 +1465,11 @@ function renderDetails(root, item, isTemporary = false) {
           <span>${chapters.length ? "1" : "0"} / 1</span>
           <label>⌕ <input type="search" placeholder="Manually search for ${active.type}..." aria-label="Filter episodes"></label>
         </div>
+        ${active.type === "manga" ? `<form class="detail-source-search" data-detail-source-search>
+          <label>Find source as <input data-detail-source-query type="search" placeholder="Custom site title, e.g. Reveries of the Moonlight" autocomplete="off"></label>
+          <button class="btn secondary" type="submit">Add Source</button>
+          <span data-detail-source-search-status></span>
+        </form>` : ""}
         <div class="detail-list-filter">All ⌕ <span>|</span> ${escapeHtml(active.title)}</div>
         <div class="chapter-list detail-chapter-list" data-detail-chapter-list>${chapters.map((chapter, index) => `<button type="button" ${active.type === "anime" ? "data-plus-progress" : ""} class="chapter-row detail-chapter-row"><img src="${escapeAttr(chapter.image || active.image || fallbackImage)}" alt="${escapeAttr(chapter.title)} thumbnail" loading="lazy"><span>${index + 1}. ${escapeHtml(chapter.title)}</span><small>${escapeHtml(chapter.time)}</small></button>`).join("")}</div>
       </section>
@@ -1503,41 +1508,83 @@ async function initMangaDetailSources(root, manga) {
   const sourceSelect = root.querySelector("[data-detail-manga-source]");
   const sourceCount = root.querySelector("[data-detail-manga-source-count]");
   const chapterList = root.querySelector("[data-detail-chapter-list]");
+  const sourceSearchForm = root.querySelector("[data-detail-source-search]");
+  const sourceSearchInput = root.querySelector("[data-detail-source-query]");
+  const sourceSearchStatus = root.querySelector("[data-detail-source-search-status]");
   if (!sourceSelect || !sourceCount || !chapterList) return;
 
   try {
-    const matches = await loadMangaSourceMatches(manga);
-    if (!matches.length) {
-      sourceSelect.innerHTML = '<option value="">No sources</option>';
-      sourceCount.textContent = "0 chapters";
-      return;
-    }
-
-    sourceSelect.innerHTML = matches.map((match) => `<option value="${escapeAttr(match.id)}">${escapeHtml(mangaSourceOptionLabel(match))}</option>`).join("");
+    const enabledProviders = enabledMangaProviderIds();
+    const sourceResults = enabledProviders.map((provider) => ({
+      optionId: provider,
+      provider,
+      title: providerLabel(provider),
+      chapters: null,
+      chapterCount: 0,
+      searched: false,
+    }));
     const savedSource = localStorage.getItem(mangaSourceKey(manga));
-    if (savedSource && matches.some((match) => match.id === savedSource)) sourceSelect.value = savedSource;
-
-    const sourceResults = matches.map((match) => {
-      const cached = readCachedMangaChapters(match.id);
-      return {
-        ...match,
-        chapters: cached ? cached.map((chapter) => ({ ...chapter, image: manga.image })) : null,
-        chapterCount: cached?.length || Number(match.chapterCount || 0),
-      };
-    });
+    if (sourceSearchInput) sourceSearchInput.value = localStorage.getItem(mangaSourceCustomQueryKey(manga)) || "";
 
     const renderOptions = () => {
+      if (!sourceResults.length) {
+        sourceSelect.innerHTML = '<option value="">No sources</option>';
+        sourceSelect.disabled = true;
+        return;
+      }
+      sourceSelect.disabled = false;
       sourceSelect.innerHTML = sourceResults.map((item) => {
-        const count = Array.isArray(item.chapters) ? item.chapters.length : item.chapterCount || "?";
-        return `<option value="${escapeAttr(item.id)}">${escapeHtml(mangaSourceOptionLabel(item, count))}</option>`;
+        const count = Array.isArray(item.chapters) ? item.chapters.length : item.chapterCount || null;
+        const label = item.id ? mangaSourceOptionLabel(item, count) : `${providerLabel(item.provider)}: ${item.searched ? "No match" : "Search on select"}`;
+        return `<option value="${escapeAttr(item.optionId)}">${escapeHtml(label)}</option>`;
       }).join("");
     };
 
+    const resolveSource = async (source, customTitle = "") => {
+      if (source.id && !customTitle) return source;
+      if (customTitle) {
+        source.id = "";
+        source.chapters = null;
+        source.chapterCount = 0;
+      }
+      const match = await searchMangaProviderMatch(manga, source.provider, customTitle);
+      source.searched = true;
+      if (!match) {
+        source.chapters = [];
+        source.chapterCount = 0;
+        return source;
+      }
+      Object.assign(source, sourceResultWithCache(match, manga), { optionId: source.provider, searched: true });
+      return source;
+    };
+
     const renderSource = async () => {
-      const source = sourceResults.find((item) => item.id === sourceSelect.value) || sourceResults[0];
-      localStorage.setItem(mangaSourceKey(manga), source.id);
+      const source = sourceResults.find((item) => item.optionId === sourceSelect.value) || sourceResults[0];
+      if (!source) {
+        renderOptions();
+        sourceCount.textContent = "0 chapters";
+        chapterList.innerHTML = '<div class="empty">No enabled manga sources. Enable sources in Settings.</div>';
+        return;
+      }
+      localStorage.setItem(`${mangaSourceKey(manga)}:provider`, source.provider);
       renderOptions();
-      sourceSelect.value = source.id;
+      sourceSelect.value = source.optionId;
+
+      if (!source.id && !source.searched) {
+        sourceCount.textContent = `Searching ${providerLabel(source.provider)}...`;
+        chapterList.innerHTML = `<div class="empty">Looking for this manga on ${escapeHtml(providerLabel(source.provider))} using AniList titles and synonyms...</div>`;
+        await resolveSource(source, sourceSearchInput?.value.trim() || "");
+        renderOptions();
+        sourceSelect.value = source.optionId;
+      }
+
+      if (!source.id) {
+        sourceCount.textContent = "0 chapters";
+        chapterList.innerHTML = `<div class="empty">No match found on ${escapeHtml(providerLabel(source.provider))}. Try a custom source title above.</div>`;
+        return;
+      }
+
+      localStorage.setItem(mangaSourceKey(manga), source.id);
 
       if (!Array.isArray(source.chapters)) {
         sourceCount.textContent = source.chapterCount ? `${source.chapterCount} chapters / loading list...` : "Loading chapters...";
@@ -1549,7 +1596,7 @@ async function initMangaDetailSources(root, manga) {
         }
         source.chapterCount = source.chapters.length;
         renderOptions();
-        sourceSelect.value = source.id;
+        sourceSelect.value = source.optionId;
       }
 
       sourceCount.textContent = `${source.chapters.length} chapter${source.chapters.length === 1 ? "" : "s"}`;
@@ -1557,11 +1604,57 @@ async function initMangaDetailSources(root, manga) {
     };
 
     sourceSelect.addEventListener("change", renderSource);
+    sourceSearchForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const query = sourceSearchInput?.value.trim() || "";
+      if (!query) return showToast("Type the title used by the source site.");
+      localStorage.setItem(mangaSourceCustomQueryKey(manga), query);
+      if (sourceSearchStatus) sourceSearchStatus.textContent = `Searching ${providerLabel(sourceSelect.value)}...`;
+      try {
+        const source = sourceResults.find((item) => item.optionId === sourceSelect.value) || sourceResults[0];
+        if (!source) return;
+        await resolveSource(source, query);
+        renderOptions();
+        sourceSelect.value = source.optionId;
+        if (sourceSearchStatus) sourceSearchStatus.textContent = source.id ? `Found on ${providerLabel(source.provider)}` : "No match found";
+        await renderSource();
+      } catch (error) {
+        if (sourceSearchStatus) sourceSearchStatus.textContent = "Search failed";
+      }
+    });
+    renderOptions();
+    const savedProvider = localStorage.getItem(`${mangaSourceKey(manga)}:provider`) || firstProviderFromSourceId(savedSource);
+    if (savedProvider && sourceResults.some((source) => source.optionId === savedProvider)) sourceSelect.value = savedProvider;
     await renderSource();
   } catch (error) {
     sourceSelect.innerHTML = '<option value="">Source unavailable</option>';
     sourceCount.textContent = "Could not load chapters";
   }
+}
+
+function sourceResultWithCache(match, manga) {
+  const cached = readCachedMangaChapters(match.id);
+  return {
+    ...match,
+    optionId: match.provider,
+    chapters: cached ? cached.map((chapter) => ({ ...chapter, image: manga.image })) : null,
+    chapterCount: cached?.length || Number(match.chapterCount || 0),
+  };
+}
+
+async function searchMangaProviderMatch(manga, provider, customTitle = "") {
+  const searchTitles = customTitle ? uniqueStrings([customTitle, ...mangaSourceSearchTitles(manga)]).slice(0, 8) : mangaSourceSearchTitles(manga);
+  const results = await Promise.allSettled(searchTitles.map((title) =>
+    fetchApiJson(`/api/manga/search?title=${encodeURIComponent(title)}&providers=${encodeURIComponent(provider)}`)
+      .then((matches) => matches.map((match) => ({ ...match, searchTitle: title })))
+  ));
+  const matches = results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+  return bestMangaSourceMatches(matches, searchTitles, [provider])[0] || null;
+}
+
+function firstProviderFromSourceId(sourceId) {
+  const provider = String(sourceId || "").split(":")[0];
+  return enabledMangaProviderIds().includes(provider) ? provider : "";
 }
 
 async function fetchMangaChaptersCached(source, manga) {
@@ -3229,11 +3322,11 @@ function buildChapters(manga) {
   return chapters;
 }
 
-async function loadMangaSourceMatches(manga) {
+async function loadMangaSourceMatches(manga, customTitle = "") {
   try {
     const providers = enabledMangaProviderIds();
     if (!providers.length) return [];
-    const searchTitles = mangaSourceSearchTitles(manga);
+    const searchTitles = customTitle ? uniqueStrings([customTitle, ...mangaSourceSearchTitles(manga)]).slice(0, 8) : mangaSourceSearchTitles(manga);
     const results = await Promise.allSettled(searchTitles.map((title) =>
       fetchApiJson(`/api/manga/search?title=${encodeURIComponent(title)}&providers=${encodeURIComponent(providers.join(","))}`)
         .then((matches) => matches.map((match) => ({ ...match, searchTitle: title })))
@@ -3368,6 +3461,10 @@ function orderMangaSources(matches, preferredId) {
 
 function mangaSourceKey(manga) {
   return `manga-source:${manga.apiId || manga.id || manga.title}`;
+}
+
+function mangaSourceCustomQueryKey(manga) {
+  return `manga-source-query:${manga.apiId || manga.id || manga.title}`;
 }
 
 function providerLabel(provider) {
