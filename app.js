@@ -2785,19 +2785,18 @@ function bindStremioSourceButtons(container) {
 
 async function playHttpStream(url) {
   const player = document.querySelector("[data-video-player]");
-  player.innerHTML = `<video data-active-video controls autoplay playsinline style="width: 100%; height: 100%; background: #000;"></video>`;
+  player.innerHTML = `
+    <video data-active-video controls autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
+  `;
   const video = player.querySelector("[data-active-video]");
 
   video.addEventListener("error", () => {
-    player.innerHTML = `
-      <div class="player-loading">
-        <p style="color: var(--red);">This stream format could not be played.</p>
-        <p class="muted" style="font-size: 12px;">The source may require HLS, CORS headers, or a different player.</p>
-      </div>
-    `;
+    renderPlayerFallback(url);
   }, { once: true });
 
   const isHls = url.includes(".m3u8") || url.includes("application/vnd.apple.mpegurl");
+  const isDash = url.includes(".mpd") || url.includes("application/dash+xml");
+
   if (isHls && video.canPlayType("application/vnd.apple.mpegurl")) {
     video.src = url;
     showToast("Loading HLS stream");
@@ -2826,8 +2825,47 @@ async function playHttpStream(url) {
     }
   }
 
+  if (isDash) {
+    try {
+      await loadDashLibrary();
+      if (window.dashjs) {
+        const dashPlayer = window.dashjs.MediaPlayer().create();
+        dashPlayer.initialize(video, url, true);
+        dashPlayer.on(window.dashjs.MediaPlayer.events.ERROR, () => renderPlayerFallback(url));
+        showToast("Loading DASH stream");
+        return;
+      }
+    } catch (error) {
+      video.dispatchEvent(new Event("error"));
+      return;
+    }
+  }
+
   video.src = url;
   showToast("Loading stream");
+}
+
+function renderPlayerFallback(url) {
+  const player = document.querySelector("[data-video-player]");
+  player.innerHTML = `
+    <div class="player-loading" style="padding: 24px; text-align: center;">
+      <p style="color: var(--red);">This stream could not be played in the browser.</p>
+      <p class="muted" style="font-size: 12px; max-width: 520px; margin: 0 auto 16px;">A better player cannot bypass CORS, missing MIME types, or source referer protection. Try opening it externally.</p>
+      <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+        <button class="btn secondary" data-open-stream-url type="button">Open Stream</button>
+        <button class="btn secondary" data-copy-stream-url type="button">Copy URL</button>
+      </div>
+    </div>
+  `;
+  player.querySelector("[data-open-stream-url]").addEventListener("click", () => window.open(url, "_blank", "noreferrer"));
+  player.querySelector("[data-copy-stream-url]").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Stream URL copied");
+    } catch (error) {
+      showToast("Could not copy stream URL");
+    }
+  });
 }
 
 function loadHlsLibrary() {
@@ -2842,6 +2880,20 @@ function loadHlsLibrary() {
     document.head.appendChild(script);
   });
   return loadHlsLibrary.promise;
+}
+
+function loadDashLibrary() {
+  if (window.dashjs) return Promise.resolve();
+  if (loadDashLibrary.promise) return loadDashLibrary.promise;
+
+  loadDashLibrary.promise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/dashjs@4.7.4/dist/dash.all.min.js";
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return loadDashLibrary.promise;
 }
 
 function renderMangaTorrentSources(container, results, manga, chapterNumber) {
@@ -2934,7 +2986,7 @@ async function initReaderPage() {
   document.querySelector("[data-manga-title]").textContent = manga.title;
 
   // Setup chapter list
-  const chapters = buildChapters(manga);
+  const chapters = await loadMangaChapters(manga);
   renderChaptersList(chapters, manga);
 
   // Setup chapter search
@@ -2996,6 +3048,47 @@ function buildChapters(manga) {
   return chapters;
 }
 
+async function loadMangaChapters(manga) {
+  try {
+    const matches = await fetchApiJson(`/api/manga/search?title=${encodeURIComponent(manga.title)}`);
+    const ranked = matches
+      .map((match) => ({ ...match, score: titleSimilarity(manga.title, match.title) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+
+    for (const match of ranked) {
+      const chapters = await fetchApiJson(`/api/manga/chapters?mangaId=${encodeURIComponent(match.id)}`);
+      if (!chapters.length) continue;
+
+      manga.provider = "mangadex";
+      manga.providerId = match.id;
+      manga.providerTitle = match.title;
+      return chapters.map((chapter) => ({ ...chapter, image: manga.image }));
+    }
+
+    throw new Error("No MangaDex chapters");
+  } catch (error) {
+    showToast("Using generated chapter list; MangaDex did not return chapters");
+    return buildChapters(manga);
+  }
+}
+
+function titleSimilarity(a, b) {
+  const left = normalizeSearchText(a);
+  const right = normalizeSearchText(b);
+  if (!left || !right) return 0;
+  if (left === right) return 1;
+  if (left.includes(right) || right.includes(left)) return 0.8;
+  const leftTokens = new Set(left.split(" ").filter(Boolean));
+  const rightTokens = new Set(right.split(" ").filter(Boolean));
+  const shared = [...leftTokens].filter((token) => rightTokens.has(token)).length;
+  return shared / Math.max(leftTokens.size, rightTokens.size, 1);
+}
+
+function normalizeSearchText(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
 function renderChaptersList(chapters, manga) {
   const container = document.querySelector("[data-chapters-list]");
   container.innerHTML = chapters
@@ -3007,7 +3100,7 @@ function renderChaptersList(chapters, manga) {
         data-chapter-item
         data-chapter-number="${ch.number}"
         data-chapter-title="${escapeAttr(ch.title)}"
-        data-chapter-data='${JSON.stringify(ch)}'
+        data-chapter-data="${escapeAttr(JSON.stringify(ch))}"
       >
         <span class="chapter-num">Ch ${ch.number}</span>
         <h4 class="chapter-title">${escapeHtml(ch.title)}</h4>
@@ -3045,6 +3138,28 @@ async function loadChapter(manga, chapter, chapterNumber) {
       <p>Loading chapter ${chapterNumber}...</p>
     </div>
   `;
+
+  if (chapter.provider === "mangadex" && chapter.id) {
+    try {
+      const data = await fetchApiJson(`/api/manga/pages?chapterId=${encodeURIComponent(chapter.id)}`);
+      if (data.pages?.length) {
+        display.innerHTML = data.pages.map((src, index) => `
+          <img class="chapter-page-image" src="${escapeAttr(src)}" alt="${escapeAttr(chapter.title)} page ${index + 1}" loading="lazy">
+        `).join("");
+        if (sources) {
+          sources.innerHTML = `
+            <div class="empty" style="padding: 12px; text-align: center;">
+              <p class="muted" style="margin: 0;">Reading from MangaDex (${data.pages.length} pages)</p>
+            </div>
+          `;
+        }
+        markMangaChapterRead(manga, chapterNumber);
+        return;
+      }
+    } catch (error) {
+      showToast("Could not load MangaDex pages; trying torrents");
+    }
+  }
 
   if (!sources) {
     // No sources container - just show content
@@ -3104,7 +3219,10 @@ async function loadChapter(manga, chapter, chapterNumber) {
     }
   }
 
-  // Mark as read
+  markMangaChapterRead(manga, chapterNumber);
+}
+
+function markMangaChapterRead(manga, chapterNumber) {
   if (!state.current && manga) {
     state.current = manga;
   }
