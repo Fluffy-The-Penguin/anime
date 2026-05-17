@@ -2585,50 +2585,18 @@ async function searchStremioStreams(anime, episodeNumber) {
   const addons = stremioAddons();
   if (!addons.length) return [];
 
-  const ids = stremioIdCandidates(anime, episodeNumber);
   const results = [];
 
   for (const addon of addons) {
-    const types = await stremioTypesForAddon(addon);
-    let found = false;
-    for (const type of types) {
-      for (const id of ids) {
-        try {
-          const streams = await fetchApiJson(`/api/stremio/streams?url=${encodeURIComponent(addon.url)}&type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`);
-          streams.forEach((stream) => results.push({ ...stream, addonName: addon.name, stremioId: id, stremioType: type }));
-          if (streams.length) {
-            found = true;
-            break;
-          }
-        } catch (error) {
-          // Try the next ID/type/addon.
-        }
-      }
-      if (found) break;
+    try {
+      const streams = await fetchApiJson(`/api/stremio/search-streams?url=${encodeURIComponent(addon.url)}&title=${encodeURIComponent(anime.title)}&episode=${encodeURIComponent(episodeNumber)}&malId=${encodeURIComponent(anime.malId || "")}&anilistId=${encodeURIComponent(anime.apiId || "")}`);
+      streams.forEach((stream) => results.push({ ...stream, addonName: addon.name }));
+    } catch (error) {
+      // Try the next addon.
     }
   }
 
   return results;
-}
-
-async function stremioTypesForAddon(addon) {
-  const fallback = ["series", "anime", "movie"];
-  try {
-    const manifest = await fetchApiJson(`/api/stremio/manifest?url=${encodeURIComponent(addon.url)}`);
-    const types = Array.isArray(manifest.types) ? manifest.types : [];
-    return [...new Set([...types, ...fallback])];
-  } catch (error) {
-    return fallback;
-  }
-}
-
-function stremioIdCandidates(anime, episodeNumber) {
-  const ids = [];
-  if (anime.malId) ids.push(`mal:${anime.malId}:${episodeNumber}`);
-  if (anime.apiId) ids.push(`anilist:${anime.apiId}:${episodeNumber}`);
-  if (anime.malId) ids.push(`mal:${anime.malId}`);
-  if (anime.apiId) ids.push(`anilist:${anime.apiId}`);
-  return ids;
 }
 
 async function searchNyaaRss(queries, categories) {
