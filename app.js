@@ -1431,7 +1431,7 @@ function renderDetails(root, item, isTemporary = false) {
              <button class="btn detail-save" data-save-track type="button">${actionLabel}</button>
              <div class="detail-progress-control">
                <button data-minus-progress type="button">−</button>
-               <input data-track-progress type="number" min="0" step="1" value="${Number(active.progress || 0)}" aria-label="Progress">
+                <input data-track-progress type="number" min="0" ${total ? `max="${escapeAttr(total)}"` : ""} step="1" value="${Number(active.progress || 0)}" aria-label="Progress">
                <span>/ ${escapeHtml(total || "?")}</span>
                <button data-plus-progress type="button">+</button>
              </div>
@@ -1473,12 +1473,12 @@ function renderDetails(root, item, isTemporary = false) {
   if (active.type === "manga") initMangaDetailSources(root, active);
   root.querySelector("[data-minus-progress]").addEventListener("click", () => {
     const progress = root.querySelector("[data-track-progress]");
-    progress.value = Math.max(0, Number(progress.value || 0) - 1);
+    progress.value = clampProgressValue(Number(progress.value || 0) - 1, state.current);
     saveCurrent(true);
   });
   root.querySelectorAll("[data-plus-progress]").forEach((button) => button.addEventListener("click", () => {
     const progress = root.querySelector("[data-track-progress]");
-    progress.value = Number(progress.value || 0) + 1;
+    progress.value = clampProgressValue(Number(progress.value || 0) + 1, state.current);
     saveCurrent(true);
   }));
   root.querySelector("[data-remove-track]").addEventListener("click", removeCurrent);
@@ -1641,9 +1641,14 @@ function compareChaptersDesc(a, b) {
 
 function saveCurrent(silent = false) {
   if (!state.current) return;
-  const progress = Math.max(0, Number(document.querySelector("[data-track-progress]")?.value || 0));
-  const ratingInput = document.querySelector("[data-track-rating]")?.value || "";
-  const rating = ratingInput === "" ? "" : Math.min(10, Math.max(0, Number(ratingInput)));
+  const progressInput = document.querySelector("[data-track-progress]");
+  const ratingElement = document.querySelector("[data-track-rating]");
+  const progress = clampProgressValue(Number(progressInput?.value || 0), state.current);
+  const ratingInput = ratingElement?.value || "";
+  const ratingValue = Number(ratingInput);
+  const rating = ratingInput === "" || !Number.isFinite(ratingValue) ? "" : Math.min(10, Math.max(0, Math.round(ratingValue * 2) / 2));
+  if (progressInput) progressInput.value = progress;
+  if (ratingElement) ratingElement.value = rating;
   const saved = {
     ...state.current,
     status: document.querySelector("[data-track-status]")?.value || state.current.status,
@@ -1664,6 +1669,13 @@ function saveCurrent(silent = false) {
   if (page === "details") renderDetails(document.querySelector("[data-details-root]"), saved);
   if (page === "library") renderLibrary();
   if (!silent) showToast("Saved to your library.");
+}
+
+function clampProgressValue(value, item = state.current) {
+  const number = Number.isFinite(value) ? Math.floor(value) : 0;
+  const total = Number(item?.total || 0);
+  const max = Number.isFinite(total) && total > 0 ? total : Number.MAX_SAFE_INTEGER;
+  return Math.min(max, Math.max(0, number));
 }
 
 function removeCurrent() {
