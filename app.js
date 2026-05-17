@@ -2985,32 +2985,12 @@ async function initReaderPage() {
   document.title = `AniTrack | ${manga.title}`;
   document.querySelector("[data-manga-title]").textContent = manga.title;
 
+  setupReadingMode();
+
   // Setup source and chapter list
   const mangaSources = await loadMangaSourceMatches(manga);
   renderMangaSourceSelector(mangaSources, manga);
   await loadMangaSourceChapters(manga, mangaSources);
-
-  // Setup chapter search
-  const searchInput = document.querySelector("[data-chapters-search] input");
-  const searchToggle = document.querySelector("[data-chapters-search-toggle]");
-  const searchContainer = document.querySelector("[data-chapters-search]");
-
-  searchToggle.addEventListener("click", () => {
-    searchContainer.classList.toggle("show");
-    if (searchContainer.classList.contains("show")) {
-      searchInput.focus();
-    }
-  });
-
-  searchInput.addEventListener("input", (e) => {
-    const query = e.target.value.toLowerCase();
-    document.querySelectorAll("[data-chapter-item]").forEach((item) => {
-      const title = item.dataset.chapterTitle.toLowerCase();
-      const number = item.dataset.chapterNumber;
-      const matches = title.includes(query) || number.includes(query);
-      item.style.display = matches ? "" : "none";
-    });
-  });
 
   // Navigation buttons
   document.querySelector("[data-prev-chapter]").addEventListener("click", () => {
@@ -3154,6 +3134,28 @@ function providerLabel(provider) {
   return ({ mangadex: "MangaDex", asura: "Asura Scans" }[provider] || provider || "Source");
 }
 
+function setupReadingMode() {
+  const select = document.querySelector("[data-reading-mode]");
+  if (!select) return;
+  const saved = localStorage.getItem("reader-mode") || "webtoon";
+  select.value = saved;
+  applyReadingMode(saved);
+  select.addEventListener("change", () => {
+    localStorage.setItem("reader-mode", select.value);
+    applyReadingMode(select.value);
+  });
+}
+
+function currentReadingMode() {
+  return document.querySelector("[data-reading-mode]")?.value || localStorage.getItem("reader-mode") || "webtoon";
+}
+
+function applyReadingMode(mode) {
+  document.querySelectorAll("[data-reader-pages]").forEach((pages) => {
+    pages.dataset.mode = mode;
+  });
+}
+
 function titleSimilarity(a, b) {
   const left = normalizeSearchText(a);
   const right = normalizeSearchText(b);
@@ -3172,6 +3174,7 @@ function normalizeSearchText(value) {
 
 function renderChaptersList(chapters, manga) {
   const container = document.querySelector("[data-chapters-list]");
+  const select = document.querySelector("[data-chapter-select]");
   container.innerHTML = chapters
     .map((ch, index) => {
       const isRead = state.library[manga.id]?.progress >= ch.number;
@@ -3179,6 +3182,7 @@ function renderChaptersList(chapters, manga) {
         type="button"
         class="chapter-item ${index === 0 ? "active" : ""} ${isRead ? "read" : ""}"
         data-chapter-item
+        data-chapter-index="${index}"
         data-chapter-number="${ch.number}"
         data-chapter-title="${escapeAttr(ch.title)}"
         data-chapter-data="${escapeAttr(JSON.stringify(ch))}"
@@ -3191,6 +3195,15 @@ function renderChaptersList(chapters, manga) {
     })
     .join("");
 
+  if (select) {
+    select.innerHTML = chapters.map((ch, index) => `
+      <option value="${index}">Ch ${escapeHtml(ch.number)} - ${escapeHtml(ch.title)}</option>
+    `).join("");
+    select.onchange = () => {
+      container.querySelector(`[data-chapter-item][data-chapter-index="${select.value}"]`)?.click();
+    };
+  }
+
   // Add click handlers
   container.querySelectorAll("[data-chapter-item]").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -3198,6 +3211,7 @@ function renderChaptersList(chapters, manga) {
         b.classList.remove("active")
       );
       btn.classList.add("active");
+      if (select) select.value = btn.dataset.chapterIndex;
 
       const chapter = JSON.parse(btn.dataset.chapterData);
       await loadChapter(manga, chapter, btn.dataset.chapterNumber);
@@ -3224,9 +3238,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
     try {
       const data = await fetchApiJson(`/api/manga/pages?chapterId=${encodeURIComponent(chapter.id)}`);
       if (data.pages?.length) {
-        display.innerHTML = data.pages.map((src, index) => `
-          <img class="chapter-page-image" src="${escapeAttr(src)}" alt="${escapeAttr(chapter.title)} page ${index + 1}" loading="lazy">
-        `).join("");
+        renderChapterPages(display, data.pages, chapter);
         if (sources) {
           sources.innerHTML = `
             <div class="empty" style="padding: 12px; text-align: center;">
@@ -3301,6 +3313,33 @@ async function loadChapter(manga, chapter, chapterNumber) {
   }
 
   markMangaChapterRead(manga, chapterNumber);
+}
+
+function renderChapterPages(display, pages, chapter) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "reader-pages";
+  wrapper.dataset.readerPages = "";
+  wrapper.dataset.mode = currentReadingMode();
+
+  display.innerHTML = "";
+  display.appendChild(wrapper);
+  display.scrollTop = 0;
+  window.scrollTo({ top: Math.max(display.getBoundingClientRect().top + window.scrollY - 90, 0), behavior: "smooth" });
+
+  const loadNext = (index) => {
+    if (index >= pages.length) return;
+    const image = document.createElement("img");
+    image.className = "chapter-page-image";
+    image.alt = `${chapter.title} page ${index + 1}`;
+    image.decoding = "async";
+    image.loading = "eager";
+    image.addEventListener("load", () => loadNext(index + 1), { once: true });
+    image.addEventListener("error", () => loadNext(index + 1), { once: true });
+    wrapper.appendChild(image);
+    image.src = pages[index];
+  };
+
+  loadNext(0);
 }
 
 function markMangaChapterRead(manga, chapterNumber) {
