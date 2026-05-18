@@ -9,6 +9,11 @@ const MANGA_PAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const BROWSE_PAGE_SIZE = 28;
 const API_BASE_KEY = "anitrack-api-base";
 const DEFAULT_API_BASE_URL = "http://localhost:3000";
+const ANIME_SOURCES = [
+  { id: "nyaa", name: "Nyaa RSS", description: "Anime torrent search through Nyaa RSS. Opens magnets externally.", badge: "Torrent" },
+  { id: "aniwaves", name: "Aniwaves", description: "Searches provider matches when raw streams are not available.", badge: "Provider" },
+  { id: "hstream", name: "hstream.moe", description: "Adult-only direct playback source shown only when 18+ content is enabled.", badge: "+18", adult: true },
+];
 const MANGA_SOURCES = [
   { id: "mangadex", name: "MangaDex", description: "Official open manga API. Best for licensed scanlation metadata and stable pages." },
   { id: "asura", name: "Asura Scans", description: "Good for webtoon/manhwa titles hosted by Asura." },
