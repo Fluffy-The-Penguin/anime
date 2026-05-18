@@ -3105,7 +3105,7 @@ function adultSourceCards(matches) {
       ${matches.slice(0, 5).map((match) => `
         <div class="source-item">
           <div class="source-info">
-            <h4>${escapeHtml(match.title || "hstream")}</h4>
+            <h4 style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">${escapeHtml(match.title || "hstream")} <span style="display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 7px; background: color-mix(in srgb, var(--pink) 24%, transparent); color: var(--pink); border: 1px solid color-mix(in srgb, var(--pink) 55%, transparent); font-size: 10px; font-weight: 900; letter-spacing: 0.04em;">+18</span></h4>
             <p>${escapeHtml(["hstream.moe", match.quality].filter(Boolean).join(" / ") || "Direct browser-playable source")}</p>
           </div>
           <button class="source-play-adult" data-hstream-url="${escapeAttr(match.url)}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--pink), var(--blue)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">Load</button>
