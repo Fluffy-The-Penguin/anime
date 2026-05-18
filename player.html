@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=compact-custom-controls" defer></script>
+    <script src="app.js?v=keyboard-dynamic-controls" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -175,7 +175,7 @@
         bottom: 14px;
         z-index: 8;
         display: grid;
-        grid-template-columns: auto auto 1fr auto auto auto minmax(78px, 120px) auto;
+        grid-template-columns: auto auto auto minmax(78px, 120px) 1fr auto auto auto auto;
         align-items: center;
         gap: 10px;
         padding: 10px 12px;
@@ -201,6 +201,16 @@
         color: var(--text);
         font-weight: 900;
         cursor: pointer;
+      }
+
+      .video-control-btn.active {
+        background: linear-gradient(135deg, var(--blue), var(--mint));
+        color: #06101a;
+      }
+
+      .video-control-btn:disabled {
+        opacity: 0.42;
+        cursor: not-allowed;
       }
 
       .video-time {
@@ -246,6 +256,14 @@
         transform: translate(-50%, 0);
       }
 
+      .video-player:not(.video-controls-idle) .custom-subtitles {
+        bottom: clamp(106px, 15vh, 150px);
+      }
+
+      .video-player.player-settings-open .custom-subtitles {
+        bottom: clamp(188px, 26vh, 260px);
+      }
+
       .player-controls {
         display: grid;
         grid-template-columns: 1fr auto;
@@ -283,19 +301,23 @@
 
       .video-wrapper:fullscreen .player-settings-panel,
       .video-wrapper.player-fullscreen .player-settings-panel {
-        position: absolute;
-        left: 16px;
-        right: 16px;
         bottom: 84px;
-        z-index: 9;
-        background: rgba(8, 12, 18, 0.78);
-        transition: opacity 180ms ease, transform 180ms ease;
       }
 
       .video-wrapper:fullscreen .custom-subtitles,
       .video-wrapper.player-fullscreen .custom-subtitles {
         z-index: 7;
-        bottom: clamp(96px, 13vh, 150px);
+        bottom: clamp(68px, 9vh, 110px);
+      }
+
+      .video-wrapper:fullscreen .video-player:not(.video-controls-idle) .custom-subtitles,
+      .video-wrapper.player-fullscreen .video-player:not(.video-controls-idle) .custom-subtitles {
+        bottom: clamp(112px, 15vh, 160px);
+      }
+
+      .video-wrapper:fullscreen .video-player.player-settings-open .custom-subtitles,
+      .video-wrapper.player-fullscreen .video-player.player-settings-open .custom-subtitles {
+        bottom: clamp(190px, 27vh, 280px);
       }
 
       .video-wrapper:fullscreen .custom-video-controls,
@@ -325,13 +347,20 @@
       }
 
       .player-settings-panel {
+        position: absolute;
+        right: 14px;
+        bottom: 78px;
+        z-index: 9;
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(160px, 1fr));
         gap: 10px;
-        padding: 10px;
+        width: min(520px, calc(100% - 28px));
+        padding: 12px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.045);
+        border-radius: 16px;
+        background: rgba(8, 12, 18, 0.82);
+        backdrop-filter: blur(18px) saturate(130%);
+        transition: opacity 180ms ease, transform 180ms ease;
       }
 
       .player-settings-panel[hidden] {
@@ -651,7 +680,7 @@
           left: 8px;
           right: 8px;
           bottom: 8px;
-          grid-template-columns: auto auto 1fr auto auto auto;
+          grid-template-columns: auto auto auto 1fr auto auto auto;
           gap: 6px;
           padding: 8px;
         }
@@ -659,6 +688,14 @@
         .custom-video-controls .video-volume,
         .custom-video-controls [data-video-duration] {
           display: none;
+        }
+
+        .player-settings-panel {
+          left: 8px;
+          right: 8px;
+          bottom: 70px;
+          width: auto;
+          grid-template-columns: 1fr 1fr;
         }
 
         .player-actions .btn,

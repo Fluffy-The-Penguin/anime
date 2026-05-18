@@ -72,6 +72,7 @@ const playerRuntime = {
   autoPlay: true,
   autoNext: false,
   streamToken: 0,
+  keyboardHandler: null,
   hls: null,
   dash: null,
 };
@@ -3820,11 +3821,12 @@ async function playHttpStream(url, tracks = [], options = {}) {
     <div class="custom-video-controls" data-custom-video-controls>
       <button class="video-control-btn" data-video-play type="button" aria-label="Play or pause">▶</button>
       <span class="video-time" data-video-current>0:00</span>
-      <input class="video-progress" data-video-progress type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
-      <button class="video-control-btn" data-video-settings type="button" aria-label="Player settings">⚙</button>
-      <span class="video-time" data-video-duration>0:00</span>
       <button class="video-control-btn" data-video-mute type="button" aria-label="Mute or unmute">♪</button>
       <input class="video-volume" data-video-volume type="range" min="0" max="1" value="1" step="0.01" aria-label="Volume">
+      <input class="video-progress" data-video-progress type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
+      <span class="video-time" data-video-duration>0:00</span>
+      <button class="video-control-btn" data-video-captions type="button" aria-label="Toggle captions">CC</button>
+      <button class="video-control-btn" data-video-settings type="button" aria-label="Player settings">⚙</button>
       <button class="video-control-btn" data-video-fullscreen type="button" aria-label="Fullscreen">⛶</button>
     </div>
   `;
@@ -3945,6 +3947,7 @@ function setupCustomVideoControls(video) {
   const settings = controls.querySelector("[data-video-settings]");
   const mute = controls.querySelector("[data-video-mute]");
   const volume = controls.querySelector("[data-video-volume]");
+  const captions = controls.querySelector("[data-video-captions]");
   const fullscreen = controls.querySelector("[data-video-fullscreen]");
   let seeking = false;
   let hideTimer = null;
@@ -3953,7 +3956,10 @@ function setupCustomVideoControls(video) {
     player.classList.remove("video-controls-idle");
     clearTimeout(hideTimer);
     hideTimer = setTimeout(() => {
-      if (!video.paused) player.classList.add("video-controls-idle");
+      if (!video.paused) {
+        player.classList.add("video-controls-idle");
+        hidePlayerSettingsPanel();
+      }
     }, 2400);
   };
 
@@ -3966,6 +3972,11 @@ function setupCustomVideoControls(video) {
     if (play) play.textContent = video.paused ? "▶" : "❚❚";
     if (mute) mute.textContent = video.muted || video.volume === 0 ? "×" : "♪";
     if (volume) volume.value = String(video.muted ? 0 : video.volume);
+    const subtitleToggle = document.querySelector("[data-subtitle-toggle]");
+    if (captions) {
+      captions.disabled = !subtitleToggle || subtitleToggle.hidden || subtitleToggle.disabled;
+      captions.classList.toggle("active", Boolean(subtitleToggle?.classList.contains("active")));
+    }
   };
 
   play?.addEventListener("click", async () => {
@@ -4011,7 +4022,16 @@ function setupCustomVideoControls(video) {
     showControls();
   });
   fullscreen?.addEventListener("click", () => document.querySelector("[data-fullscreen-btn]")?.click());
-  settings?.addEventListener("click", () => document.querySelector("[data-player-settings-toggle]")?.click());
+  captions?.addEventListener("click", () => {
+    document.querySelector("[data-subtitle-toggle]")?.click();
+    update();
+    showControls();
+  });
+  settings?.addEventListener("click", () => {
+    document.querySelector("[data-player-settings-toggle]")?.click();
+    showControls();
+  });
+  setupPlayerKeyboardControls(video, showControls);
 
   ["loadedmetadata", "durationchange", "timeupdate", "play", "pause", "volumechange"].forEach((event) => video.addEventListener(event, update));
   player.addEventListener("mousemove", showControls);
@@ -4019,6 +4039,53 @@ function setupCustomVideoControls(video) {
   wrapper?.addEventListener("fullscreenchange", showControls);
   update();
   showControls();
+}
+
+function setupPlayerKeyboardControls(video, showControls) {
+  if (playerRuntime.keyboardHandler) document.removeEventListener("keydown", playerRuntime.keyboardHandler);
+  playerRuntime.keyboardHandler = async (event) => {
+    const target = event.target;
+    if (target?.matches?.("input, textarea, select, button")) return;
+    const key = event.key.toLowerCase();
+    if ([" ", "arrowleft", "arrowright", "arrowup", "arrowdown"].includes(event.key.toLowerCase()) || event.code === "Space") event.preventDefault();
+    if (event.code === "Space" || key === "k") {
+      if (video.paused) {
+        try { await video.play(); } catch (error) {}
+      } else video.pause();
+    } else if (key === "arrowleft") {
+      video.currentTime = Math.max(0, video.currentTime - 10);
+    } else if (key === "arrowright") {
+      video.currentTime = Math.min(Number.isFinite(video.duration) ? video.duration : video.currentTime + 10, video.currentTime + 10);
+    } else if (key === "arrowup") {
+      video.volume = Math.min(1, video.volume + 0.05);
+      video.muted = false;
+    } else if (key === "arrowdown") {
+      video.volume = Math.max(0, video.volume - 0.05);
+      video.muted = video.volume === 0;
+    } else if (key === "m") {
+      video.muted = !video.muted;
+    } else if (key === "f") {
+      document.querySelector("[data-fullscreen-btn]")?.click();
+    } else if (key === "c") {
+      document.querySelector("[data-subtitle-toggle]")?.click();
+    } else if (key === ",") {
+      video.playbackRate = Math.max(0.25, video.playbackRate - 0.25);
+    } else if (key === ".") {
+      video.playbackRate = Math.min(3, video.playbackRate + 0.25);
+    } else return;
+    showControls();
+  };
+  document.addEventListener("keydown", playerRuntime.keyboardHandler);
+}
+
+function hidePlayerSettingsPanel() {
+  const panel = document.querySelector("[data-player-settings-panel]");
+  const toggle = document.querySelector("[data-player-settings-toggle]");
+  const player = document.querySelector("[data-video-player]");
+  if (!panel || panel.hidden) return;
+  panel.hidden = true;
+  toggle?.setAttribute("aria-expanded", "false");
+  player?.classList.remove("player-settings-open");
 }
 
 function formatPlayerTime(seconds) {
@@ -4046,6 +4113,7 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
       const isHidden = panel.hidden;
       panel.hidden = !isHidden;
       toggle.setAttribute("aria-expanded", String(isHidden));
+      video.closest("[data-video-player]")?.classList.toggle("player-settings-open", isHidden);
     };
   }
 
