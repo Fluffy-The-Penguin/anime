@@ -6,17 +6,12 @@ module.exports = async function handler(req, res) {
   const query = new URLSearchParams(req.query);
   query.delete("path");
 
-  const target = `${backendUrl}/api/${path}${query.toString() ? `?${query}` : ""}`;
-  await proxyRequest(req, res, target);
+  await proxyJson(res, `${backendUrl}/api/adult/${path}${query.toString() ? `?${query}` : ""}`);
 };
 
-async function proxyRequest(req, res, target) {
+async function proxyJson(res, target) {
   try {
-    const response = await fetch(target, {
-      method: req.method,
-      headers: { Accept: "application/json" },
-    });
-
+    const response = await fetch(target, { headers: { Accept: "application/json" } });
     const body = await response.text();
     res.status(response.status);
     res.setHeader("Content-Type", response.headers.get("content-type") || "application/json");
