@@ -3949,6 +3949,7 @@ function setupCustomVideoControls(video) {
   const volume = controls.querySelector("[data-video-volume]");
   const captions = controls.querySelector("[data-video-captions]");
   const fullscreen = controls.querySelector("[data-video-fullscreen]");
+  const panel = document.querySelector("[data-player-settings-panel]");
   let seeking = false;
   let hideTimer = null;
 
@@ -4036,6 +4037,9 @@ function setupCustomVideoControls(video) {
   ["loadedmetadata", "durationchange", "timeupdate", "play", "pause", "volumechange"].forEach((event) => video.addEventListener(event, update));
   player.addEventListener("mousemove", showControls);
   player.addEventListener("touchstart", showControls, { passive: true });
+  panel?.addEventListener("mousemove", showControls);
+  panel?.addEventListener("touchstart", showControls, { passive: true });
+  panel?.addEventListener("focusin", showControls);
   wrapper?.addEventListener("fullscreenchange", showControls);
   update();
   showControls();
@@ -4084,6 +4088,7 @@ function hidePlayerSettingsPanel() {
   const player = document.querySelector("[data-video-player]");
   if (!panel || panel.hidden) return;
   panel.hidden = true;
+  panel.inert = true;
   toggle?.setAttribute("aria-expanded", "false");
   player?.classList.remove("player-settings-open");
 }
@@ -4112,6 +4117,7 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
     toggle.onclick = () => {
       const isHidden = panel.hidden;
       panel.hidden = !isHidden;
+      panel.inert = !isHidden;
       toggle.setAttribute("aria-expanded", String(isHidden));
       video.closest("[data-video-player]")?.classList.toggle("player-settings-open", isHidden);
     };

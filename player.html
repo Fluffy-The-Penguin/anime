@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=keyboard-dynamic-controls" defer></script>
+    <script src="app.js?v=settings-popover-hitbox" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -301,7 +301,7 @@
 
       .video-wrapper:fullscreen .player-settings-panel,
       .video-wrapper.player-fullscreen .player-settings-panel {
-        bottom: 84px;
+        bottom: 104px;
       }
 
       .video-wrapper:fullscreen .custom-subtitles,
@@ -317,7 +317,7 @@
 
       .video-wrapper:fullscreen .video-player.player-settings-open .custom-subtitles,
       .video-wrapper.player-fullscreen .video-player.player-settings-open .custom-subtitles {
-        bottom: clamp(190px, 27vh, 280px);
+        bottom: clamp(210px, 29vh, 300px);
       }
 
       .video-wrapper:fullscreen .custom-video-controls,
@@ -349,7 +349,7 @@
       .player-settings-panel {
         position: absolute;
         right: 14px;
-        bottom: 78px;
+        bottom: 96px;
         z-index: 9;
         display: grid;
         grid-template-columns: repeat(2, minmax(160px, 1fr));
@@ -364,7 +364,8 @@
       }
 
       .player-settings-panel[hidden] {
-        display: none;
+        display: none !important;
+        pointer-events: none !important;
       }
 
       .player-settings-panel label {
@@ -693,7 +694,7 @@
         .player-settings-panel {
           left: 8px;
           right: 8px;
-          bottom: 70px;
+          bottom: 82px;
           width: auto;
           grid-template-columns: 1fr 1fr;
         }
