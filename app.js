@@ -3821,6 +3821,7 @@ async function playHttpStream(url, tracks = [], options = {}) {
       <button class="video-control-btn" data-video-play type="button" aria-label="Play or pause">▶</button>
       <span class="video-time" data-video-current>0:00</span>
       <input class="video-progress" data-video-progress type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
+      <button class="video-control-btn" data-video-settings type="button" aria-label="Player settings">⚙</button>
       <span class="video-time" data-video-duration>0:00</span>
       <button class="video-control-btn" data-video-mute type="button" aria-label="Mute or unmute">♪</button>
       <input class="video-volume" data-video-volume type="range" min="0" max="1" value="1" step="0.01" aria-label="Volume">
@@ -3941,6 +3942,7 @@ function setupCustomVideoControls(video) {
   const progress = controls.querySelector("[data-video-progress]");
   const current = controls.querySelector("[data-video-current]");
   const duration = controls.querySelector("[data-video-duration]");
+  const settings = controls.querySelector("[data-video-settings]");
   const mute = controls.querySelector("[data-video-mute]");
   const volume = controls.querySelector("[data-video-volume]");
   const fullscreen = controls.querySelector("[data-video-fullscreen]");
@@ -3962,7 +3964,7 @@ function setupCustomVideoControls(video) {
     if (duration) duration.textContent = formatPlayerTime(total);
     if (progress && !seeking) progress.value = total ? String(Math.round((now / total) * 1000)) : "0";
     if (play) play.textContent = video.paused ? "▶" : "❚❚";
-    if (mute) mute.textContent = video.muted || video.volume === 0 ? "Muted" : "♪";
+    if (mute) mute.textContent = video.muted || video.volume === 0 ? "×" : "♪";
     if (volume) volume.value = String(video.muted ? 0 : video.volume);
   };
 
@@ -4009,6 +4011,7 @@ function setupCustomVideoControls(video) {
     showControls();
   });
   fullscreen?.addEventListener("click", () => document.querySelector("[data-fullscreen-btn]")?.click());
+  settings?.addEventListener("click", () => document.querySelector("[data-player-settings-toggle]")?.click());
 
   ["loadedmetadata", "durationchange", "timeupdate", "play", "pause", "volumechange"].forEach((event) => video.addEventListener(event, update));
   player.addEventListener("mousemove", showControls);

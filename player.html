@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=custom-video-controls" defer></script>
+    <script src="app.js?v=compact-custom-controls" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -175,7 +175,7 @@
         bottom: 14px;
         z-index: 8;
         display: grid;
-        grid-template-columns: auto auto 1fr auto auto minmax(78px, 120px) auto;
+        grid-template-columns: auto auto 1fr auto auto auto minmax(78px, 120px) auto;
         align-items: center;
         gap: 10px;
         padding: 10px 12px;
@@ -193,7 +193,7 @@
       }
 
       .video-control-btn {
-        min-width: 34px;
+        width: 34px;
         min-height: 34px;
         border: 0;
         border-radius: 10px;
@@ -278,13 +278,7 @@
 
       .video-wrapper:fullscreen .player-controls,
       .video-wrapper.player-fullscreen .player-controls {
-        position: absolute;
-        left: 16px;
-        right: 16px;
-        top: 16px;
-        z-index: 8;
-        background: rgba(8, 12, 18, 0.58);
-        transition: opacity 180ms ease, transform 180ms ease;
+        display: none;
       }
 
       .video-wrapper:fullscreen .player-settings-panel,
@@ -292,7 +286,7 @@
         position: absolute;
         left: 16px;
         right: 16px;
-        top: 96px;
+        bottom: 84px;
         z-index: 9;
         background: rgba(8, 12, 18, 0.78);
         transition: opacity 180ms ease, transform 180ms ease;
@@ -309,11 +303,10 @@
         bottom: 16px;
       }
 
-      .video-wrapper.player-fullscreen.player-fs-idle .player-controls,
       .video-wrapper.player-fullscreen.player-fs-idle .player-settings-panel[hidden] {
         opacity: 0;
         pointer-events: none;
-        transform: translateY(-18px);
+        transform: translateY(18px);
       }
 
       .player-info h2 {
@@ -658,12 +651,13 @@
           left: 8px;
           right: 8px;
           bottom: 8px;
-          grid-template-columns: auto auto 1fr auto auto;
+          grid-template-columns: auto auto 1fr auto auto auto;
           gap: 6px;
           padding: 8px;
         }
 
-        .custom-video-controls .video-volume {
+        .custom-video-controls .video-volume,
+        .custom-video-controls [data-video-duration] {
           display: none;
         }
 
