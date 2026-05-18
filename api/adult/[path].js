@@ -144,6 +144,7 @@ function jikanToAniListAnime(item) {
   return {
     id: item.mal_id,
     idMal: item.mal_id,
+    dataSource: "jikan",
     title: { romaji: item.title || "", english: item.title_english || item.title || "", native: item.title_japanese || "" },
     synonyms: asArray(item.title_synonyms),
     description: item.synopsis || "",
@@ -166,6 +167,8 @@ function jikanToAniListManga(item) {
   if (!item) return null;
   return {
     id: item.mal_id,
+    idMal: item.mal_id,
+    dataSource: "jikan",
     title: { romaji: item.title || "", english: item.title_english || item.title || "", native: item.title_japanese || "" },
     synonyms: asArray(item.title_synonyms),
     description: item.synopsis || "",

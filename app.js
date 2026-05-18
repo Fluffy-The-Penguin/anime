@@ -429,6 +429,7 @@ async function initDetailsPage() {
   const params = new URLSearchParams(window.location.search);
   const type = params.get("type");
   const apiId = params.get("id");
+  const apiSource = params.get("source") || "";
   const cache = loadDetailCache();
   const key = type && apiId ? `${type}-${apiId}` : cache?.id;
   const cachedItem = key ? state.library[key] || (cache?.id === key ? cache : null) : null;
@@ -441,7 +442,8 @@ async function initDetailsPage() {
   if (cachedItem) renderDetails(root, cachedItem, true);
 
   try {
-    const freshItem = type === "anime" ? await fetchAnimeDetails(apiId) : await fetchMangaDetails(apiId);
+    const sourceHint = apiSource || cachedItem?.apiSource || "";
+    const freshItem = type === "anime" ? await fetchAnimeDetails(apiId, sourceHint) : await fetchMangaDetails(apiId, sourceHint);
     state.current = mergeFreshDetail(freshItem, state.library[freshItem.id]);
     renderDetails(root, state.current);
   } catch (error) {
@@ -628,7 +630,7 @@ async function fetchAnimeLatest(pageNumber = 1) {
   return data.Page.media.map(mapAniList);
 }
 
-async function fetchAnimeDetails(apiId) {
+async function fetchAnimeDetails(apiId, apiSource = "") {
   const filter = animeFilterArgs(["id: $id", "type: ANIME"], false);
   const data = await anilistQuery(
     `query ($id: Int) {
@@ -639,7 +641,7 @@ async function fetchAnimeDetails(apiId) {
         streamingEpisodes { title thumbnail site }
       }
     }`,
-    { id: Number(apiId) }
+    { id: Number(apiId), source: apiSource }
   );
   return mapAniList(data.Media);
 }
@@ -702,7 +704,7 @@ async function fetchMangaLatest(pageNumber = 1) {
   return data.Page.media.map(mapAniListManga);
 }
 
-async function fetchMangaDetails(apiId) {
+async function fetchMangaDetails(apiId, apiSource = "") {
   const filter = animeFilterArgs(["id: $id", "type: MANGA"], false);
   const data = await anilistQuery(
     `query ($id: Int) {
@@ -712,7 +714,7 @@ async function fetchMangaDetails(apiId) {
         staff(perPage: 1) { nodes { name { full } } }
       }
     }`,
-    { id: Number(apiId) }
+    { id: Number(apiId), source: apiSource }
   );
   return mapAniListManga(data.Media);
 }
@@ -755,6 +757,7 @@ function assertOk(response) {
 }
 
 function mapAniList(item) {
+  const apiSource = item.dataSource === "jikan" ? "jikan" : "anilist";
   const englishTitle = item.title.english || "";
   const romajiTitle = item.title.romaji || "";
   const nativeTitle = item.title.native || "";
@@ -763,8 +766,10 @@ function mapAniList(item) {
   return {
     id: `anime-${item.id}`,
     apiId: item.id,
+    apiSource,
     malId: item.idMal || "",
-    source: "AniList",
+    anilistId: apiSource === "anilist" ? item.id : "",
+    source: apiSource === "jikan" ? "Jikan" : "AniList",
     type: "anime",
     displayType: item.format || "Anime",
     title,
@@ -793,6 +798,7 @@ function mapAniList(item) {
 }
 
 function mapAniListManga(item) {
+  const apiSource = item.dataSource === "jikan" ? "jikan" : "anilist";
   const englishTitle = item.title.english || "";
   const romajiTitle = item.title.romaji || "";
   const nativeTitle = item.title.native || "";
@@ -801,7 +807,9 @@ function mapAniListManga(item) {
   return {
     id: `manga-${item.id}`,
     apiId: item.id,
-    source: "AniList",
+    apiSource,
+    anilistId: apiSource === "anilist" ? item.id : "",
+    source: apiSource === "jikan" ? "Jikan" : "AniList",
     type: "manga",
     displayType: item.format || "Manga",
     title,
@@ -1720,12 +1728,12 @@ async function initAnimeDetailSources(root, anime) {
   const sourceQuery = root.querySelector("[data-detail-anime-query]");
   if (!sourceSelect || !sourceCount || !episodeList) return;
 
-  const sources = [{ id: "anilist", name: "AniList episodes" }];
+  const catalogName = anime.apiSource === "jikan" ? "Jikan episodes" : "AniList episodes";
+  const sources = [{ id: "anilist", name: catalogName }];
   if (animeSourceEnabled("animedex")) sources.push({ id: "animedex", name: "AnimeDex" });
   if (animeSourceEnabled("anizone")) sources.push({ id: "anizone", name: "AniZone" });
   if (animeSourceEnabled("hstream") && state.settings.allowAdult) sources.push({ id: "hstream", name: "hstream.moe" });
   if (animeSourceEnabled("nyaa")) sources.push({ id: "nyaa", name: "Nyaa search on player" });
-  if (stremioAddons().length) sources.push({ id: "stremio", name: "Stremio search on player" });
   if (animeSourceEnabled("aniwaves")) sources.push({ id: "aniwaves", name: "Aniwaves provider match" });
 
   const savedSource = localStorage.getItem(animeSourceKey(anime)) || sources[0]?.id || "";
@@ -1751,7 +1759,8 @@ async function initAnimeDetailSources(root, anime) {
 
     if (sourceId === "anilist") {
       const episodes = buildEpisodes(anime);
-      sourceCount.textContent = episodes.length ? `${episodes.length} AniList episode${episodes.length === 1 ? "" : "s"}` : "No AniList episode list";
+      const catalogSource = anime.apiSource === "jikan" ? "Jikan" : "AniList";
+      sourceCount.textContent = episodes.length ? `${episodes.length} ${catalogSource} episode${episodes.length === 1 ? "" : "s"}` : `No ${catalogName} list`;
       renderAnimeDetailEpisodeList(episodeList, anime, "anilist", episodes);
       return;
     }
@@ -1932,7 +1941,8 @@ function openPlayerForAnime(anime, episode = null, sourceId = "anilist", sourceM
   else sessionStorage.removeItem("player-source-matches");
   const episodeQuery = episode?.number ? `&episode=${encodeURIComponent(episode.number)}` : "";
   const sourceQuery = sourceId ? `&source=${encodeURIComponent(sourceId)}` : "";
-  window.location.href = `player.html?type=${anime.type}&id=${anime.apiId}${episodeQuery}${sourceQuery}`;
+  const apiSourceQuery = anime.apiSource ? `&apiSource=${encodeURIComponent(anime.apiSource)}` : "";
+  window.location.href = `player.html?type=${anime.type}&id=${anime.apiId}${episodeQuery}${sourceQuery}${apiSourceQuery}`;
 }
 
 function animeSourceKey(anime) {
@@ -2047,7 +2057,8 @@ function renderMangaDetailChapterList(container, manga, source, pageNumber = 1) 
         chapterNumber: String(chapter.number || ""),
       }));
       localStorage.setItem(mangaSourceKey(manga), source.id);
-      window.location.href = `manga-reader.html?type=${manga.type}&id=${manga.apiId}`;
+      const apiSourceQuery = manga.apiSource ? `&apiSource=${encodeURIComponent(manga.apiSource)}` : "";
+      window.location.href = `manga-reader.html?type=${manga.type}&id=${manga.apiId}${apiSourceQuery}`;
     });
   });
 
@@ -2125,7 +2136,8 @@ function goToDetails(item) {
 }
 
 function detailUrl(item) {
-  return `details.html?type=${encodeURIComponent(item.type)}&id=${encodeURIComponent(item.apiId || item.id.split("-").pop())}`;
+  const source = item.apiSource ? `&source=${encodeURIComponent(item.apiSource)}` : "";
+  return `details.html?type=${encodeURIComponent(item.type)}&id=${encodeURIComponent(item.apiId || item.id.split("-").pop())}${source}`;
 }
 
 function shortText(text, maxLength) {
@@ -2619,53 +2631,6 @@ async function fetchApiJson(path) {
   return response.json();
 }
 
-function stremioAddons() {
-  return Array.isArray(state.settings.stremioAddons) ? state.settings.stremioAddons : [];
-}
-
-async function addStremioAddon() {
-  const input = document.querySelector("[data-stremio-addon-url]");
-  const url = input.value.trim();
-  if (!url) return showToast("Enter a Stremio manifest URL");
-
-  try {
-    const manifest = await fetchApiJson(`/api/stremio/manifest?url=${encodeURIComponent(url)}`);
-    const addons = stremioAddons().filter((addon) => addon.url !== url);
-    addons.push({ url, name: manifest.name || "Stremio Addon", description: manifest.description || "" });
-    state.settings.stremioAddons = addons;
-    persistSettings();
-    input.value = "";
-    renderStremioAddons();
-    showToast("Stremio addon added");
-  } catch (error) {
-    showToast("Could not load Stremio addon");
-  }
-}
-
-function renderStremioAddons() {
-  const container = document.querySelector("[data-stremio-addon-list]");
-  if (!container) return;
-  const addons = stremioAddons();
-
-  container.innerHTML = addons.length ? addons.map((addon, index) => `
-    <div class="stremio-addon-item">
-      <div>
-        <strong>${escapeHtml(addon.name)}</strong>
-        <span>${escapeHtml(addon.url)}</span>
-      </div>
-      <button class="btn secondary" data-remove-stremio-addon="${index}" type="button" style="min-height: 32px; padding: 6px 10px; font-size: 12px;">Remove</button>
-    </div>
-  `).join("") : '<p class="muted" style="font-size: 12px; margin: 0;">No Stremio addons added yet.</p>';
-
-  container.querySelectorAll("[data-remove-stremio-addon]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.settings.stremioAddons = stremioAddons().filter((_, index) => index !== Number(button.dataset.removeStremioAddon));
-      persistSettings();
-      renderStremioAddons();
-    });
-  });
-}
-
 async function initSettingsPage() {
   const settingsRoot = document.querySelector(".settings-layout") || document;
   const nav = settingsRoot.querySelector(".settings-nav");
@@ -2793,9 +2758,6 @@ async function initSettingsPage() {
       showToast("Backend connection failed");
     }
   });
-
-  renderStremioAddons();
-  document.querySelector("[data-stremio-add-btn]").addEventListener("click", addStremioAddon);
 
   // Data management
   document.querySelector("[data-export-btn]").addEventListener("click", exportLibrary);
@@ -3121,6 +3083,7 @@ async function initPlayerPage() {
   const params = new URLSearchParams(window.location.search);
   const type = params.get("type") || "anime";
   const apiId = params.get("id");
+  const apiSource = params.get("apiSource") || "";
 
   let anime = null;
   let startData = null;
@@ -3135,7 +3098,7 @@ async function initPlayerPage() {
 
   if (!anime && apiId && type === "anime") {
     try {
-      anime = await fetchAnimeDetails(apiId);
+      anime = await fetchAnimeDetails(apiId, apiSource);
     } catch (error) {
       showToast("Could not load anime details");
     }
@@ -3318,13 +3281,12 @@ async function loadEpisode(anime, episode, episodeNumber) {
   }
 
   try {
-    const [streamData, stremioStreams, aniwavesMatches, adultMatches] = await Promise.all([
+    const [streamData, aniwavesMatches, adultMatches] = await Promise.all([
       animeSourceEnabled("nyaa") ? searchNyaaStreams(anime.title, episodeNumber) : [],
-      searchStremioStreams(anime, episodeNumber),
       animeSourceEnabled("aniwaves") ? searchAniwavesAnime(anime.title) : [],
       animeSourceEnabled("hstream") ? searchAdultAnime(anime) : [],
     ]);
-    renderStreamingSources(sources, streamData, anime, episodeNumber, stremioStreams, aniwavesMatches, adultMatches);
+    renderStreamingSources(sources, streamData, anime, episodeNumber, aniwavesMatches, adultMatches);
   } catch (error) {
     sources.innerHTML = `
       <div class="empty" style="padding: 16px; text-align: center;">
@@ -3374,24 +3336,6 @@ async function searchNyaaStreams(animeTitle, episodeNumber) {
 
 async function searchNyaaMangaTorrents(mangaTitle, chapterNumber) {
   return fetchApiJson(`/api/torrents/manga?title=${encodeURIComponent(mangaTitle)}&chapter=${encodeURIComponent(chapterNumber)}`);
-}
-
-async function searchStremioStreams(anime, episodeNumber) {
-  const addons = stremioAddons();
-  if (!addons.length) return [];
-
-  const results = [];
-
-  for (const addon of addons) {
-    try {
-      const streams = await fetchApiJson(`/api/stremio/search-streams?url=${encodeURIComponent(addon.url)}&title=${encodeURIComponent(anime.title)}&episode=${encodeURIComponent(episodeNumber)}&malId=${encodeURIComponent(anime.malId || "")}&anilistId=${encodeURIComponent(anime.apiId || "")}`);
-      streams.forEach((stream) => results.push({ ...stream, addonName: addon.name }));
-    } catch (error) {
-      // Try the next addon.
-    }
-  }
-
-  return results;
 }
 
 async function searchAniwavesAnime(animeTitle) {
@@ -3519,26 +3463,21 @@ function buildMagnetLink(infoHash, name) {
   return `magnet:?xt=urn:btih:${encodeURIComponent(infoHash)}&dn=${encodeURIComponent(name)}${trackers.map((tracker) => `&tr=${encodeURIComponent(tracker)}`).join("")}`;
 }
 
-function renderStreamingSources(container, results, anime, episodeNumber, stremioStreams = [], aniwavesMatches = [], adultMatches = []) {
+function renderStreamingSources(container, results, anime, episodeNumber, aniwavesMatches = [], adultMatches = []) {
   const extensionHtml = extensionSourceCards("anime");
-  const stremioHtml = stremioSourceCards(stremioStreams);
   const aniwavesHtml = aniwavesSourceCards(aniwavesMatches, episodeNumber);
   const adultHtml = adultSourceCards(adultMatches);
-  const stremioStatusHtml = stremioAddonStatusHtml(stremioStreams);
-  if (!results.length && !stremioStreams.length && !aniwavesMatches.length && !adultMatches.length) {
+  if (!results.length && !aniwavesMatches.length && !adultMatches.length) {
     container.innerHTML = `
       ${extensionHtml}
-      ${stremioHtml}
       ${aniwavesHtml}
       ${adultHtml}
-      ${stremioStatusHtml}
       <div class="empty" style="padding: 16px; text-align: center;">
         <p class="muted">No sources available</p>
         <p class="muted" style="font-size: 12px;">Nyaa may be blocking requests, or this title may need a different search name.</p>
       </div>
     `;
     bindExtensionSourceButtons(container);
-    bindStremioSourceButtons(container);
     bindAniwavesSourceButtons(container);
     bindAdultSourceButtons(container);
     document.querySelector("[data-video-player]").innerHTML = `
@@ -3550,7 +3489,7 @@ function renderStreamingSources(container, results, anime, episodeNumber, stremi
     return;
   }
 
-  container.innerHTML = `${extensionHtml}${stremioHtml}${aniwavesHtml}${adultHtml}${stremioStatusHtml}${results
+  container.innerHTML = `${extensionHtml}${aniwavesHtml}${adultHtml}${results
     .slice(0, 5)
     .map((result) => {
       const seeders = result.seeders || 0;
@@ -3574,7 +3513,6 @@ function renderStreamingSources(container, results, anime, episodeNumber, stremi
 
   // Add play button handlers
   bindExtensionSourceButtons(container);
-  bindStremioSourceButtons(container);
   bindAniwavesSourceButtons(container);
   bindAdultSourceButtons(container);
   container.querySelectorAll(".source-play").forEach((btn) => {
@@ -3641,7 +3579,7 @@ function renderDirectAnimeStreams(container, data, provider, autoplay = false) {
               <h4>${escapeHtml(stream.quality || stream.name || `Source ${index + 1}`)}</h4>
               <p>${escapeHtml(stream.isHLS || String(stream.url).includes(".m3u8") ? "HLS stream" : "Direct stream")}</p>
             </div>
-            <button class="source-play-stremio" data-direct-stream-index="${index}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">Play</button>
+            <button class="source-play-direct" data-direct-stream-index="${index}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">Play</button>
           </div>
         `).join("")}
       </div>
@@ -3699,7 +3637,7 @@ function bindAdultSourceButtons(container, options = {}) {
         sourceList.className = "source-direct-list";
         sourceList.style.cssText = "display: grid; gap: 6px; margin: -4px 0 8px 0;";
         sourceList.innerHTML = sources.map((source, index) => `
-          <button class="source-play-stremio" data-adult-stream-index="${index}" type="button" style="padding: 7px 12px; border-radius: 8px; background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--line); font-weight: 700; cursor: pointer; font-size: 12px; text-align: left;">Play ${escapeHtml(source.quality || source.name || "stream")}</button>
+          <button class="source-play-direct" data-adult-stream-index="${index}" type="button" style="padding: 7px 12px; border-radius: 8px; background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--line); font-weight: 700; cursor: pointer; font-size: 12px; text-align: left;">Play ${escapeHtml(source.quality || source.name || "stream")}</button>
         `).join("");
         item?.nextElementSibling?.classList?.contains("source-direct-list") && item.nextElementSibling.remove();
         item?.after(sourceList);
@@ -3773,53 +3711,6 @@ function savePreferredQualityFromSource(source) {
 
 function playerAutoPlayEnabled() {
   return state.settings.autoPlay !== false;
-}
-
-function stremioSourceCards(streams) {
-  if (!streams.length) return "";
-  return `
-    <div class="stremio-source-list" style="display: grid; gap: 8px; margin-bottom: 12px;">
-      <h4 style="margin: 0 0 4px; font-size: 14px;">Stremio streams</h4>
-      ${streams.slice(0, 10).map((stream, index) => {
-        const target = stream.url || stream.externalUrl || (stream.infoHash ? buildMagnetLink(stream.infoHash, stream.title || stream.name || "Stremio stream") : "");
-        return `
-          <div class="source-item">
-            <div class="source-info">
-              <h4>${escapeHtml(stream.name || stream.addonName || "Stremio")}</h4>
-              <p>${escapeHtml(stream.title || stream.description || stream.addonName || "Stream source")}</p>
-            </div>
-            <button class="source-play-stremio" data-stremio-url="${escapeAttr(target)}" data-stremio-index="${index}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">${target.startsWith("http") ? "Play" : "Open"}</button>
-          </div>
-        `;
-      }).join("")}
-    </div>
-  `;
-}
-
-function stremioAddonStatusHtml(streams) {
-  const addons = stremioAddons();
-  if (!addons.length || streams.length) return "";
-  return `
-    <div class="empty" style="padding: 12px; text-align: center; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 12px;">
-      <p class="muted" style="margin: 0;">${addons.length} Stremio addon${addons.length === 1 ? "" : "s"} enabled, but none returned streams for this AniList/MAL episode ID.</p>
-      <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Try another addon, or one that supports MAL/AniList anime IDs.</p>
-    </div>
-  `;
-}
-
-function bindStremioSourceButtons(container) {
-  container.querySelectorAll("[data-stremio-url]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const url = button.dataset.stremioUrl;
-      if (!url) return showToast("No playable URL on this stream");
-      if (url.startsWith("http")) {
-        await playHttpStream(url);
-        return;
-      }
-      window.open(url, "_blank");
-      showToast("Opening stream externally");
-    });
-  });
 }
 
 async function playHttpStream(url, tracks = [], options = {}) {
@@ -4683,7 +4574,7 @@ async function initReaderPage() {
 
   if (!manga && apiId && type === "manga") {
     try {
-      manga = await fetchMangaDetails(apiId);
+      manga = await fetchMangaDetails(apiId, params.get("apiSource") || "");
     } catch (error) {
       showToast("Could not load manga details");
     }
@@ -4707,7 +4598,7 @@ async function initReaderPage() {
   document.querySelectorAll("[data-reader-back]").forEach((button) => {
     button.addEventListener("click", () => {
       if (history.length > 1) history.back();
-      else window.location.href = `details.html?type=${type}&id=${apiId || manga.apiId}`;
+      else window.location.href = detailUrl(manga);
     });
   });
 
