@@ -91,12 +91,24 @@ async function handleAniListRoute(req, res, backendUrl) {
       return;
     }
 
-    const response = await fetchWithTimeout(`${backendUrl}/api/anilist`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ query: body.query, variables: body.variables || {} }),
-    });
+    let response;
+    try {
+      response = await fetchWithTimeout(`${backendUrl}/api/anilist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query: body.query, variables: body.variables || {} }),
+      });
+    } catch (error) {
+      const fallback = await fallbackAniListResponse(body);
+      res.json(fallback);
+      return;
+    }
     const text = await response.text();
+    if (!response.ok) {
+      const fallback = await fallbackAniListResponse(body);
+      res.json(fallback);
+      return;
+    }
     res.status(response.status);
     res.setHeader("Content-Type", response.headers.get("content-type") || "application/json");
     res.send(text);
