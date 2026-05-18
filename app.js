@@ -67,6 +67,7 @@ const playerRuntime = {
   currentEpisodeNumber: null,
   currentSourceMatches: [],
   currentSourceIndex: -1,
+  autoPlay: true,
   autoNext: false,
   hls: null,
   dash: null,
@@ -2237,10 +2238,31 @@ function animeQueryDefs(baseDefs) {
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
-    return { allowAdult: false, animeSources: defaultAnimeSources(), mangaSources: defaultMangaSources(), subtitleStyle: defaultSubtitleStyle(), ...saved, subtitleStyle: { ...defaultSubtitleStyle(), ...(saved.subtitleStyle || {}) } };
+    const defaults = defaultSettings();
+    return {
+      ...defaults,
+      ...saved,
+      animeSources: { ...defaults.animeSources, ...(saved.animeSources || {}) },
+      mangaSources: { ...defaults.mangaSources, ...(saved.mangaSources || {}) },
+      subtitleStyle: { ...defaults.subtitleStyle, ...(saved.subtitleStyle || {}) },
+    };
   } catch (error) {
-    return { allowAdult: false, animeSources: defaultAnimeSources(), mangaSources: defaultMangaSources(), subtitleStyle: defaultSubtitleStyle() };
+    return defaultSettings();
   }
+}
+
+function defaultSettings() {
+  return {
+    allowAdult: false,
+    animeSources: defaultAnimeSources(),
+    mangaSources: defaultMangaSources(),
+    preferredQuality: "auto",
+    subtitleLanguage: "english",
+    autoPlay: true,
+    autoPlayNext: false,
+    playerSpeed: "1",
+    subtitleStyle: defaultSubtitleStyle(),
+  };
 }
 
 function defaultSubtitleStyle() {
@@ -2687,6 +2709,15 @@ async function initSettingsPage() {
   });
 
   initSubtitleStyleSettings();
+
+  const autoPlayToggle = document.querySelector("[data-player-autoplay-toggle]");
+  if (autoPlayToggle) {
+    autoPlayToggle.checked = state.settings.autoPlay !== false;
+    autoPlayToggle.addEventListener("change", (e) => {
+      state.settings.autoPlay = e.target.checked;
+      persistSettings();
+    });
+  }
 
   document.querySelector("[data-autoplay-toggle]").checked = state.settings.autoPlayNext || false;
   document.querySelector("[data-autoplay-toggle]").addEventListener("change", (e) => {
@@ -3186,7 +3217,7 @@ async function loadEpisode(anime, episode, episodeNumber) {
 
   if (episode.sourceUrl) {
     sources.innerHTML = adultSourceCards([episode.sourceMatch || episode]);
-    bindAdultSourceButtons(sources, { autoplayUrl: episode.sourceUrl });
+    bindAdultSourceButtons(sources, { autoplayUrl: playerAutoPlayEnabled() ? episode.sourceUrl : "" });
     return;
   }
 
@@ -3195,7 +3226,7 @@ async function loadEpisode(anime, episode, episodeNumber) {
       const data = episode.source === "animedex"
         ? await fetchApiJson(`/api/anime/animedex/streams?episodeId=${encodeURIComponent(episode.episodeId || episode.id || "")}`)
         : await fetchApiJson(`/api/anime/anizone/streams?episodeUrl=${encodeURIComponent(episode.episodeUrl || episode.id || "")}`);
-      renderDirectAnimeStreams(sources, data, episode.source, true);
+      renderDirectAnimeStreams(sources, data, episode.source, playerAutoPlayEnabled());
     } catch (error) {
       sources.innerHTML = `<div class="empty">Could not load ${escapeHtml(animeSourceLabel(episode.source))} streams for this episode.</div>`;
       videoPlayer.innerHTML = '<div class="player-loading"><p style="color: var(--red);">No playable source found</p></div>';
@@ -3525,6 +3556,7 @@ function renderDirectAnimeStreams(container, data, provider, autoplay = false) {
     button.addEventListener("click", () => {
       const index = Number(button.dataset.directStreamIndex);
       const stream = streams[index];
+      savePreferredQualityFromSource(stream);
       playHttpStream(stream.url, stream.tracks || data.tracks || [], { sources: streams, currentIndex: index });
     });
   });
@@ -3578,6 +3610,7 @@ function bindAdultSourceButtons(container, options = {}) {
         sourceList.querySelectorAll("[data-adult-stream-index]").forEach((sourceButton) => {
           sourceButton.addEventListener("click", () => {
             const source = sources[Number(sourceButton.dataset.adultStreamIndex)];
+            savePreferredQualityFromSource(source);
             playHttpStream(source.url, source.tracks || data.tracks || [], { sources, currentIndex: Number(sourceButton.dataset.adultStreamIndex) });
           });
         });
@@ -3602,9 +3635,48 @@ function bindAdultSourceButtons(container, options = {}) {
 
 function preferredSourceIndex(sources) {
   const preferred = state.settings.preferredQuality || "auto";
-  if (!preferred || preferred === "auto") return 0;
-  const index = sources.findIndex((source) => String(source.quality || source.name || "").toLowerCase().includes(preferred.toLowerCase()));
-  return index >= 0 ? index : 0;
+  if (!preferred || preferred === "auto") return bestAvailableSourceIndex(sources);
+  const normalizedPreferred = normalizeQualityPreference(preferred);
+  const index = sources.findIndex((source) => {
+    const sourceText = sourceQualityText(source).toLowerCase();
+    const sourceQuality = normalizeQualityPreference(sourceText);
+    return sourceQuality === normalizedPreferred || sourceText.includes(String(preferred).toLowerCase());
+  });
+  return index >= 0 ? index : bestAvailableSourceIndex(sources);
+}
+
+function bestAvailableSourceIndex(sources) {
+  const ranked = sources
+    .map((source, index) => ({ index, quality: Number((normalizeQualityPreference(sourceQualityText(source)).match(/\d+/) || [0])[0]) }))
+    .filter((item) => item.quality > 0)
+    .sort((a, b) => b.quality - a.quality);
+  return ranked[0]?.index || 0;
+}
+
+function sourceQualityText(source) {
+  return String(source?.quality || source?.name || source?.label || "");
+}
+
+function normalizeQualityPreference(value) {
+  const text = String(value || "").toLowerCase();
+  const match = text.match(/(2160|1440|1080|720|480|360|240)\s*p?/);
+  return match ? `${match[1]}p` : text.trim();
+}
+
+function qualityPreferenceForSource(source) {
+  const normalized = normalizeQualityPreference(sourceQualityText(source));
+  return /^\d+p$/.test(normalized) ? normalized : "";
+}
+
+function savePreferredQualityFromSource(source) {
+  const preference = qualityPreferenceForSource(source);
+  if (!preference) return;
+  state.settings.preferredQuality = preference;
+  persistSettings();
+}
+
+function playerAutoPlayEnabled() {
+  return state.settings.autoPlay !== false;
 }
 
 function stremioSourceCards(streams) {
@@ -3739,6 +3811,7 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
   const speed = document.querySelector("[data-player-speed]");
   const subtitles = document.querySelector("[data-player-subtitles]");
   const audio = document.querySelector("[data-player-audio]");
+  const autoPlay = document.querySelector("[data-player-auto-play]");
   const autoNext = document.querySelector("[data-player-auto-next]");
 
   if (toggle && panel) {
@@ -3756,16 +3829,18 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
     quality.onchange = () => {
       const nextSource = sources[Number(quality.value)];
       if (!nextSource?.url || nextSource.url === video.currentSrc) return;
+      savePreferredQualityFromSource(nextSource);
       playHttpStream(nextSource.url, nextSource.tracks || tracks, { sources, currentIndex: Number(quality.value) });
     };
   }
 
   if (speed) {
-    speed.value = localStorage.getItem("player-speed") || "1";
+    speed.value = state.settings.playerSpeed || "1";
     video.playbackRate = Number(speed.value) || 1;
     speed.onchange = () => {
       video.playbackRate = Number(speed.value) || 1;
-      localStorage.setItem("player-speed", speed.value);
+      state.settings.playerSpeed = speed.value;
+      persistSettings();
     };
   }
 
@@ -3790,12 +3865,23 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
     };
   }
 
+  if (autoPlay) {
+    playerRuntime.autoPlay = playerAutoPlayEnabled();
+    autoPlay.checked = playerRuntime.autoPlay;
+    autoPlay.onchange = () => {
+      playerRuntime.autoPlay = autoPlay.checked;
+      state.settings.autoPlay = autoPlay.checked;
+      persistSettings();
+    };
+  }
+
   if (autoNext) {
-    playerRuntime.autoNext = localStorage.getItem("player-auto-next") === "1";
+    playerRuntime.autoNext = Boolean(state.settings.autoPlayNext);
     autoNext.checked = playerRuntime.autoNext;
     autoNext.onchange = () => {
       playerRuntime.autoNext = autoNext.checked;
-      localStorage.setItem("player-auto-next", autoNext.checked ? "1" : "0");
+      state.settings.autoPlayNext = autoNext.checked;
+      persistSettings();
     };
   }
 }
