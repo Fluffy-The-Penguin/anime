@@ -3830,9 +3830,13 @@ async function playHttpStream(url, tracks = [], options = {}) {
     <video data-active-video autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
     <div class="custom-video-controls" data-custom-video-controls>
       <button class="video-control-btn" data-video-play type="button" aria-label="Play or pause">▶</button>
-      <button class="video-control-btn" data-video-mute type="button" aria-label="Mute or unmute">♪</button>
+      <div class="video-volume-control" data-video-volume-control>
+        <button class="video-control-btn" data-video-mute type="button" aria-label="Mute or unmute">♪</button>
+        <div class="video-volume-panel" data-video-volume-panel hidden>
+          <input class="video-volume" data-video-volume type="range" min="0" max="1" value="1" step="0.01" aria-label="Volume">
+        </div>
+      </div>
       <span class="video-time video-time-range"><span data-video-current>0:00</span> / <span data-video-duration>0:00</span></span>
-      <input class="video-volume" data-video-volume type="range" min="0" max="1" value="1" step="0.01" aria-label="Volume">
       <input class="video-progress" data-video-progress type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
       <button class="video-control-btn" data-video-captions type="button" aria-label="Toggle captions">CC</button>
       <button class="video-control-btn" data-video-settings type="button" aria-label="Player settings">⚙</button>
@@ -3955,12 +3959,28 @@ function setupCustomVideoControls(video) {
   const duration = controls.querySelector("[data-video-duration]");
   const settings = controls.querySelector("[data-video-settings]");
   const mute = controls.querySelector("[data-video-mute]");
+  const volumeControl = controls.querySelector("[data-video-volume-control]");
+  const volumePanel = controls.querySelector("[data-video-volume-panel]");
   const volume = controls.querySelector("[data-video-volume]");
   const captions = controls.querySelector("[data-video-captions]");
   const fullscreen = controls.querySelector("[data-video-fullscreen]");
   const panel = document.querySelector("[data-player-settings-panel]");
   let seeking = false;
   let hideTimer = null;
+
+  const hideVolumePanel = () => {
+    if (!volumePanel) return;
+    volumePanel.hidden = true;
+    volumeControl?.classList.remove("volume-open");
+  };
+
+  const showVolumePanel = () => {
+    if (!volumePanel) return;
+    hidePlayerSettingsPanel();
+    volumePanel.hidden = false;
+    volumeControl?.classList.add("volume-open");
+    showControls();
+  };
 
   const showControls = () => {
     player.classList.remove("video-controls-idle");
@@ -3969,6 +3989,7 @@ function setupCustomVideoControls(video) {
       if (!video.paused) {
         player.classList.add("video-controls-idle");
         hidePlayerSettingsPanel();
+        hideVolumePanel();
       }
     }, 2400);
   };
@@ -4023,12 +4044,14 @@ function setupCustomVideoControls(video) {
     video.muted = !video.muted;
     if (!video.muted && video.volume === 0) video.volume = 1;
     update();
+    showVolumePanel();
     showControls();
   });
   volume?.addEventListener("input", () => {
     video.volume = Math.max(0, Math.min(1, Number(volume.value) || 0));
     video.muted = video.volume === 0;
     update();
+    showVolumePanel();
     showControls();
   });
   fullscreen?.addEventListener("click", () => document.querySelector("[data-fullscreen-btn]")?.click());
@@ -4038,9 +4061,14 @@ function setupCustomVideoControls(video) {
     showControls();
   });
   settings?.addEventListener("click", () => {
+    hideVolumePanel();
     document.querySelector("[data-player-settings-toggle]")?.click();
     showControls();
   });
+  volumeControl?.addEventListener("mouseenter", showVolumePanel);
+  volumeControl?.addEventListener("focusin", showVolumePanel);
+  volumeControl?.addEventListener("touchstart", showVolumePanel, { passive: true });
+  volumeControl?.addEventListener("mousemove", showControls);
   setupPlayerKeyboardControls(video, showControls);
 
   ["loadedmetadata", "durationchange", "timeupdate", "play", "pause", "volumechange"].forEach((event) => video.addEventListener(event, update));

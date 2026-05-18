@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=controls-order-time" defer></script>
+    <script src="app.js?v=vertical-volume-popover" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -175,7 +175,7 @@
         bottom: 14px;
         z-index: 8;
         display: grid;
-        grid-template-columns: auto auto auto minmax(78px, 120px) 1fr auto auto auto;
+        grid-template-columns: auto auto auto 1fr auto auto auto;
         align-items: center;
         gap: 10px;
         padding: 10px 12px;
@@ -213,6 +213,39 @@
         cursor: not-allowed;
       }
 
+      .video-volume-control {
+        position: relative;
+        display: grid;
+        place-items: center;
+      }
+
+      .video-volume-control.volume-open .video-control-btn {
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .video-volume-panel {
+        position: absolute;
+        left: 50%;
+        bottom: 44px;
+        z-index: 10;
+        display: grid;
+        place-items: center;
+        width: 46px;
+        height: 138px;
+        padding: 12px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 14px;
+        background: rgba(8, 12, 18, 0.82);
+        box-shadow: 0 14px 44px rgba(0, 0, 0, 0.28);
+        backdrop-filter: blur(18px) saturate(130%);
+        transform: translateX(-50%);
+      }
+
+      .video-volume-panel[hidden] {
+        display: none !important;
+        pointer-events: none !important;
+      }
+
       .video-time {
         color: rgba(255, 255, 255, 0.82);
         font-size: 12px;
@@ -225,10 +258,17 @@
         min-width: 86px;
       }
 
-      .video-progress,
-      .video-volume {
+      .video-progress {
         width: 100%;
         accent-color: var(--blue);
+      }
+
+      .video-volume {
+        width: 28px;
+        height: 112px;
+        accent-color: var(--blue);
+        direction: rtl;
+        writing-mode: vertical-lr;
       }
 
       .custom-subtitles {
@@ -695,10 +735,6 @@
           grid-template-columns: auto auto auto 1fr auto auto auto;
           gap: 6px;
           padding: 8px;
-        }
-
-        .custom-video-controls .video-volume {
-          display: none;
         }
 
         .player-settings-panel {
