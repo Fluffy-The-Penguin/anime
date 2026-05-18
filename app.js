@@ -583,7 +583,7 @@ async function fetchAnimeDetails(apiId) {
   const data = await anilistQuery(
     `query ($id: Int) {
       Media(${filter}) {
-        id idMal title { romaji english native } description(asHtml: false) episodes duration averageScore popularity seasonYear status format genres bannerImage
+        id idMal title { romaji english native } synonyms description(asHtml: false) episodes duration averageScore popularity seasonYear status format genres bannerImage
         coverImage { extraLarge large color }
         studios(isMain: true) { nodes { name } }
         streamingEpisodes { title thumbnail site }
@@ -705,6 +705,11 @@ function assertOk(response) {
 }
 
 function mapAniList(item) {
+  const englishTitle = item.title.english || "";
+  const romajiTitle = item.title.romaji || "";
+  const nativeTitle = item.title.native || "";
+  const title = englishTitle || romajiTitle || "Untitled";
+  const alternativeTitles = uniqueStrings([englishTitle, ...(item.synonyms || []), romajiTitle, nativeTitle]).filter((name) => normalizeSearchText(name) !== normalizeSearchText(title));
   return {
     id: `anime-${item.id}`,
     apiId: item.id,
@@ -712,12 +717,15 @@ function mapAniList(item) {
     source: "AniList",
     type: "anime",
     displayType: item.format || "Anime",
-    title: item.title.english || item.title.romaji || "Untitled",
-    nativeTitle: item.title.native || "",
+    title,
+    englishTitle,
+    romajiTitle,
+    nativeTitle,
+    alternativeTitles,
     description: clean(item.description) || "No synopsis available.",
     image: item.coverImage.extraLarge || item.coverImage.large || fallbackImage,
     banner: item.bannerImage || "",
-    accent: item.coverImage.color || colorFromString(item.title.english || item.title.romaji || String(item.id)),
+    accent: item.coverImage.color || colorFromString(title || String(item.id)),
     score: item.averageScore ? `${item.averageScore}%` : "N/A",
     year: item.seasonYear || "TBA",
     total: item.episodes || 0,
@@ -2834,7 +2842,7 @@ async function loadEpisode(anime, episode, episodeNumber) {
       searchNyaaStreams(anime.title, episodeNumber),
       searchStremioStreams(anime, episodeNumber),
       searchAniwavesAnime(anime.title),
-      searchAdultAnime(anime.title),
+      searchAdultAnime(anime),
     ]);
     renderStreamingSources(sources, streamData, anime, episodeNumber, stremioStreams, aniwavesMatches, adultMatches);
   } catch (error) {
@@ -2912,13 +2920,38 @@ async function searchAniwavesAnime(animeTitle) {
   }
 }
 
-async function searchAdultAnime(animeTitle) {
+async function searchAdultAnime(anime) {
   if (!state.settings.allowAdult) return [];
-  try {
-    return await fetchApiJson(`/api/adult/search?title=${encodeURIComponent(animeTitle)}`);
-  } catch (error) {
-    return [];
+  const titles = animeTitleCandidates(anime);
+  const seen = new Set();
+  const results = [];
+
+  for (const title of titles) {
+    try {
+      const matches = await fetchApiJson(`/api/adult/search?title=${encodeURIComponent(title)}`);
+      for (const match of matches) {
+        const key = match.url || match.id || match.title;
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        results.push(match);
+      }
+      if (results.length) return results;
+    } catch (error) {
+      // Try the next AniList title variant.
+    }
   }
+
+  return results;
+}
+
+function animeTitleCandidates(anime) {
+  return uniqueStrings([
+    anime?.romajiTitle,
+    anime?.nativeTitle,
+    ...(anime?.alternativeTitles || []),
+    anime?.title,
+    anime?.englishTitle,
+  ]).filter((title) => title.length > 1);
 }
 
 async function searchNyaaRss(queries, categories) {
