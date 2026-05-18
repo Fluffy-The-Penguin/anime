@@ -3393,7 +3393,20 @@ function animeTitleCandidates(anime) {
     anime?.title,
     anime?.englishTitle,
   ]).filter((title) => title.length > 1);
-  return uniqueStrings(titles.flatMap((title) => [title, ...romajiSpacingVariants(title)]));
+  return uniqueStrings(titles.flatMap((title) => [...animeTitleSearchVariants(title), title, ...romajiSpacingVariants(title)]));
+}
+
+function animeTitleSearchVariants(title) {
+  const value = String(title || "").replace(/[\uFFFD]+/g, "").replace(/\s+/g, " ").trim();
+  if (!value) return [];
+  const variants = [value];
+  const noYear = value.replace(/\s*\((?:19|20)\d{2}\)\s*$/i, "").trim();
+  const noSeason = value.replace(/\b(?:season|part)\s*\d+\b/gi, "").replace(/\s+/g, " ").trim();
+  const noOrdinalSeason = value.replace(/\b\d+(?:st|nd|rd|th)\s+season\b/gi, "").replace(/\s+/g, " ").trim();
+  const noTrailingMarks = value.replace(/[.'\u2019`\u00B4\u00B0]+$/g, "").trim();
+  const beforeColon = value.split(/[:\uFF1A]/)[0]?.trim();
+  variants.push(noYear, noSeason, noOrdinalSeason, noTrailingMarks, beforeColon);
+  return uniqueStrings(variants).filter((item) => item.length > 1);
 }
 
 function romajiSpacingVariants(title) {
