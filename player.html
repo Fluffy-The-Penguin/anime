@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=provider-fallbacks" defer></script>
+    <script src="app.js?v=player-qol-buffering" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -168,6 +168,40 @@
         display: none;
       }
 
+      .player-buffering {
+        position: absolute;
+        inset: 0;
+        z-index: 6;
+        display: grid;
+        gap: 10px;
+        place-items: center;
+        align-content: center;
+        color: rgba(255, 255, 255, 0.88);
+        background: radial-gradient(circle at center, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.08) 42%, transparent 70%);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 140ms ease;
+      }
+
+      .player-buffering .spinner {
+        width: 34px;
+        height: 34px;
+        border-width: 3px;
+      }
+
+      .player-buffering span {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: rgba(8, 12, 18, 0.72);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .video-player.is-buffering .player-buffering {
+        opacity: 1;
+      }
+
       .custom-video-controls {
         position: absolute;
         left: 14px;
@@ -226,7 +260,7 @@
       .video-volume-panel {
         position: absolute;
         left: 50%;
-        bottom: 38px;
+        bottom: 42px;
         z-index: 10;
         display: grid;
         place-items: center;
@@ -400,12 +434,12 @@
       .player-settings-panel {
         position: absolute;
         right: 14px;
-        bottom: 120px;
+        bottom: clamp(88px, 14vh, 132px);
         z-index: 9;
         display: grid;
         grid-template-columns: repeat(2, minmax(160px, 1fr));
         gap: 10px;
-        width: min(520px, calc(100% - 28px));
+        width: min(460px, calc(100% - 28px));
         padding: 10px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 14px;

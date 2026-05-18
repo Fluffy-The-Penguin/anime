@@ -75,6 +75,7 @@ const playerRuntime = {
   keyboardHandler: null,
   hls: null,
   dash: null,
+  resumeState: null,
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -3088,6 +3089,7 @@ function importLibrary(event) {
 }
 
 async function initPlayerPage() {
+  loadHlsLibrary().catch(() => null);
   const params = new URLSearchParams(window.location.search);
   const type = params.get("type") || "anime";
   const apiId = params.get("id");
@@ -3723,10 +3725,16 @@ function playerAutoPlayEnabled() {
 
 async function playHttpStream(url, tracks = [], options = {}) {
   const player = document.querySelector("[data-video-player]");
+  const resumeState = options.resumeState || playerRuntime.resumeState || null;
+  playerRuntime.resumeState = null;
   const streamToken = ++playerRuntime.streamToken;
   destroyActiveStreamEngines();
   player.innerHTML = `
-    <video data-active-video autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
+    <video data-active-video playsinline crossorigin="anonymous" preload="auto" style="width: 100%; height: 100%; background: #000;"></video>
+    <div class="player-buffering" data-player-buffering>
+      <div class="spinner"></div>
+      <span>Loading video...</span>
+    </div>
     <div class="custom-video-controls" data-custom-video-controls>
       <button class="video-control-btn" data-video-play type="button" aria-label="Play or pause">▶</button>
       <div class="video-volume-control" data-video-volume-control>
@@ -3744,11 +3752,13 @@ async function playHttpStream(url, tracks = [], options = {}) {
   `;
   setSubtitleToggleAvailable(false);
   const video = player.querySelector("[data-active-video]");
+  const shouldAutoplay = !resumeState?.paused;
   const sourceOptions = Array.isArray(options.sources) ? options.sources : [{ url, name: "Current stream", tracks }];
   const currentIndex = Number.isFinite(Number(options.currentIndex)) ? Number(options.currentIndex) : Math.max(0, sourceOptions.findIndex((source) => source.url === url));
   setupCustomVideoControls(video);
   setupCustomSubtitles(video, tracks);
   setupPlayerSettingsControls(video, tracks, sourceOptions, currentIndex);
+  setupVideoBufferingState(video, resumeState);
 
   video.addEventListener("error", () => {
     renderPlayerFallback(url);
@@ -3760,7 +3770,8 @@ async function playHttpStream(url, tracks = [], options = {}) {
 
   if (isHls && video.canPlayType("application/vnd.apple.mpegurl")) {
     video.src = url;
-    schedulePlayerAutoplay(video, streamToken);
+    video.load();
+    if (shouldAutoplay) schedulePlayerAutoplay(video, streamToken);
     showToast("Loading HLS stream");
     return;
   }
@@ -3769,11 +3780,11 @@ async function playHttpStream(url, tracks = [], options = {}) {
     try {
       await loadHlsLibrary();
       if (window.Hls?.isSupported()) {
-        const hls = new window.Hls({ enableWorker: true });
+        const hls = new window.Hls({ enableWorker: true, lowLatencyMode: true, backBufferLength: 60, maxBufferLength: 30 });
         playerRuntime.hls = hls;
         hls.loadSource(url);
         hls.attachMedia(video);
-        hls.on(window.Hls.Events.MANIFEST_PARSED, () => schedulePlayerAutoplay(video, streamToken));
+        hls.on(window.Hls.Events.MANIFEST_PARSED, () => { if (shouldAutoplay) schedulePlayerAutoplay(video, streamToken); });
         hls.on(window.Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
             hls.destroy();
@@ -3797,8 +3808,8 @@ async function playHttpStream(url, tracks = [], options = {}) {
         playerRuntime.dash = dashPlayer;
         dashPlayer.initialize(video, url, false);
         const dashReadyEvent = window.dashjs.MediaPlayer.events.STREAM_INITIALIZED || window.dashjs.MediaPlayer.events.PLAYBACK_METADATA_LOADED;
-        if (dashReadyEvent) dashPlayer.on(dashReadyEvent, () => schedulePlayerAutoplay(video, streamToken));
-        schedulePlayerAutoplay(video, streamToken);
+        if (dashReadyEvent) dashPlayer.on(dashReadyEvent, () => { if (shouldAutoplay) schedulePlayerAutoplay(video, streamToken); });
+        if (shouldAutoplay) schedulePlayerAutoplay(video, streamToken);
         dashPlayer.on(window.dashjs.MediaPlayer.events.ERROR, () => renderPlayerFallback(url));
         showToast("Loading DASH stream");
         return;
@@ -3810,8 +3821,48 @@ async function playHttpStream(url, tracks = [], options = {}) {
   }
 
   video.src = url;
-  schedulePlayerAutoplay(video, streamToken);
+  video.load();
+  if (shouldAutoplay) schedulePlayerAutoplay(video, streamToken);
   showToast("Loading stream");
+}
+
+function setupVideoBufferingState(video, resumeState = null) {
+  const player = video.closest("[data-video-player]");
+  const overlay = player?.querySelector("[data-player-buffering]");
+  if (!player || !overlay) return;
+  let restored = false;
+
+  const show = (label = "Buffering...") => {
+    overlay.querySelector("span").textContent = label;
+    player.classList.add("is-buffering");
+  };
+  const hide = () => player.classList.remove("is-buffering");
+  const restore = async () => {
+    if (restored || !resumeState) return;
+    const time = Math.max(0, Number(resumeState.time) || 0);
+    if (time > 0 && Number.isFinite(video.duration)) video.currentTime = Math.min(time, Math.max(0, video.duration - 0.5));
+    restored = true;
+    if (!resumeState.paused) {
+      try { await video.play(); } catch (error) {}
+    }
+  };
+
+  show("Loading video...");
+  video.addEventListener("loadedmetadata", restore, { once: true });
+  video.addEventListener("canplay", () => { hide(); restore(); });
+  video.addEventListener("playing", hide);
+  video.addEventListener("waiting", () => show("Buffering..."));
+  video.addEventListener("stalled", () => show("Reconnecting..."));
+  video.addEventListener("seeking", () => show("Seeking..."));
+  video.addEventListener("seeked", hide);
+  video.addEventListener("error", () => show("Could not load video"));
+}
+
+function capturePlaybackState(video) {
+  return {
+    time: Number.isFinite(video?.currentTime) ? video.currentTime : 0,
+    paused: video?.paused !== false,
+  };
 }
 
 function schedulePlayerAutoplay(video, streamToken) {
@@ -4067,7 +4118,7 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
       const nextSource = sources[Number(quality.value)];
       if (!nextSource?.url || nextSource.url === video.currentSrc) return;
       savePreferredQualityFromSource(nextSource);
-      playHttpStream(nextSource.url, nextSource.tracks || tracks, { sources, currentIndex: Number(quality.value) });
+      playHttpStream(nextSource.url, nextSource.tracks || tracks, { sources, currentIndex: Number(quality.value), resumeState: capturePlaybackState(video) });
     };
   }
 
@@ -4155,6 +4206,7 @@ function switchAnimeDexAudioVersion(audio) {
   const allEpisodes = playerRuntime.allSourceEpisodes.length ? playerRuntime.allSourceEpisodes : playerRuntime.episodes;
   const nextEpisode = allEpisodes.find((episode) => String(episode.number || "") === currentNumber && episodeAudioKey(episode) === key);
   if (!nextEpisode) return;
+  playerRuntime.resumeState = capturePlaybackState(document.querySelector("[data-active-video]"));
   localStorage.setItem(animeAudioPreferenceKey(playerRuntime.anime || {}), key);
   const filtered = filterEpisodesByAudio(allEpisodes, key);
   playerRuntime.episodes = filtered;
