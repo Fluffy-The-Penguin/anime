@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=player-subtitles" defer></script>
+    <script src="app.js?v=subtitle-toggle" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -36,6 +36,7 @@
                 <p data-episode-number class="muted"></p>
               </div>
               <div class="player-actions">
+                <button class="icon-btn subtitle-toggle" data-subtitle-toggle type="button" aria-label="Toggle subtitles" aria-pressed="true" hidden>CC</button>
                 <button class="btn secondary" data-mark-watched type="button">Mark as Watched</button>
                 <button class="icon-btn" data-fullscreen-btn type="button" aria-label="Fullscreen">⛶</button>
               </div>
@@ -206,6 +207,19 @@
       .player-actions {
         display: flex;
         gap: 8px;
+      }
+
+      .subtitle-toggle {
+        min-width: 48px;
+        border-radius: 12px;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+      }
+
+      .subtitle-toggle.active {
+        color: #06101a;
+        border-color: transparent;
+        background: linear-gradient(135deg, var(--blue), var(--mint));
       }
 
       .episode-card {

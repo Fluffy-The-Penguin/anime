@@ -3307,6 +3307,7 @@ async function playHttpStream(url, tracks = []) {
   player.innerHTML = `
     <video data-active-video controls autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
   `;
+  setSubtitleToggleAvailable(false);
   const video = player.querySelector("[data-active-video]");
   setupCustomSubtitles(video, tracks);
 
@@ -3370,10 +3371,14 @@ function setupCustomSubtitles(video, tracks = []) {
   if (!track) return;
 
   const player = video.closest("[data-video-player]");
+  const toggle = document.querySelector("[data-subtitle-toggle]");
   const overlay = document.createElement("div");
   overlay.className = "custom-subtitles";
   overlay.setAttribute("aria-live", "polite");
   player?.append(overlay);
+  let subtitlesEnabled = true;
+
+  setSubtitleToggleAvailable(true, subtitlesEnabled);
 
   fetch(track.url)
     .then((response) => response.ok ? response.text() : Promise.reject(new Error("Subtitle request failed")))
@@ -3382,6 +3387,12 @@ function setupCustomSubtitles(video, tracks = []) {
       if (!cues.length) throw new Error("No subtitle cues");
 
       const renderCue = () => {
+        if (!subtitlesEnabled) {
+          overlay.classList.remove("show");
+          overlay.innerHTML = "";
+          return;
+        }
+
         const current = video.currentTime;
         const cue = cues.find((item) => current >= item.start && current <= item.end);
         if (!cue) {
@@ -3394,6 +3405,14 @@ function setupCustomSubtitles(video, tracks = []) {
         overlay.classList.add("show");
       };
 
+      if (toggle) {
+        toggle.onclick = () => {
+          subtitlesEnabled = !subtitlesEnabled;
+          setSubtitleToggleAvailable(true, subtitlesEnabled, true);
+          renderCue();
+        };
+      }
+
       video.addEventListener("timeupdate", renderCue);
       video.addEventListener("seeked", renderCue);
       video.addEventListener("emptied", () => overlay.remove(), { once: true });
@@ -3402,6 +3421,17 @@ function setupCustomSubtitles(video, tracks = []) {
       overlay.remove();
       appendNativeVideoTracks(video, tracks);
     });
+}
+
+function setSubtitleToggleAvailable(available, enabled = true, keepHandler = false) {
+  const toggle = document.querySelector("[data-subtitle-toggle]");
+  if (!toggle) return;
+  toggle.hidden = !available;
+  toggle.disabled = !available;
+  toggle.classList.toggle("active", available && enabled);
+  toggle.setAttribute("aria-pressed", String(Boolean(available && enabled)));
+  toggle.title = enabled ? "Turn subtitles off" : "Turn subtitles on";
+  if (!keepHandler) toggle.onclick = null;
 }
 
 function parseVttCues(text) {
