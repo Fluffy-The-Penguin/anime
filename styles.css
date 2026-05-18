@@ -1971,6 +1971,8 @@ body[data-page="manga"] {
 }
 
 .browse-toolbar {
+  position: relative;
+  z-index: 20;
   display: grid;
   grid-template-columns: minmax(280px, 1.45fr) auto minmax(160px, 0.75fr) minmax(115px, 0.45fr) minmax(150px, 0.55fr) minmax(150px, 0.55fr) auto;
   gap: 12px;
@@ -2035,7 +2037,7 @@ body[data-page="manga"] {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  z-index: 25;
+  z-index: 300;
   display: none;
   width: min(520px, 92vw);
   max-height: 360px;
@@ -4083,6 +4085,7 @@ body[data-page="manga"]:not(.browse-filters-open) .browse-toolbar {
 body[data-page="anime"].browse-filters-open .browse-toolbar,
 body[data-page="manga"].browse-filters-open .browse-toolbar {
   max-height: 520px !important;
+  overflow: visible !important;
   opacity: 1 !important;
   transform: translateY(0) !important;
   pointer-events: auto !important;
