@@ -1440,7 +1440,7 @@ function renderDetails(root, item, isTemporary = false) {
   const progressPercent = total ? Math.min(100, Math.round((progress / total) * 100)) : 0;
   const accent = normalizeColor(state.settings.themeColor || active.accent || colorFromString(active.title));
   const accentRgb = hexToRgb(accent);
-  const chapters = buildChapterRows(active);
+  const chapters = active.type === "manga" ? buildChapterRows(active) : [];
   const countLabel = active.total ? `${active.total} ${active.type === "anime" ? "episodes" : "chapters"}` : active.type === "anime" ? "Episodes TBA" : "Chapters TBA";
   const audience = (active.extra || []).find((value) => /popular|members/i.test(value)) || "Library ready";
   const actionLabel = tracked ? "Update Library" : "Add to Library";
@@ -1495,23 +1495,23 @@ function renderDetails(root, item, isTemporary = false) {
           </div>
         </main>
       </div>
-      <section class="detail-episodes">
+      ${active.type === "manga" ? `<section class="detail-episodes">
           <div class="detail-episode-head">
-            <h2>${active.type === "anime" ? "Episodes" : "Chapters"}</h2>
-          ${active.type === "manga" ? `<label class="detail-source-picker">Source <select data-detail-manga-source><option>Loading sources...</option></select></label>` : `<button type="button">English Dub</button>`}
-          ${active.type === "manga" ? `<span data-detail-manga-source-count>Loading chapters...</span>` : ""}
-          <button type="button">Hide Watched ${active.type === "anime" ? "Episodes" : "Chapters"}</button>
+            <h2>Chapters</h2>
+          <label class="detail-source-picker">Source <select data-detail-manga-source><option>Loading sources...</option></select></label>
+          <span data-detail-manga-source-count>Loading chapters...</span>
+          <button type="button">Hide Watched Chapters</button>
           <span>${chapters.length ? "1" : "0"} / 1</span>
-          <label>⌕ <input type="search" placeholder="Manually search for ${active.type}..." aria-label="Filter episodes"></label>
+          <label>⌕ <input type="search" placeholder="Manually search for manga..." aria-label="Filter chapters"></label>
         </div>
-        ${active.type === "manga" ? `<form class="detail-source-search" data-detail-source-search>
+        <form class="detail-source-search" data-detail-source-search>
           <label>Find source as <input data-detail-source-query type="search" placeholder="Custom site title, e.g. Reveries of the Moonlight" autocomplete="off"></label>
           <button class="btn secondary" type="submit">Add Source</button>
           <span data-detail-source-search-status></span>
-        </form>` : ""}
+        </form>
         <div class="detail-list-filter">All ⌕ <span>|</span> ${escapeHtml(active.title)}</div>
-        <div class="chapter-list detail-chapter-list" data-detail-chapter-list>${chapters.map((chapter, index) => `<button type="button" ${active.type === "anime" ? "data-plus-progress" : ""} class="chapter-row detail-chapter-row"><img src="${escapeAttr(chapter.image || active.image || fallbackImage)}" alt="${escapeAttr(chapter.title)} thumbnail" loading="lazy"><span>${index + 1}. ${escapeHtml(chapter.title)}</span><small>${escapeHtml(chapter.time)}</small></button>`).join("")}</div>
-      </section>
+        <div class="chapter-list detail-chapter-list" data-detail-chapter-list>${chapters.map((chapter, index) => `<button type="button" class="chapter-row detail-chapter-row"><img src="${escapeAttr(chapter.image || active.image || fallbackImage)}" alt="${escapeAttr(chapter.title)} thumbnail" loading="lazy"><span>${index + 1}. ${escapeHtml(chapter.title)}</span><small>${escapeHtml(chapter.time)}</small></button>`).join("")}</div>
+      </section>` : ""}
     </section>
   `;
 
