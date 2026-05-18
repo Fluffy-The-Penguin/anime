@@ -1,6 +1,7 @@
 const { Readable } = require("node:stream");
 
 const DEFAULT_BACKEND_URL = "http://fi10.bot-hosting.net:21204";
+const ANILIST_URL = "https://graphql.anilist.co";
 const ANIMEDEX_BASE_URL = "https://animedex.pp.ua";
 const ANIZONE_BASE_URL = "https://anizone.to";
 const REQUEST_TIMEOUT_MS = 15000;
@@ -11,6 +12,10 @@ module.exports = async function handler(req, res) {
 
   if (route === "anime") {
     await handleAnimeRoute(req, res, backendUrl);
+    return;
+  }
+  if (route === "anilist") {
+    await handleAniListRoute(req, res);
     return;
   }
 
@@ -70,6 +75,33 @@ async function handleAnimeRoute(req, res, backendUrl) {
   }
 
   await proxyJson(res, `${backendUrl}/api/anime/${route}${query.toString() ? `?${query}` : ""}`);
+}
+
+async function handleAniListRoute(req, res) {
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
+  try {
+    const body = await readJsonBody(req);
+    if (!body?.query) {
+      res.status(400).json({ error: "Missing AniList query" });
+      return;
+    }
+
+    const response = await fetchWithTimeout(ANILIST_URL, {
+      method: "POST",
+      headers: providerHeaders({ "Content-Type": "application/json", Origin: "https://anilist.co", Referer: "https://anilist.co/" }),
+      body: JSON.stringify({ query: body.query, variables: body.variables || {} }),
+    });
+    const text = await response.text();
+    res.status(response.status);
+    res.setHeader("Content-Type", response.headers.get("content-type") || "application/json");
+    res.send(text);
+  } catch (error) {
+    res.status(502).json({ error: "AniList proxy failed" });
+  }
 }
 
 async function searchAnimeDex(title) {
@@ -370,6 +402,16 @@ async function fetchWithTimeout(url, options = {}) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function readJsonBody(req) {
+  if (req.body && typeof req.body === "object") return req.body;
+  if (typeof req.body === "string") return req.body ? JSON.parse(req.body) : {};
+
+  const chunks = [];
+  for await (const chunk of req) chunks.push(Buffer.from(chunk));
+  const text = Buffer.concat(chunks).toString("utf8");
+  return text ? JSON.parse(text) : {};
 }
 
 function providerHeaders(headers = {}) {

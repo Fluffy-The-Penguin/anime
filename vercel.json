@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/health", "destination": "/api/health" },
+    { "source": "/api/anilist", "destination": "/api/adult/anilist" },
     { "source": "/api/anime/:path*", "destination": "/api/adult/anime?animePath=:path*" }
   ]
 }

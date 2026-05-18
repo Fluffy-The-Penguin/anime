@@ -1,4 +1,4 @@
-const ANILIST_URL = "https://graphql.anilist.co";
+const ANILIST_URL = "/api/anilist";
 const STORAGE_KEY = "anitrack-library-v1";
 const LEGACY_STORAGE_KEYS = ["anitrack-library-v2"];
 const THEME_KEY = "anitrack-theme";
