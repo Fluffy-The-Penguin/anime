@@ -69,6 +69,7 @@ const playerRuntime = {
   currentSourceIndex: -1,
   autoPlay: true,
   autoNext: false,
+  streamToken: 0,
   hls: null,
   dash: null,
 };
@@ -3088,6 +3089,8 @@ async function initPlayerPage() {
     return;
   }
 
+  setupPlayerChromeControls();
+
   // Update page title and anime info
   document.title = `AniTrack | ${anime.title}`;
   document.querySelector("[data-anime-title]").textContent = anime.title;
@@ -3741,6 +3744,7 @@ function bindStremioSourceButtons(container) {
 
 async function playHttpStream(url, tracks = [], options = {}) {
   const player = document.querySelector("[data-video-player]");
+  const streamToken = ++playerRuntime.streamToken;
   destroyActiveStreamEngines();
   player.innerHTML = `
     <video data-active-video controls autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
@@ -3762,6 +3766,7 @@ async function playHttpStream(url, tracks = [], options = {}) {
 
   if (isHls && video.canPlayType("application/vnd.apple.mpegurl")) {
     video.src = url;
+    schedulePlayerAutoplay(video, streamToken);
     showToast("Loading HLS stream");
     return;
   }
@@ -3774,6 +3779,7 @@ async function playHttpStream(url, tracks = [], options = {}) {
         playerRuntime.hls = hls;
         hls.loadSource(url);
         hls.attachMedia(video);
+        hls.on(window.Hls.Events.MANIFEST_PARSED, () => schedulePlayerAutoplay(video, streamToken));
         hls.on(window.Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
             hls.destroy();
@@ -3795,7 +3801,10 @@ async function playHttpStream(url, tracks = [], options = {}) {
       if (window.dashjs) {
         const dashPlayer = window.dashjs.MediaPlayer().create();
         playerRuntime.dash = dashPlayer;
-        dashPlayer.initialize(video, url, true);
+        dashPlayer.initialize(video, url, false);
+        const dashReadyEvent = window.dashjs.MediaPlayer.events.STREAM_INITIALIZED || window.dashjs.MediaPlayer.events.PLAYBACK_METADATA_LOADED;
+        if (dashReadyEvent) dashPlayer.on(dashReadyEvent, () => schedulePlayerAutoplay(video, streamToken));
+        schedulePlayerAutoplay(video, streamToken);
         dashPlayer.on(window.dashjs.MediaPlayer.events.ERROR, () => renderPlayerFallback(url));
         showToast("Loading DASH stream");
         return;
@@ -3807,7 +3816,33 @@ async function playHttpStream(url, tracks = [], options = {}) {
   }
 
   video.src = url;
+  schedulePlayerAutoplay(video, streamToken);
   showToast("Loading stream");
+}
+
+function schedulePlayerAutoplay(video, streamToken) {
+  if (!playerAutoPlayEnabled()) return;
+  const attempt = () => attemptPlayerAutoplay(video, streamToken);
+  video.addEventListener("loadedmetadata", attempt, { once: true });
+  video.addEventListener("canplay", attempt, { once: true });
+  setTimeout(attempt, 250);
+}
+
+async function attemptPlayerAutoplay(video, streamToken) {
+  if (!video || streamToken !== playerRuntime.streamToken || !playerAutoPlayEnabled()) return;
+  try {
+    await video.play();
+  } catch (error) {
+    if (error?.name === "NotAllowedError") {
+      try {
+        video.muted = true;
+        await video.play();
+        showToast("Autoplay started muted by browser policy");
+      } catch (mutedError) {
+        // Browser still blocked autoplay; leave the play button visible.
+      }
+    }
+  }
 }
 
 function destroyActiveStreamEngines() {
@@ -3904,18 +3939,21 @@ function handlePlayerEnded() {
   const current = document.querySelector("[data-episode-item].active");
   const visible = [...document.querySelectorAll("[data-episode-item]")].filter((item) => item.style.display !== "none");
   const currentIndex = current ? visible.indexOf(current) : -1;
-  if (currentIndex < 0) {
-    renderCaughtUpPlayerMessage();
-    return;
-  }
-  const currentNumber = Number.parseFloat(current?.dataset.episodeNumber || "");
+  const currentNumber = Number.parseFloat(playerRuntime.currentEpisodeNumber || current?.dataset.episodeNumber || "");
+  const numbered = visible
+    .map((item) => ({ item, number: Number.parseFloat(item.dataset.episodeNumber || "") }))
+    .filter((entry) => Number.isFinite(entry.number));
   const nextByNumber = Number.isFinite(currentNumber)
     ? visible
       .map((item) => ({ item, number: Number.parseFloat(item.dataset.episodeNumber || "") }))
       .filter((entry) => Number.isFinite(entry.number) && entry.number > currentNumber)
       .sort((a, b) => a.number - b.number)[0]?.item
     : null;
-  const next = nextByNumber || visible[currentIndex + 1];
+  if (Number.isFinite(currentNumber) && numbered.length && currentNumber >= Math.max(...numbered.map((entry) => entry.number))) {
+    renderCaughtUpPlayerMessage();
+    return;
+  }
+  const next = nextByNumber || (currentIndex >= 0 ? visible[currentIndex + 1] : null);
   if (next) {
     next.click();
     return;
@@ -3924,6 +3962,7 @@ function handlePlayerEnded() {
 }
 
 function renderCaughtUpPlayerMessage() {
+  playerRuntime.streamToken++;
   destroyActiveStreamEngines();
   const player = document.querySelector("[data-video-player]");
   if (player) {
@@ -3935,6 +3974,21 @@ function renderCaughtUpPlayerMessage() {
     `;
   }
   showToast("You're all caught up");
+}
+
+function setupPlayerChromeControls() {
+  const fullscreen = document.querySelector("[data-fullscreen-btn]");
+  if (fullscreen) {
+    fullscreen.onclick = async () => {
+      const target = document.querySelector(".video-wrapper") || document.querySelector("[data-video-player]");
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else await target?.requestFullscreen?.();
+      } catch (error) {
+        showToast("Fullscreen is unavailable");
+      }
+    };
+  }
 }
 
 function setupCustomSubtitles(video, tracks = []) {
@@ -3980,7 +4034,7 @@ function setupCustomSubtitles(video, tracks = []) {
     return fetch(track.url)
     .then((response) => response.ok ? response.text() : Promise.reject(new Error("Subtitle request failed")))
     .then((text) => {
-      cues = parseVttCues(text);
+      cues = parseSubtitleCues(text, track.url);
       if (!cues.length) throw new Error("No subtitle cues");
       subtitlesEnabled = true;
       setSubtitleToggleAvailable(true, subtitlesEnabled, true);
@@ -4046,6 +4100,12 @@ function setSubtitleToggleAvailable(available, enabled = true, keepHandler = fal
   if (!keepHandler) toggle.onclick = null;
 }
 
+function parseSubtitleCues(text, url = "") {
+  return String(url).toLowerCase().endsWith(".ass") || /^\s*\[Script Info\]/i.test(text)
+    ? parseAssCues(text)
+    : parseVttCues(text);
+}
+
 function parseVttCues(text) {
   return text
     .replace(/^WEBVTT[^\n]*(?:\n|$)/i, "")
@@ -4055,11 +4115,56 @@ function parseVttCues(text) {
       const timeIndex = lines.findIndex((line) => line.includes("-->"));
       if (timeIndex < 0) return null;
       const [startRaw, endRaw] = lines[timeIndex].split("-->").map((part) => part.trim().split(/\s+/)[0]);
-      const cueText = lines.slice(timeIndex + 1).join("\n").replace(/<[^>]*>/g, "").trim();
+      const cueText = cleanSubtitleText(lines.slice(timeIndex + 1).join("\n"));
       if (!cueText) return null;
       return { start: parseVttTime(startRaw), end: parseVttTime(endRaw), text: cueText };
     })
     .filter((cue) => cue && Number.isFinite(cue.start) && Number.isFinite(cue.end));
+}
+
+function parseAssCues(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => {
+      if (!/^Dialogue:/i.test(line)) return null;
+      const parts = line.replace(/^Dialogue:\s*/i, "").split(",");
+      if (parts.length < 10) return null;
+      const start = parseAssTime(parts[1]);
+      const end = parseAssTime(parts[2]);
+      const cueText = cleanSubtitleText(parts.slice(9).join(","));
+      if (!cueText || isDrawingSubtitleText(cueText)) return null;
+      return { start, end, text: cueText };
+    })
+    .filter((cue) => cue && Number.isFinite(cue.start) && Number.isFinite(cue.end));
+}
+
+function parseAssTime(value) {
+  const parts = String(value || "").trim().split(":");
+  const seconds = Number(parts.pop());
+  const minutes = Number(parts.pop() || 0);
+  const hours = Number(parts.pop() || 0);
+  return (hours * 3600) + (minutes * 60) + seconds;
+}
+
+function cleanSubtitleText(value) {
+  return String(value || "")
+    .replace(/\{[^}]*\}/g, "")
+    .replace(/\\[Nnh]/g, "\n")
+    .replace(/\\[a-z]+\d*/gi, "")
+    .replace(/<[^>]*>/g, "")
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+function isDrawingSubtitleText(value) {
+  const text = String(value || "").trim();
+  if (!text) return true;
+  const letters = (text.match(/[A-Za-z\u3040-\u30ff\u3400-\u9fff]/g) || []).length;
+  const drawingTokens = (text.match(/(?:^|\s)[mlbspc]\s*-?\d/gi) || []).length;
+  return letters < 2 && (drawingTokens > 0 || /-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?/.test(text));
 }
 
 function parseVttTime(value) {

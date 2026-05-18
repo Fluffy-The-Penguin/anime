@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=romaji-title-spacing" defer></script>
+    <script src="app.js?v=player-polish-fixes" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -47,8 +47,10 @@
               <label>Speed <select data-player-speed><option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></label>
               <label>Subtitles <select data-player-subtitles><option value="off">Off</option></select></label>
               <label>Audio <select data-player-audio><option value="default">Default audio</option></select></label>
-              <label class="player-check"><input data-player-auto-play type="checkbox"> Auto play</label>
-              <label class="player-check"><input data-player-auto-next type="checkbox"> Auto next</label>
+              <div class="player-check-row">
+                <label class="player-check"><input data-player-auto-play type="checkbox"> Auto play</label>
+                <label class="player-check"><input data-player-auto-next type="checkbox"> Auto next</label>
+              </div>
             </div>
           </div>
 
@@ -220,8 +222,8 @@
 
       .player-settings-panel {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 8px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
         padding: 10px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
@@ -252,7 +254,15 @@
         align-items: center;
         gap: 8px;
         min-height: 36px;
-        padding-top: 18px;
+        padding: 0;
+      }
+
+      .player-settings-panel .player-check-row {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 2px 4px 0;
       }
 
       .player-settings-panel .player-check input {
