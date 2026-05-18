@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=animedex-audio-version" defer></script>
+    <script src="app.js?v=custom-video-controls" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -168,6 +168,55 @@
         display: none;
       }
 
+      .custom-video-controls {
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        bottom: 14px;
+        z-index: 8;
+        display: grid;
+        grid-template-columns: auto auto 1fr auto auto minmax(78px, 120px) auto;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 14px;
+        background: rgba(8, 12, 18, 0.68);
+        backdrop-filter: blur(18px) saturate(130%);
+        transition: opacity 160ms ease, transform 160ms ease;
+      }
+
+      .video-controls-idle .custom-video-controls {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(16px);
+      }
+
+      .video-control-btn {
+        min-width: 34px;
+        min-height: 34px;
+        border: 0;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text);
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .video-time {
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 12px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .video-progress,
+      .video-volume {
+        width: 100%;
+        accent-color: var(--blue);
+      }
+
       .custom-subtitles {
         position: absolute;
         left: 50%;
@@ -232,7 +281,7 @@
         position: absolute;
         left: 16px;
         right: 16px;
-        bottom: 16px;
+        top: 16px;
         z-index: 8;
         background: rgba(8, 12, 18, 0.58);
         transition: opacity 180ms ease, transform 180ms ease;
@@ -243,7 +292,7 @@
         position: absolute;
         left: 16px;
         right: 16px;
-        bottom: 98px;
+        top: 96px;
         z-index: 9;
         background: rgba(8, 12, 18, 0.78);
         transition: opacity 180ms ease, transform 180ms ease;
@@ -252,14 +301,19 @@
       .video-wrapper:fullscreen .custom-subtitles,
       .video-wrapper.player-fullscreen .custom-subtitles {
         z-index: 7;
-        bottom: clamp(86px, 11vh, 132px);
+        bottom: clamp(96px, 13vh, 150px);
+      }
+
+      .video-wrapper:fullscreen .custom-video-controls,
+      .video-wrapper.player-fullscreen .custom-video-controls {
+        bottom: 16px;
       }
 
       .video-wrapper.player-fullscreen.player-fs-idle .player-controls,
       .video-wrapper.player-fullscreen.player-fs-idle .player-settings-panel[hidden] {
         opacity: 0;
         pointer-events: none;
-        transform: translateY(18px);
+        transform: translateY(-18px);
       }
 
       .player-info h2 {
@@ -598,6 +652,19 @@
 
         .player-settings-panel {
           grid-template-columns: 1fr 1fr;
+        }
+
+        .custom-video-controls {
+          left: 8px;
+          right: 8px;
+          bottom: 8px;
+          grid-template-columns: auto auto 1fr auto auto;
+          gap: 6px;
+          padding: 8px;
+        }
+
+        .custom-video-controls .video-volume {
+          display: none;
         }
 
         .player-actions .btn,

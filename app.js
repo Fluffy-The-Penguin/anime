@@ -3816,12 +3816,22 @@ async function playHttpStream(url, tracks = [], options = {}) {
   const streamToken = ++playerRuntime.streamToken;
   destroyActiveStreamEngines();
   player.innerHTML = `
-    <video data-active-video controls controlslist="nofullscreen nodownload noremoteplayback" autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
+    <video data-active-video autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
+    <div class="custom-video-controls" data-custom-video-controls>
+      <button class="video-control-btn" data-video-play type="button" aria-label="Play or pause">▶</button>
+      <span class="video-time" data-video-current>0:00</span>
+      <input class="video-progress" data-video-progress type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
+      <span class="video-time" data-video-duration>0:00</span>
+      <button class="video-control-btn" data-video-mute type="button" aria-label="Mute or unmute">♪</button>
+      <input class="video-volume" data-video-volume type="range" min="0" max="1" value="1" step="0.01" aria-label="Volume">
+      <button class="video-control-btn" data-video-fullscreen type="button" aria-label="Fullscreen">⛶</button>
+    </div>
   `;
   setSubtitleToggleAvailable(false);
   const video = player.querySelector("[data-active-video]");
   const sourceOptions = Array.isArray(options.sources) ? options.sources : [{ url, name: "Current stream", tracks }];
   const currentIndex = Number.isFinite(Number(options.currentIndex)) ? Number(options.currentIndex) : Math.max(0, sourceOptions.findIndex((source) => source.url === url));
+  setupCustomVideoControls(video);
   setupCustomSubtitles(video, tracks);
   setupPlayerSettingsControls(video, tracks, sourceOptions, currentIndex);
 
@@ -3919,6 +3929,103 @@ function destroyActiveStreamEngines() {
   try { playerRuntime.dash?.reset?.(); } catch (error) {}
   playerRuntime.hls = null;
   playerRuntime.dash = null;
+}
+
+function setupCustomVideoControls(video) {
+  const player = video.closest("[data-video-player]");
+  const wrapper = document.querySelector(".video-wrapper");
+  const controls = player?.querySelector("[data-custom-video-controls]");
+  if (!player || !controls) return;
+
+  const play = controls.querySelector("[data-video-play]");
+  const progress = controls.querySelector("[data-video-progress]");
+  const current = controls.querySelector("[data-video-current]");
+  const duration = controls.querySelector("[data-video-duration]");
+  const mute = controls.querySelector("[data-video-mute]");
+  const volume = controls.querySelector("[data-video-volume]");
+  const fullscreen = controls.querySelector("[data-video-fullscreen]");
+  let seeking = false;
+  let hideTimer = null;
+
+  const showControls = () => {
+    player.classList.remove("video-controls-idle");
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      if (!video.paused) player.classList.add("video-controls-idle");
+    }, 2400);
+  };
+
+  const update = () => {
+    const total = Number.isFinite(video.duration) ? video.duration : 0;
+    const now = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+    if (current) current.textContent = formatPlayerTime(now);
+    if (duration) duration.textContent = formatPlayerTime(total);
+    if (progress && !seeking) progress.value = total ? String(Math.round((now / total) * 1000)) : "0";
+    if (play) play.textContent = video.paused ? "▶" : "❚❚";
+    if (mute) mute.textContent = video.muted || video.volume === 0 ? "Muted" : "♪";
+    if (volume) volume.value = String(video.muted ? 0 : video.volume);
+  };
+
+  play?.addEventListener("click", async () => {
+    showControls();
+    if (video.paused) {
+      try { await video.play(); } catch (error) {}
+    } else {
+      video.pause();
+    }
+  });
+
+  video.addEventListener("click", async () => {
+    showControls();
+    if (video.paused) {
+      try { await video.play(); } catch (error) {}
+    } else {
+      video.pause();
+    }
+  });
+
+  progress?.addEventListener("input", () => {
+    seeking = true;
+    const total = Number.isFinite(video.duration) ? video.duration : 0;
+    if (total) video.currentTime = (Number(progress.value) / 1000) * total;
+    showControls();
+  });
+  progress?.addEventListener("change", () => {
+    seeking = false;
+    update();
+    showControls();
+  });
+
+  mute?.addEventListener("click", () => {
+    video.muted = !video.muted;
+    if (!video.muted && video.volume === 0) video.volume = 1;
+    update();
+    showControls();
+  });
+  volume?.addEventListener("input", () => {
+    video.volume = Math.max(0, Math.min(1, Number(volume.value) || 0));
+    video.muted = video.volume === 0;
+    update();
+    showControls();
+  });
+  fullscreen?.addEventListener("click", () => document.querySelector("[data-fullscreen-btn]")?.click());
+
+  ["loadedmetadata", "durationchange", "timeupdate", "play", "pause", "volumechange"].forEach((event) => video.addEventListener(event, update));
+  player.addEventListener("mousemove", showControls);
+  player.addEventListener("touchstart", showControls, { passive: true });
+  wrapper?.addEventListener("fullscreenchange", showControls);
+  update();
+  showControls();
+}
+
+function formatPlayerTime(seconds) {
+  const value = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor((value % 3600) / 60);
+  const remaining = value % 60;
+  return hours
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remaining).padStart(2, "0")}`
+    : `${minutes}:${String(remaining).padStart(2, "0")}`;
 }
 
 function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIndex = 0) {
