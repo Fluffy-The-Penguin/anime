@@ -1,5 +1,5 @@
 const DEFAULT_BACKEND_URL = "http://fi10.bot-hosting.net:21204";
-const { getWeebCentralChapters } = require("../_weebcentral");
+const { getWeebCentralChapters } = require("../../lib/weebcentral");
 
 module.exports = async function handler(req, res) {
   const mangaId = String(req.query.mangaId || "");

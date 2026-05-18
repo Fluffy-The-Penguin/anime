@@ -1,5 +1,5 @@
 const DEFAULT_BACKEND_URL = "http://fi10.bot-hosting.net:21204";
-const { searchWeebCentralManga } = require("../_weebcentral");
+const { searchWeebCentralManga } = require("../../lib/weebcentral");
 
 module.exports = async function handler(req, res) {
   const backendUrl = (process.env.ANITRACK_BACKEND_URL || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
