@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=vertical-volume-popover" defer></script>
+    <script src="app.js?v=narrow-controls-settings-offset" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -177,10 +177,10 @@
         display: grid;
         grid-template-columns: auto auto auto 1fr auto auto auto;
         align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
+        gap: 8px;
+        padding: 6px 9px;
         border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 14px;
+        border-radius: 11px;
         background: rgba(8, 12, 18, 0.68);
         backdrop-filter: blur(18px) saturate(130%);
         transition: opacity 160ms ease, transform 160ms ease;
@@ -193,10 +193,10 @@
       }
 
       .video-control-btn {
-        width: 34px;
-        min-height: 34px;
+        width: 30px;
+        min-height: 30px;
         border: 0;
-        border-radius: 10px;
+        border-radius: 8px;
         background: rgba(255, 255, 255, 0.1);
         color: var(--text);
         font-weight: 900;
@@ -226,7 +226,7 @@
       .video-volume-panel {
         position: absolute;
         left: 50%;
-        bottom: 44px;
+        bottom: 38px;
         z-index: 10;
         display: grid;
         place-items: center;
@@ -352,7 +352,7 @@
 
       .video-wrapper:fullscreen .player-settings-panel,
       .video-wrapper.player-fullscreen .player-settings-panel {
-        bottom: 104px;
+        bottom: 116px;
       }
 
       .video-wrapper:fullscreen .custom-subtitles,
@@ -373,7 +373,7 @@
 
       .video-wrapper:fullscreen .custom-video-controls,
       .video-wrapper.player-fullscreen .custom-video-controls {
-        bottom: 16px;
+        bottom: 12px;
       }
 
       .video-wrapper.player-fullscreen.player-fs-idle .player-settings-panel[hidden] {
@@ -400,15 +400,15 @@
       .player-settings-panel {
         position: absolute;
         right: 14px;
-        bottom: 96px;
+        bottom: 120px;
         z-index: 9;
         display: grid;
         grid-template-columns: repeat(2, minmax(160px, 1fr));
         gap: 10px;
         width: min(520px, calc(100% - 28px));
-        padding: 12px;
+        padding: 10px;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
+        border-radius: 14px;
         background: rgba(8, 12, 18, 0.82);
         backdrop-filter: blur(18px) saturate(130%);
         transition: opacity 180ms ease, transform 180ms ease;
@@ -421,7 +421,7 @@
 
       .player-settings-panel label {
         display: grid;
-        gap: 5px;
+        gap: 4px;
         color: var(--muted);
         font-size: 11px;
         font-weight: 800;
@@ -429,8 +429,8 @@
       }
 
       .player-settings-panel select {
-        min-height: 36px;
-        border-radius: 10px;
+        min-height: 32px;
+        border-radius: 9px;
         font-size: 12px;
       }
 
@@ -733,14 +733,14 @@
           right: 8px;
           bottom: 8px;
           grid-template-columns: auto auto auto 1fr auto auto auto;
-          gap: 6px;
-          padding: 8px;
+          gap: 5px;
+          padding: 6px;
         }
 
         .player-settings-panel {
           left: 8px;
           right: 8px;
-          bottom: 82px;
+          bottom: 104px;
           width: auto;
           grid-template-columns: 1fr 1fr;
         }
