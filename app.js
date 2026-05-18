@@ -2635,9 +2635,15 @@ function apiBaseUrl() {
 }
 
 async function fetchApiJson(path) {
-  const response = await fetch(`${apiBaseUrl()}${path}`);
+  const response = await fetch(apiRequestUrl(path));
   if (!response.ok) throw new Error(`API request failed: ${response.status}`);
   return response.json();
+}
+
+function apiRequestUrl(path) {
+  const route = String(path || "");
+  if (route.startsWith("/api/anime/") || route.startsWith("/api/anilist")) return route;
+  return `${apiBaseUrl()}${route}`;
 }
 
 async function initSettingsPage() {
