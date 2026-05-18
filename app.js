@@ -757,7 +757,7 @@ function assertOk(response) {
 }
 
 function mapAniList(item) {
-  const apiSource = item.dataSource === "jikan" ? "jikan" : "anilist";
+  const apiSource = item.dataSource === "jikan" || (item.idMal && Number(item.id) === Number(item.idMal)) ? "jikan" : "anilist";
   const englishTitle = item.title.english || "";
   const romajiTitle = item.title.romaji || "";
   const nativeTitle = item.title.native || "";
@@ -798,7 +798,7 @@ function mapAniList(item) {
 }
 
 function mapAniListManga(item) {
-  const apiSource = item.dataSource === "jikan" ? "jikan" : "anilist";
+  const apiSource = item.dataSource === "jikan" || (item.idMal && Number(item.id) === Number(item.idMal)) ? "jikan" : "anilist";
   const englishTitle = item.title.english || "";
   const romajiTitle = item.title.romaji || "";
   const nativeTitle = item.title.native || "";
@@ -1768,17 +1768,25 @@ async function initAnimeDetailSources(root, anime) {
     if (sourceId === "animedex" || sourceId === "anizone") {
       const label = sourceId === "animedex" ? "AnimeDex" : "AniZone";
       sourceCount.textContent = `Searching ${label}...`;
-      episodeList.innerHTML = `<div class="empty">Looking for this anime on ${label} using AniList titles and synonyms...</div>`;
-      const match = await searchAnimeProviderMatch(anime, sourceId, sourceQuery?.value.trim() || "");
+      episodeList.innerHTML = `<div class="empty">Looking for this anime on ${label} using catalog titles and synonyms...</div>`;
+      let activeSourceId = sourceId;
+      let activeLabel = label;
+      let match = await searchAnimeProviderMatch(anime, sourceId, sourceQuery?.value.trim() || "");
+      if (!match && sourceId === "animedex" && animeSourceEnabled("anizone")) {
+        sourceCount.textContent = "AnimeDex unavailable. Trying AniZone...";
+        activeSourceId = "anizone";
+        activeLabel = "AniZone";
+        match = await searchAnimeProviderMatch(anime, "anizone", sourceQuery?.value.trim() || "");
+      }
       if (!match) {
         sourceCount.textContent = "0 episodes";
-        episodeList.innerHTML = `<div class="empty">No ${label} match found. Try a custom source title above.</div>`;
+        episodeList.innerHTML = `<div class="empty">No ${label} match found. Try a custom source title above${sourceId === "animedex" ? ", or switch to AniZone if AnimeDex is down" : ""}.</div>`;
         return;
       }
-      sourceCount.textContent = `Loading ${label} episodes...`;
+      sourceCount.textContent = `Loading ${activeLabel} episodes...`;
       const episodes = await fetchAnimeProviderEpisodes(match);
-      sourceCount.textContent = `${episodes.length} ${label} episode${episodes.length === 1 ? "" : "s"}`;
-      renderAnimeDetailEpisodeList(episodeList, { ...anime, providerMatch: match }, sourceId, episodes);
+      sourceCount.textContent = `${episodes.length} ${activeLabel} episode${episodes.length === 1 ? "" : "s"}${activeSourceId !== sourceId ? " (AnimeDex fallback)" : ""}`;
+      renderAnimeDetailEpisodeList(episodeList, { ...anime, providerMatch: match }, activeSourceId, episodes);
       return;
     }
 

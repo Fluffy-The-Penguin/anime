@@ -513,7 +513,7 @@ function upstreamError(response, url) {
 }
 
 function isProviderUnavailableError(error) {
-  return [403, 429, 503].includes(Number(error?.status));
+  return [403, 429, 500, 502, 503, 504].includes(Number(error?.status));
 }
 
 function queryWithout(query, names) {
