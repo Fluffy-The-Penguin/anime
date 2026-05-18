@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=subtitle-settings" defer></script>
+    <script src="app.js?v=anime-source-player" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -37,9 +37,17 @@
               </div>
               <div class="player-actions">
                 <button class="icon-btn subtitle-toggle" data-subtitle-toggle type="button" aria-label="Toggle subtitles" aria-pressed="true" hidden>CC</button>
+                <button class="icon-btn" data-player-settings-toggle type="button" aria-label="Player settings" aria-expanded="false">⚙</button>
                 <button class="btn secondary" data-mark-watched type="button">Mark as Watched</button>
                 <button class="icon-btn" data-fullscreen-btn type="button" aria-label="Fullscreen">⛶</button>
               </div>
+            </div>
+            <div class="player-settings-panel" data-player-settings-panel hidden>
+              <label>Quality <select data-player-quality><option value="">Auto / selected source</option></select></label>
+              <label>Speed <select data-player-speed><option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></label>
+              <label>Subtitles <select data-player-subtitles><option value="off">Off</option></select></label>
+              <label>Audio <select data-player-audio><option value="default">Default audio</option></select></label>
+              <label class="player-check"><input data-player-auto-next type="checkbox"> Auto next</label>
             </div>
           </div>
 
@@ -209,6 +217,48 @@
         gap: 8px;
       }
 
+      .player-settings-panel {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.045);
+      }
+
+      .player-settings-panel[hidden] {
+        display: none;
+      }
+
+      .player-settings-panel label {
+        display: grid;
+        gap: 5px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .player-settings-panel select {
+        min-height: 36px;
+        border-radius: 10px;
+        font-size: 12px;
+      }
+
+      .player-settings-panel .player-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 36px;
+        padding-top: 18px;
+      }
+
+      .player-settings-panel .player-check input {
+        width: auto;
+        min-height: auto;
+      }
+
       .subtitle-toggle {
         min-width: 48px;
         border-radius: 12px;
@@ -254,6 +304,37 @@
         margin-top: 16px;
         padding-top: 16px;
         border-top: 1px solid var(--line);
+      }
+
+      .scrollable-source-section {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .source-section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .source-section-head h4 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .source-section-head span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .source-scroll-list {
+        display: grid;
+        gap: 8px;
+        max-height: 320px;
+        overflow: auto;
+        padding-right: 4px;
       }
 
       .source-item {
@@ -445,6 +526,10 @@
 
         .player-actions {
           width: 100%;
+        }
+
+        .player-settings-panel {
+          grid-template-columns: 1fr 1fr;
         }
 
         .player-actions .btn,

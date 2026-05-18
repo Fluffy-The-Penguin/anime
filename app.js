@@ -59,6 +59,17 @@ const state = {
   currentItems: [],
 };
 
+const playerRuntime = {
+  anime: null,
+  episodes: [],
+  currentEpisodeNumber: null,
+  currentSourceMatches: [],
+  currentSourceIndex: -1,
+  autoNext: false,
+  hls: null,
+  dash: null,
+};
+
 document.addEventListener("DOMContentLoaded", init);
 
 function init() {
@@ -1496,6 +1507,16 @@ function renderDetails(root, item, isTemporary = false) {
           </div>
         </main>
       </div>
+      ${active.type === "anime" ? `<section class="detail-episodes detail-anime-episodes">
+          <div class="detail-episode-head">
+            <h2>Episodes</h2>
+            <label class="detail-source-picker">Source <select data-detail-anime-source><option>Loading sources...</option></select></label>
+            <span data-detail-anime-source-count>Loading episodes...</span>
+            <label>Find source as <input data-detail-anime-query type="search" placeholder="Custom title for hstream" autocomplete="off"></label>
+          </div>
+          <div class="detail-list-filter">All matching source episodes and entries</div>
+          <div class="chapter-list detail-chapter-list detail-anime-episode-list" data-detail-anime-episode-list><div class="empty">Choose a source to load real episodes.</div></div>
+        </section>` : ""}
       ${active.type === "manga" ? `<section class="detail-episodes">
           <div class="detail-episode-head">
             <h2>Chapters</h2>
@@ -1519,13 +1540,13 @@ function renderDetails(root, item, isTemporary = false) {
   root.querySelector("[data-track-status]").value = active.status || (active.type === "anime" ? "watching" : "reading");
   root.querySelector("[data-save-track]").addEventListener("click", () => saveCurrent());
   root.querySelector("[data-watch-button]")?.addEventListener("click", () => {
-    sessionStorage.setItem("player-anime", JSON.stringify(active));
-    window.location.href = `player.html?type=${active.type}&id=${active.apiId}`;
+    openPlayerForAnime(active, buildEpisodes(active)[0] || null, "anilist");
   });
   root.querySelector("[data-read-button]")?.addEventListener("click", () => {
     sessionStorage.setItem("reader-manga", JSON.stringify(active));
     window.location.href = `manga-reader.html?type=${active.type}&id=${active.apiId}`;
   });
+  if (active.type === "anime") initAnimeDetailSources(root, active);
   if (active.type === "manga") initMangaDetailSources(root, active);
   root.querySelector("[data-minus-progress]").addEventListener("click", () => {
     const progress = root.querySelector("[data-track-progress]");
@@ -1683,6 +1704,139 @@ async function initMangaDetailSources(root, manga) {
     sourceSelect.innerHTML = '<option value="">Source unavailable</option>';
     sourceCount.textContent = "Could not load chapters";
   }
+}
+
+async function initAnimeDetailSources(root, anime) {
+  const sourceSelect = root.querySelector("[data-detail-anime-source]");
+  const sourceCount = root.querySelector("[data-detail-anime-source-count]");
+  const episodeList = root.querySelector("[data-detail-anime-episode-list]");
+  const sourceQuery = root.querySelector("[data-detail-anime-query]");
+  if (!sourceSelect || !sourceCount || !episodeList) return;
+
+  const sources = [{ id: "anilist", name: "AniList episodes" }];
+  if (animeSourceEnabled("hstream") && state.settings.allowAdult) sources.push({ id: "hstream", name: "hstream.moe" });
+  if (animeSourceEnabled("nyaa")) sources.push({ id: "nyaa", name: "Nyaa search on player" });
+  if (stremioAddons().length) sources.push({ id: "stremio", name: "Stremio search on player" });
+  if (animeSourceEnabled("aniwaves")) sources.push({ id: "aniwaves", name: "Aniwaves provider match" });
+
+  const savedSource = localStorage.getItem(animeSourceKey(anime)) || sources[0]?.id || "";
+  const customTitle = localStorage.getItem(animeSourceCustomQueryKey(anime)) || "";
+  if (sourceQuery) sourceQuery.value = customTitle;
+
+  sourceSelect.innerHTML = sources.map((source) => `<option value="${escapeAttr(source.id)}">${escapeHtml(source.name)}</option>`).join("");
+  if (sources.some((source) => source.id === savedSource)) sourceSelect.value = savedSource;
+
+  const renderSource = async () => {
+    const sourceId = sourceSelect.value || sources[0]?.id || "";
+    localStorage.setItem(animeSourceKey(anime), sourceId);
+    if (sourceQuery) localStorage.setItem(animeSourceCustomQueryKey(anime), sourceQuery.value.trim());
+
+    if (sourceId === "hstream") {
+      sourceCount.textContent = "Searching hstream...";
+      episodeList.innerHTML = '<div class="empty">Searching hstream with AniList titles and your custom title...</div>';
+      const matches = await searchAdultAnime({ ...anime, sourceQuery: sourceQuery?.value.trim() || "" });
+      sourceCount.textContent = `${matches.length} hstream match${matches.length === 1 ? "" : "es"}`;
+      renderAnimeDetailEpisodeList(episodeList, anime, "hstream", hstreamMatchesToEpisodes(matches), matches);
+      return;
+    }
+
+    if (sourceId === "anilist") {
+      const episodes = buildEpisodes(anime);
+      sourceCount.textContent = episodes.length ? `${episodes.length} AniList episode${episodes.length === 1 ? "" : "s"}` : "No AniList episode list";
+      renderAnimeDetailEpisodeList(episodeList, anime, "anilist", episodes);
+      return;
+    }
+
+    const label = sources.find((source) => source.id === sourceId)?.name || "this source";
+    sourceCount.textContent = "Episode catalog unavailable";
+    episodeList.innerHTML = `<div class="empty">${escapeHtml(label)} does not expose a browsable episode list here. Open the player to search this source for a selected episode.</div>`;
+  };
+
+  sourceSelect.addEventListener("change", renderSource);
+  sourceQuery?.addEventListener("change", renderSource);
+  await renderSource();
+}
+
+function hstreamMatchesToEpisodes(matches) {
+  return matches.map((match, index) => ({
+    number: extractEpisodeNumberFromText(match.title) || index + 1,
+    title: match.title || `hstream match ${index + 1}`,
+    airDate: match.quality || "hstream.moe",
+    image: match.image || fallbackImage,
+    description: "Direct browser-playable hstream source.",
+    source: "hstream",
+    sourceUrl: match.url,
+    sourceMatch: match,
+  }));
+}
+
+function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches = [], pageNumber = 1) {
+  if (!episodes.length) {
+    container.innerHTML = '<div class="empty">No real episodes returned by this source.</div>';
+    return;
+  }
+
+  const pageSize = 40;
+  const totalPages = Math.max(1, Math.ceil(episodes.length / pageSize));
+  const currentPage = Math.min(Math.max(1, pageNumber), totalPages);
+  const pageEpisodes = episodes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  container.innerHTML = `
+    <div class="detail-scroll-list">
+      ${pageEpisodes.map((episode, index) => {
+        const absoluteIndex = (currentPage - 1) * pageSize + index;
+        return `
+          <button type="button" class="chapter-row detail-chapter-row detail-anime-episode-row" data-detail-watch-episode data-episode-index="${absoluteIndex}">
+            <div class="detail-chapter-text">
+              <strong>${sourceId === "hstream" ? "Match" : "Ep"} ${escapeHtml(episode.number || absoluteIndex + 1)}</strong>
+              <span>${escapeHtml(episode.title || `Episode ${episode.number || absoluteIndex + 1}`)}</span>
+            </div>
+            <small>${escapeHtml(episode.airDate || sourceId)}</small>
+          </button>
+        `;
+      }).join("")}
+    </div>
+    ${totalPages > 1 ? `
+      <div class="detail-chapter-pagination">
+        <button class="btn secondary" data-detail-anime-prev type="button" ${currentPage <= 1 ? "disabled" : ""}>Previous</button>
+        <span>Page ${currentPage} / ${totalPages}</span>
+        <button class="btn secondary" data-detail-anime-next type="button" ${currentPage >= totalPages ? "disabled" : ""}>Next</button>
+      </div>
+    ` : ""}
+  `;
+
+  container.querySelectorAll("[data-detail-watch-episode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const episode = episodes[Number(button.dataset.episodeIndex)];
+      openPlayerForAnime(anime, episode, sourceId, sourceMatches);
+    });
+  });
+
+  container.querySelector("[data-detail-anime-prev]")?.addEventListener("click", () => renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, currentPage - 1));
+  container.querySelector("[data-detail-anime-next]")?.addEventListener("click", () => renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, currentPage + 1));
+}
+
+function openPlayerForAnime(anime, episode = null, sourceId = "anilist", sourceMatches = []) {
+  sessionStorage.setItem("player-anime", JSON.stringify(anime));
+  sessionStorage.setItem("player-start-episode", JSON.stringify({ episode, sourceId }));
+  if (sourceMatches.length) sessionStorage.setItem("player-source-matches", JSON.stringify(sourceMatches));
+  else sessionStorage.removeItem("player-source-matches");
+  const episodeQuery = episode?.number ? `&episode=${encodeURIComponent(episode.number)}` : "";
+  const sourceQuery = sourceId ? `&source=${encodeURIComponent(sourceId)}` : "";
+  window.location.href = `player.html?type=${anime.type}&id=${anime.apiId}${episodeQuery}${sourceQuery}`;
+}
+
+function animeSourceKey(anime) {
+  return `anime-source:${anime.id || anime.apiId}`;
+}
+
+function animeSourceCustomQueryKey(anime) {
+  return `${animeSourceKey(anime)}:custom-title`;
+}
+
+function extractEpisodeNumberFromText(text) {
+  const match = String(text || "").match(/(?:episode|ep|e)\s*0*(\d+(?:\.\d+)?)/i) || String(text || "").match(/[-\s](\d+(?:\.\d+)?)\s*$/);
+  return match ? match[1] : "";
 }
 
 function sourceResultWithCache(match, manga) {
@@ -2820,8 +2974,12 @@ async function initPlayerPage() {
   const apiId = params.get("id");
 
   let anime = null;
+  let startData = null;
+  let sourceMatches = [];
   try {
     anime = JSON.parse(sessionStorage.getItem("player-anime"));
+    startData = JSON.parse(sessionStorage.getItem("player-start-episode") || "null");
+    sourceMatches = JSON.parse(sessionStorage.getItem("player-source-matches") || "[]");
   } catch (error) {
     // Continue without cached data
   }
@@ -2843,8 +3001,17 @@ async function initPlayerPage() {
   document.title = `AniTrack | ${anime.title}`;
   document.querySelector("[data-anime-title]").textContent = anime.title;
 
-  // Setup episode list
-  const episodes = buildEpisodes(anime);
+  playerRuntime.anime = anime;
+
+  let episodes = buildEpisodes(anime);
+  if (sourceMatches.length && startData?.sourceId === "hstream") {
+    episodes = hstreamMatchesToEpisodes(sourceMatches);
+    playerRuntime.currentSourceMatches = sourceMatches;
+  } else if (!episodes.length && startData?.episode) {
+    episodes = [startData.episode];
+  }
+  playerRuntime.episodes = episodes;
+
   renderEpisodesList(episodes, anime);
 
   // Setup episode search
@@ -2869,43 +3036,37 @@ async function initPlayerPage() {
     });
   });
 
-  // Load first episode by default
-  const firstEpisode = document.querySelector("[data-episode-item]");
-  if (firstEpisode) {
-    firstEpisode.click();
+  const targetEpisode = params.get("episode") || startData?.episode?.number || "";
+  const targetButton = targetEpisode ? [...document.querySelectorAll("[data-episode-item]")].find((button) => button.dataset.episodeNumber === String(targetEpisode)) : null;
+  const firstEpisode = targetButton || document.querySelector("[data-episode-item]");
+  if (firstEpisode) firstEpisode.click();
+  else {
+    document.querySelector("[data-video-player]").innerHTML = '<div class="player-loading"><p>No real episodes available.</p><p class="muted" style="font-size: 12px;">Use the details page source selector when a provider exposes episode entries.</p></div>';
+    document.querySelector("[data-streaming-sources]").innerHTML = '<div class="empty">No episode list was returned by AniList or the selected source.</div>';
   }
 }
 
 function buildEpisodes(anime) {
-  const total = Number(anime.total || 0);
-  const episodes = [];
-
   if (anime.episodesList?.length) {
     return anime.episodesList.map((ep, index) => ({
-      number: index + 1,
+      number: extractEpisodeNumberFromText(ep.title) || index + 1,
       title: ep.title || `Episode ${index + 1}`,
       airDate: ep.time || "TBA",
       image: ep.image || anime.banner || anime.image,
-      description: "Episode description loading...",
+      description: ep.description || "No episode description available.",
     }));
   }
 
-  // Generate episode list
-  for (let i = 1; i <= Math.min(total || 12, 100); i++) {
-    episodes.push({
-      number: i,
-      title: `Episode ${i}`,
-      airDate: "Air date TBA",
-      image: anime.image,
-      description: `Episode ${i} of ${anime.title}`,
-    });
-  }
-
-  return episodes;
+  return [];
 }
 
 function renderEpisodesList(episodes, anime) {
   const container = document.querySelector("[data-episodes-list]");
+  if (!episodes.length) {
+    container.innerHTML = '<div class="empty" style="min-width: 260px;">No real episode list is available for this title. Choose a source from the details page or use source search below.</div>';
+    return;
+  }
+
   container.innerHTML = episodes
     .map((ep, index) => {
       const isWatched = state.library[anime.id]?.progress >= ep.number;
@@ -2915,7 +3076,7 @@ function renderEpisodesList(episodes, anime) {
         data-episode-item
         data-episode-number="${ep.number}"
         data-episode-title="${escapeAttr(ep.title)}"
-        data-episode-data='${JSON.stringify(ep)}'
+        data-episode-data="${escapeAttr(JSON.stringify(ep))}"
       >
         <span class="episode-number">Ep ${ep.number}</span>
         <h4 class="episode-title">${escapeHtml(ep.title)}</h4>
@@ -2949,6 +3110,7 @@ async function loadEpisode(anime, episode, episodeNumber) {
   title.textContent = episode.title;
   number.textContent = `Episode ${episodeNumber} of ${anime.total || "?"}`;
   description.innerHTML = `<p>${escapeHtml(episode.description)}</p>`;
+  playerRuntime.currentEpisodeNumber = String(episodeNumber);
 
   // Show loading state
   videoPlayer.innerHTML = `
@@ -2958,6 +3120,13 @@ async function loadEpisode(anime, episode, episodeNumber) {
     </div>
   `;
   sources.innerHTML = '<p class="muted">Searching sources...</p>';
+  setupMarkWatchedButton(anime, episodeNumber);
+
+  if (episode.sourceUrl) {
+    sources.innerHTML = adultSourceCards([episode.sourceMatch || episode]);
+    bindAdultSourceButtons(sources, { autoplayUrl: episode.sourceUrl });
+    return;
+  }
 
   try {
     const [streamData, stremioStreams, aniwavesMatches, adultMatches] = await Promise.all([
@@ -2982,7 +3151,9 @@ async function loadEpisode(anime, episode, episodeNumber) {
     `;
   }
 
-  // Setup mark as watched button
+}
+
+function setupMarkWatchedButton(anime, episodeNumber) {
   document.querySelector("[data-mark-watched]").onclick = () => {
     if (!state.current && anime) {
       state.current = anime;
@@ -3044,7 +3215,7 @@ async function searchAniwavesAnime(animeTitle) {
 
 async function searchAdultAnime(anime) {
   if (!state.settings.allowAdult) return [];
-  const titles = animeTitleCandidates(anime);
+  const titles = uniqueStrings([anime?.sourceQuery, ...animeTitleCandidates(anime)]).filter(Boolean);
   const seen = new Set();
   const results = [];
 
@@ -3057,13 +3228,12 @@ async function searchAdultAnime(anime) {
         seen.add(key);
         results.push(match);
       }
-      if (results.length) return results;
     } catch (error) {
       // Try the next AniList title variant.
     }
   }
 
-  return results;
+  return results.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
 }
 
 function animeTitleCandidates(anime) {
@@ -3255,9 +3425,10 @@ function bindAniwavesSourceButtons(container) {
 function adultSourceCards(matches) {
   if (!state.settings.allowAdult || !matches.length) return "";
   return `
-    <div class="adult-source-list" style="display: grid; gap: 8px; margin-bottom: 12px;">
-      <h4 style="margin: 0 0 4px; font-size: 14px;">Adult sources</h4>
-      ${matches.slice(0, 5).map((match) => `
+    <div class="adult-source-list scrollable-source-section">
+      <div class="source-section-head"><h4>Adult sources</h4><span>${matches.length} match${matches.length === 1 ? "" : "es"}</span></div>
+      <div class="source-scroll-list">
+      ${matches.map((match) => `
         <div class="source-item">
           <div class="source-info">
             <h4 style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">${escapeHtml(match.title || "hstream")} <span style="display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 7px; background: color-mix(in srgb, var(--pink) 24%, transparent); color: var(--pink); border: 1px solid color-mix(in srgb, var(--pink) 55%, transparent); font-size: 10px; font-weight: 900; letter-spacing: 0.04em;">+18</span></h4>
@@ -3266,11 +3437,12 @@ function adultSourceCards(matches) {
           <button class="source-play-adult" data-hstream-url="${escapeAttr(match.url)}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--pink), var(--blue)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">Load</button>
         </div>
       `).join("")}
+      </div>
     </div>
   `;
 }
 
-function bindAdultSourceButtons(container) {
+function bindAdultSourceButtons(container, options = {}) {
   container.querySelectorAll("[data-hstream-url]").forEach((button) => {
     button.addEventListener("click", async () => {
       const url = button.dataset.hstreamUrl;
@@ -3284,18 +3456,24 @@ function bindAdultSourceButtons(container) {
         const sourceList = document.createElement("div");
         sourceList.className = "source-direct-list";
         sourceList.style.cssText = "display: grid; gap: 6px; margin: -4px 0 8px 0;";
-        sourceList.innerHTML = sources.slice(0, 6).map((source, index) => `
+        sourceList.innerHTML = sources.map((source, index) => `
           <button class="source-play-stremio" data-adult-stream-index="${index}" type="button" style="padding: 7px 12px; border-radius: 8px; background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--line); font-weight: 700; cursor: pointer; font-size: 12px; text-align: left;">Play ${escapeHtml(source.quality || source.name || "stream")}</button>
         `).join("");
+        item?.nextElementSibling?.classList?.contains("source-direct-list") && item.nextElementSibling.remove();
         item?.after(sourceList);
         sourceList.querySelectorAll("[data-adult-stream-index]").forEach((sourceButton) => {
           sourceButton.addEventListener("click", () => {
             const source = sources[Number(sourceButton.dataset.adultStreamIndex)];
-            playHttpStream(source.url, source.tracks || data.tracks || []);
+            playHttpStream(source.url, source.tracks || data.tracks || [], { sources, currentIndex: Number(sourceButton.dataset.adultStreamIndex) });
           });
         });
         button.textContent = "Loaded";
         showToast("hstream sources loaded");
+        if (options.autoplayUrl === url) {
+          const preferredIndex = preferredSourceIndex(sources);
+          const source = sources[preferredIndex] || sources[0];
+          playHttpStream(source.url, source.tracks || data.tracks || [], { sources, currentIndex: preferredIndex });
+        }
       } catch (error) {
         button.disabled = false;
         button.textContent = "Retry";
@@ -3303,6 +3481,16 @@ function bindAdultSourceButtons(container) {
       }
     });
   });
+  if (options.autoplayUrl) {
+    [...container.querySelectorAll("[data-hstream-url]")].find((button) => button.dataset.hstreamUrl === options.autoplayUrl)?.click();
+  }
+}
+
+function preferredSourceIndex(sources) {
+  const preferred = state.settings.preferredQuality || "auto";
+  if (!preferred || preferred === "auto") return 0;
+  const index = sources.findIndex((source) => String(source.quality || source.name || "").toLowerCase().includes(preferred.toLowerCase()));
+  return index >= 0 ? index : 0;
 }
 
 function stremioSourceCards(streams) {
@@ -3352,18 +3540,23 @@ function bindStremioSourceButtons(container) {
   });
 }
 
-async function playHttpStream(url, tracks = []) {
+async function playHttpStream(url, tracks = [], options = {}) {
   const player = document.querySelector("[data-video-player]");
+  destroyActiveStreamEngines();
   player.innerHTML = `
     <video data-active-video controls autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
   `;
   setSubtitleToggleAvailable(false);
   const video = player.querySelector("[data-active-video]");
+  const sourceOptions = Array.isArray(options.sources) ? options.sources : [{ url, name: "Current stream", tracks }];
+  const currentIndex = Number.isFinite(Number(options.currentIndex)) ? Number(options.currentIndex) : Math.max(0, sourceOptions.findIndex((source) => source.url === url));
   setupCustomSubtitles(video, tracks);
+  setupPlayerSettingsControls(video, tracks, sourceOptions, currentIndex);
 
   video.addEventListener("error", () => {
     renderPlayerFallback(url);
   }, { once: true });
+  video.addEventListener("ended", handlePlayerEnded);
 
   const isHls = url.includes(".m3u8") || url.includes("application/vnd.apple.mpegurl");
   const isDash = url.includes(".mpd") || url.includes("application/dash+xml");
@@ -3379,6 +3572,7 @@ async function playHttpStream(url, tracks = []) {
       await loadHlsLibrary();
       if (window.Hls?.isSupported()) {
         const hls = new window.Hls({ enableWorker: true });
+        playerRuntime.hls = hls;
         hls.loadSource(url);
         hls.attachMedia(video);
         hls.on(window.Hls.Events.ERROR, (event, data) => {
@@ -3401,6 +3595,7 @@ async function playHttpStream(url, tracks = []) {
       await loadDashLibrary();
       if (window.dashjs) {
         const dashPlayer = window.dashjs.MediaPlayer().create();
+        playerRuntime.dash = dashPlayer;
         dashPlayer.initialize(video, url, true);
         dashPlayer.on(window.dashjs.MediaPlayer.events.ERROR, () => renderPlayerFallback(url));
         showToast("Loading DASH stream");
@@ -3416,9 +3611,92 @@ async function playHttpStream(url, tracks = []) {
   showToast("Loading stream");
 }
 
+function destroyActiveStreamEngines() {
+  try { playerRuntime.hls?.destroy?.(); } catch (error) {}
+  try { playerRuntime.dash?.reset?.(); } catch (error) {}
+  playerRuntime.hls = null;
+  playerRuntime.dash = null;
+}
+
+function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIndex = 0) {
+  const toggle = document.querySelector("[data-player-settings-toggle]");
+  const panel = document.querySelector("[data-player-settings-panel]");
+  const quality = document.querySelector("[data-player-quality]");
+  const speed = document.querySelector("[data-player-speed]");
+  const subtitles = document.querySelector("[data-player-subtitles]");
+  const audio = document.querySelector("[data-player-audio]");
+  const autoNext = document.querySelector("[data-player-auto-next]");
+
+  if (toggle && panel) {
+    toggle.onclick = () => {
+      const isHidden = panel.hidden;
+      panel.hidden = !isHidden;
+      toggle.setAttribute("aria-expanded", String(isHidden));
+    };
+  }
+
+  if (quality) {
+    quality.innerHTML = sources.length ? sources.map((source, index) => `<option value="${index}">${escapeHtml(source.quality || source.name || `Source ${index + 1}`)}</option>`).join("") : '<option value="">Auto / selected source</option>';
+    quality.value = String(Math.max(0, currentIndex));
+    quality.disabled = sources.length <= 1;
+    quality.onchange = () => {
+      const nextSource = sources[Number(quality.value)];
+      if (!nextSource?.url || nextSource.url === video.currentSrc) return;
+      playHttpStream(nextSource.url, nextSource.tracks || tracks, { sources, currentIndex: Number(quality.value) });
+    };
+  }
+
+  if (speed) {
+    speed.value = localStorage.getItem("player-speed") || "1";
+    video.playbackRate = Number(speed.value) || 1;
+    speed.onchange = () => {
+      video.playbackRate = Number(speed.value) || 1;
+      localStorage.setItem("player-speed", speed.value);
+    };
+  }
+
+  if (subtitles) {
+    subtitles.innerHTML = '<option value="off">Off</option>' + tracks.filter((track) => track?.url).map((track, index) => `<option value="${index}">${escapeHtml(track.label || track.srclang || `Subtitle ${index + 1}`)}</option>`).join("");
+    subtitles.value = tracks.some((track) => track?.url) ? "0" : "off";
+    subtitles.disabled = !tracks.some((track) => track?.url);
+    subtitles.onchange = () => video.dispatchEvent(new CustomEvent("player-subtitle-change", { detail: subtitles.value }));
+  }
+
+  if (audio) {
+    const renderAudioTracks = () => {
+      const audioTracks = video.audioTracks ? Array.from(video.audioTracks) : [];
+      audio.innerHTML = '<option value="default">Default audio</option>' + audioTracks.map((track, index) => `<option value="${index}">${escapeHtml(track.label || track.language || `Track ${index + 1}`)}</option>`).join("");
+      audio.disabled = !audioTracks.length;
+    };
+    renderAudioTracks();
+    video.addEventListener("loadedmetadata", renderAudioTracks, { once: true });
+    audio.onchange = () => {
+      if (!video.audioTracks || audio.value === "default") return;
+      Array.from(video.audioTracks).forEach((track, index) => { track.enabled = String(index) === audio.value; });
+    };
+  }
+
+  if (autoNext) {
+    playerRuntime.autoNext = localStorage.getItem("player-auto-next") === "1";
+    autoNext.checked = playerRuntime.autoNext;
+    autoNext.onchange = () => {
+      playerRuntime.autoNext = autoNext.checked;
+      localStorage.setItem("player-auto-next", autoNext.checked ? "1" : "0");
+    };
+  }
+}
+
+function handlePlayerEnded() {
+  if (!playerRuntime.autoNext) return;
+  const current = document.querySelector("[data-episode-item].active");
+  const visible = [...document.querySelectorAll("[data-episode-item]")].filter((item) => item.style.display !== "none");
+  const next = visible[visible.indexOf(current) + 1];
+  if (next) next.click();
+}
+
 function setupCustomSubtitles(video, tracks = []) {
-  const track = tracks.find((item) => item?.url);
-  if (!track) return;
+  const availableTracks = tracks.filter((item) => item?.url);
+  if (!availableTracks.length) return;
 
   const player = video.closest("[data-video-player]");
   const toggle = document.querySelector("[data-subtitle-toggle]");
@@ -3428,50 +3706,74 @@ function setupCustomSubtitles(video, tracks = []) {
   applySubtitleStyle(overlay);
   player?.append(overlay);
   let subtitlesEnabled = true;
+  let currentTrackIndex = 0;
+  let cues = [];
 
   setSubtitleToggleAvailable(true, subtitlesEnabled);
 
-  fetch(track.url)
+  const renderCue = () => {
+    if (!subtitlesEnabled) {
+      overlay.classList.remove("show");
+      overlay.innerHTML = "";
+      return;
+    }
+
+    const current = video.currentTime;
+    const cue = cues.find((item) => current >= item.start && current <= item.end);
+    if (!cue) {
+      overlay.classList.remove("show");
+      overlay.innerHTML = "";
+      return;
+    }
+
+    overlay.innerHTML = cue.text.split(/\n+/).map(escapeHtml).join("<br>");
+    overlay.classList.add("show");
+  };
+
+  const loadTrack = (index) => {
+    const track = availableTracks[index];
+    if (!track) return;
+    currentTrackIndex = index;
+    return fetch(track.url)
     .then((response) => response.ok ? response.text() : Promise.reject(new Error("Subtitle request failed")))
     .then((text) => {
-      const cues = parseVttCues(text);
+      cues = parseVttCues(text);
       if (!cues.length) throw new Error("No subtitle cues");
-
-      const renderCue = () => {
-        if (!subtitlesEnabled) {
-          overlay.classList.remove("show");
-          overlay.innerHTML = "";
-          return;
-        }
-
-        const current = video.currentTime;
-        const cue = cues.find((item) => current >= item.start && current <= item.end);
-        if (!cue) {
-          overlay.classList.remove("show");
-          overlay.innerHTML = "";
-          return;
-        }
-
-        overlay.innerHTML = cue.text.split(/\n+/).map(escapeHtml).join("<br>");
-        overlay.classList.add("show");
-      };
-
-      if (toggle) {
-        toggle.onclick = () => {
-          subtitlesEnabled = !subtitlesEnabled;
-          setSubtitleToggleAvailable(true, subtitlesEnabled, true);
-          renderCue();
-        };
-      }
-
-      video.addEventListener("timeupdate", renderCue);
-      video.addEventListener("seeked", renderCue);
-      video.addEventListener("emptied", () => overlay.remove(), { once: true });
+      subtitlesEnabled = true;
+      setSubtitleToggleAvailable(true, subtitlesEnabled, true);
+      renderCue();
     })
     .catch(() => {
       overlay.remove();
       appendNativeVideoTracks(video, tracks);
     });
+  };
+
+  if (toggle) {
+    toggle.onclick = () => {
+      subtitlesEnabled = !subtitlesEnabled;
+      setSubtitleToggleAvailable(true, subtitlesEnabled, true);
+      const subtitles = document.querySelector("[data-player-subtitles]");
+      if (subtitles) subtitles.value = subtitlesEnabled ? String(currentTrackIndex) : "off";
+      renderCue();
+    };
+  }
+
+  video.addEventListener("player-subtitle-change", (event) => {
+    if (event.detail === "off") {
+      subtitlesEnabled = false;
+      setSubtitleToggleAvailable(true, false, true);
+      renderCue();
+      return;
+    }
+    const nextIndex = Number(event.detail);
+    if (Number.isFinite(nextIndex)) loadTrack(nextIndex);
+  });
+
+  video.addEventListener("timeupdate", renderCue);
+  video.addEventListener("seeked", renderCue);
+  video.addEventListener("emptied", () => overlay.remove(), { once: true });
+  loadTrack(0);
 }
 
 function applySubtitleStyle(overlay) {
