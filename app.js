@@ -158,7 +158,8 @@ function initBrowsePage() {
   const sort = document.querySelector("[data-sort-filter]");
   const genre = document.querySelector("[data-genre-filter]");
   const genreToggle = genre?.querySelector("[data-genre-toggle]");
-  const genreInputs = genre ? [...genre.querySelectorAll('input[type="checkbox"]')] : [];
+  const adultGenreInput = genre?.querySelector("[data-adult-genre]");
+  const genreInputs = genre ? [...genre.querySelectorAll('input[type="checkbox"]:not([data-adult-genre])')] : [];
   const year = document.querySelector("[data-year-filter]");
   const status = document.querySelector("[data-status-filter]");
   const grid = document.querySelector("[data-grid]");
@@ -210,6 +211,13 @@ function initBrowsePage() {
     genre.classList.toggle("open");
   });
 
+  if (adultGenreInput) {
+    adultGenreInput.checked = Boolean(state.settings.allowAdult);
+    adultGenreInput.addEventListener("change", () => {
+      setAdultContentEnabled(adultGenreInput.checked);
+    });
+  }
+
   genreInputs.forEach((input) => input.addEventListener("change", () => {
     const selected = genreInputs.filter((item) => item.checked);
     state.genres = selected.map((item) => item.value);
@@ -235,6 +243,7 @@ function initBrowsePage() {
   document.querySelector("[data-reset-filters]").addEventListener("click", () => {
     state.feed = page === "manga" ? "top" : "trending";
     state.genres = [];
+    setAdultContentEnabled(false, { reload: false, toast: false });
     genreInputs.forEach((input) => {
       input.checked = false;
     });
@@ -1882,11 +1891,25 @@ function toggleBrowseFilters(event) {
 }
 
 function updateAdultSetting(event) {
-  state.settings.allowAdult = event.target.checked;
+  setAdultContentEnabled(event.target.checked);
+}
+
+function setAdultContentEnabled(enabled, options = {}) {
+  const { reload = true, toast = true } = options;
+  state.settings.allowAdult = Boolean(enabled);
   persistSettings();
-  showToast(state.settings.allowAdult ? "18+ content enabled." : "18+ content disabled.");
+  syncAdultControls();
+  updateGenreToggleLabel();
+  if (toast) showToast(state.settings.allowAdult ? "18+ content enabled." : "18+ content disabled.");
+  if (!reload) return;
   if (page === "home") loadHomeSections();
   if (page === "anime" || page === "manga") loadFeed();
+}
+
+function syncAdultControls() {
+  document.querySelectorAll("[data-adult-toggle], [data-adult-genre]").forEach((input) => {
+    input.checked = Boolean(state.settings.allowAdult);
+  });
 }
 
 function updateThemeColor(event) {
@@ -2049,12 +2072,17 @@ function updateGenreToggleLabel() {
   const toggle = document.querySelector("[data-genre-toggle]");
   if (!toggle) return;
 
-  if (!state.genres.length) {
+  if (!state.genres.length && !state.settings.allowAdult) {
     toggle.textContent = "Any genre";
     return;
   }
 
-  toggle.textContent = state.genres.length === 1 ? state.genres[0] : `${state.genres.length} genres selected`;
+  if (!state.genres.length) {
+    toggle.textContent = "Adult +18";
+    return;
+  }
+
+  toggle.textContent = state.genres.length === 1 && !state.settings.allowAdult ? state.genres[0] : `${state.genres.length + (state.settings.allowAdult ? 1 : 0)} filters selected`;
 }
 
 function mediaLabel(item) {
