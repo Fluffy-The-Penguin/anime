@@ -1,6 +1,6 @@
 {
   "rewrites": [
     { "source": "/health", "destination": "/api/health" },
-    { "source": "/api/anime/:path*", "destination": "http://fi10.bot-hosting.net:21204/api/anime/:path*" }
+    { "source": "/api/anime/:path*", "destination": "/api/adult/anime?animePath=:path*" }
   ]
 }
