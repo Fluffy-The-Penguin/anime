@@ -2827,14 +2827,16 @@ async function loadEpisode(anime, episode, episodeNumber) {
       <p>Searching for streaming sources...</p>
     </div>
   `;
-  sources.innerHTML = '<p class="muted">Searching Nyaa RSS...</p>';
+  sources.innerHTML = '<p class="muted">Searching sources...</p>';
 
   try {
-    const [streamData, stremioStreams] = await Promise.all([
+    const [streamData, stremioStreams, aniwavesMatches, adultMatches] = await Promise.all([
       searchNyaaStreams(anime.title, episodeNumber),
       searchStremioStreams(anime, episodeNumber),
+      searchAniwavesAnime(anime.title),
+      searchAdultAnime(anime.title),
     ]);
-    renderStreamingSources(sources, streamData, anime, episodeNumber, stremioStreams);
+    renderStreamingSources(sources, streamData, anime, episodeNumber, stremioStreams, aniwavesMatches, adultMatches);
   } catch (error) {
     sources.innerHTML = `
       <div class="empty" style="padding: 16px; text-align: center;">
@@ -2873,7 +2875,11 @@ async function loadEpisode(anime, episode, episodeNumber) {
 }
 
 async function searchNyaaStreams(animeTitle, episodeNumber) {
-  return fetchApiJson(`/api/torrents/anime?title=${encodeURIComponent(animeTitle)}&episode=${encodeURIComponent(episodeNumber)}`);
+  try {
+    return await fetchApiJson(`/api/torrents/anime?title=${encodeURIComponent(animeTitle)}&episode=${encodeURIComponent(episodeNumber)}`);
+  } catch (error) {
+    return [];
+  }
 }
 
 async function searchNyaaMangaTorrents(mangaTitle, chapterNumber) {
@@ -2896,6 +2902,23 @@ async function searchStremioStreams(anime, episodeNumber) {
   }
 
   return results;
+}
+
+async function searchAniwavesAnime(animeTitle) {
+  try {
+    return await fetchApiJson(`/api/anime/search?title=${encodeURIComponent(animeTitle)}`);
+  } catch (error) {
+    return [];
+  }
+}
+
+async function searchAdultAnime(animeTitle) {
+  if (!state.settings.allowAdult) return [];
+  try {
+    return await fetchApiJson(`/api/adult/search?title=${encodeURIComponent(animeTitle)}`);
+  } catch (error) {
+    return [];
+  }
 }
 
 async function searchNyaaRss(queries, categories) {
@@ -2969,14 +2992,18 @@ function buildMagnetLink(infoHash, name) {
   return `magnet:?xt=urn:btih:${encodeURIComponent(infoHash)}&dn=${encodeURIComponent(name)}${trackers.map((tracker) => `&tr=${encodeURIComponent(tracker)}`).join("")}`;
 }
 
-function renderStreamingSources(container, results, anime, episodeNumber, stremioStreams = []) {
+function renderStreamingSources(container, results, anime, episodeNumber, stremioStreams = [], aniwavesMatches = [], adultMatches = []) {
   const extensionHtml = extensionSourceCards("anime");
   const stremioHtml = stremioSourceCards(stremioStreams);
+  const aniwavesHtml = aniwavesSourceCards(aniwavesMatches, episodeNumber);
+  const adultHtml = adultSourceCards(adultMatches);
   const stremioStatusHtml = stremioAddonStatusHtml(stremioStreams);
-  if (!results.length && !stremioStreams.length) {
+  if (!results.length && !stremioStreams.length && !aniwavesMatches.length && !adultMatches.length) {
     container.innerHTML = `
       ${extensionHtml}
       ${stremioHtml}
+      ${aniwavesHtml}
+      ${adultHtml}
       ${stremioStatusHtml}
       <div class="empty" style="padding: 16px; text-align: center;">
         <p class="muted">No sources available</p>
@@ -2985,6 +3012,8 @@ function renderStreamingSources(container, results, anime, episodeNumber, stremi
     `;
     bindExtensionSourceButtons(container);
     bindStremioSourceButtons(container);
+    bindAniwavesSourceButtons(container);
+    bindAdultSourceButtons(container);
     document.querySelector("[data-video-player]").innerHTML = `
       <div class="player-loading">
         <p style="color: var(--red);">No torrent sources found</p>
@@ -2994,7 +3023,7 @@ function renderStreamingSources(container, results, anime, episodeNumber, stremi
     return;
   }
 
-  container.innerHTML = `${extensionHtml}${stremioHtml}${stremioStatusHtml}${results
+  container.innerHTML = `${extensionHtml}${stremioHtml}${aniwavesHtml}${adultHtml}${stremioStatusHtml}${results
     .slice(0, 5)
     .map((result) => {
       const seeders = result.seeders || 0;
@@ -3019,6 +3048,8 @@ function renderStreamingSources(container, results, anime, episodeNumber, stremi
   // Add play button handlers
   bindExtensionSourceButtons(container);
   bindStremioSourceButtons(container);
+  bindAniwavesSourceButtons(container);
+  bindAdultSourceButtons(container);
   container.querySelectorAll(".source-play").forEach((btn) => {
     btn.addEventListener("click", () => {
       const magnetLink = btn.dataset.magnetLink;
@@ -3029,10 +3060,91 @@ function renderStreamingSources(container, results, anime, episodeNumber, stremi
 
   document.querySelector("[data-video-player]").innerHTML = `
     <div class="player-loading">
-      <p>Select a source above to stream</p>
-      <p class="muted" style="font-size: 12px;">Requires a torrent client or streaming torrent app.</p>
+      <p>Select a source above</p>
+      <p class="muted" style="font-size: 12px;">Torrents open externally. Aniwaves opens the provider page because it returns embeds, not raw browser-playable streams.</p>
     </div>
   `;
+}
+
+function aniwavesSourceCards(matches, episodeNumber) {
+  if (!matches.length) return "";
+  return `
+    <div class="aniwaves-source-list" style="display: grid; gap: 8px; margin-bottom: 12px;">
+      <h4 style="margin: 0 0 4px; font-size: 14px;">Aniwaves matches</h4>
+      ${matches.slice(0, 5).map((match) => {
+        const meta = [match.type, match.date, match.rating].filter(Boolean).join(" / ");
+        return `
+          <div class="source-item">
+            <div class="source-info">
+              <h4>${escapeHtml(match.title || "Aniwaves")}</h4>
+              <p>${escapeHtml(meta || "Open provider page")}</p>
+              <p style="font-size: 11px; margin-top: 4px;">${escapeHtml(episodeNumber ? `Select episode ${episodeNumber} on Aniwaves` : "Episode selection opens on Aniwaves")}</p>
+            </div>
+            <button class="source-open-aniwaves" data-aniwaves-url="${escapeAttr(match.url)}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">Open</button>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function bindAniwavesSourceButtons(container) {
+  container.querySelectorAll("[data-aniwaves-url]").forEach((button) => {
+    button.addEventListener("click", () => {
+      window.open(button.dataset.aniwavesUrl, "_blank", "noreferrer");
+      showToast("Opening Aniwaves match");
+    });
+  });
+}
+
+function adultSourceCards(matches) {
+  if (!state.settings.allowAdult || !matches.length) return "";
+  return `
+    <div class="adult-source-list" style="display: grid; gap: 8px; margin-bottom: 12px;">
+      <h4 style="margin: 0 0 4px; font-size: 14px;">Adult sources</h4>
+      ${matches.slice(0, 5).map((match) => `
+        <div class="source-item">
+          <div class="source-info">
+            <h4>${escapeHtml(match.title || "hstream")}</h4>
+            <p>${escapeHtml(["hstream.moe", match.quality].filter(Boolean).join(" / ") || "Direct browser-playable source")}</p>
+          </div>
+          <button class="source-play-adult" data-hstream-url="${escapeAttr(match.url)}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--pink), var(--blue)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">Load</button>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function bindAdultSourceButtons(container) {
+  container.querySelectorAll("[data-hstream-url]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const url = button.dataset.hstreamUrl;
+      const item = button.closest(".source-item");
+      button.disabled = true;
+      button.textContent = "Loading";
+      try {
+        const data = await fetchApiJson(`/api/adult/streams?url=${encodeURIComponent(url)}`);
+        const sources = Array.isArray(data.sources) ? data.sources : [];
+        if (!sources.length) throw new Error("No direct sources returned");
+        const sourceList = document.createElement("div");
+        sourceList.className = "source-direct-list";
+        sourceList.style.cssText = "display: grid; gap: 6px; margin: -4px 0 8px 0;";
+        sourceList.innerHTML = sources.slice(0, 6).map((source) => `
+          <button class="source-play-stremio" data-adult-stream-url="${escapeAttr(source.url)}" type="button" style="padding: 7px 12px; border-radius: 8px; background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--line); font-weight: 700; cursor: pointer; font-size: 12px; text-align: left;">Play ${escapeHtml(source.quality || source.name || "stream")}</button>
+        `).join("");
+        item?.after(sourceList);
+        sourceList.querySelectorAll("[data-adult-stream-url]").forEach((sourceButton) => {
+          sourceButton.addEventListener("click", () => playHttpStream(sourceButton.dataset.adultStreamUrl));
+        });
+        button.textContent = "Loaded";
+        showToast("hstream sources loaded");
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Retry";
+        showToast("Could not load hstream sources");
+      }
+    });
+  });
 }
 
 function stremioSourceCards(streams) {

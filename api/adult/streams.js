@@ -1,20 +1,9 @@
 const DEFAULT_BACKEND_URL = "http://fi10.bot-hosting.net:21204";
-const { getWeebCentralChapters } = require("../_weebcentral");
 
 module.exports = async function handler(req, res) {
-  const mangaId = String(req.query.mangaId || "");
-  if (mangaId.startsWith("weebcentral:")) {
-    try {
-      res.status(200).json(await getWeebCentralChapters(mangaId.slice(12)));
-      return;
-    } catch (error) {
-      // Fall back to the backend proxy below.
-    }
-  }
-
   const backendUrl = (process.env.ANITRACK_BACKEND_URL || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
   const query = new URLSearchParams(req.query);
-  await proxyJson(res, `${backendUrl}/api/manga/chapters${query.toString() ? `?${query}` : ""}`);
+  await proxyJson(res, `${backendUrl}/api/adult/streams${query.toString() ? `?${query}` : ""}`);
 };
 
 async function proxyJson(res, target) {
