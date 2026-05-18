@@ -91,11 +91,21 @@ async function handleAniListRoute(req, res) {
       return;
     }
 
-    const response = await fetchWithTimeout(ANILIST_URL, {
-      method: "POST",
-      headers: providerHeaders({ "Content-Type": "application/json", Origin: "https://anilist.co", Referer: "https://anilist.co/" }),
-      body: JSON.stringify({ query: body.query, variables: body.variables || {} }),
-    });
+    let response;
+    try {
+      response = await fetchWithTimeout(ANILIST_URL, {
+        method: "POST",
+        headers: providerHeaders({ "Content-Type": "application/json", Origin: "https://anilist.co", Referer: "https://anilist.co/" }),
+        body: JSON.stringify({ query: body.query, variables: body.variables || {} }),
+      });
+    } catch (error) {
+      const fallback = await fallbackAniListResponse(body);
+      if (fallback) {
+        res.json(fallback);
+        return;
+      }
+      throw error;
+    }
     const text = await response.text();
     if (!response.ok) {
       const fallback = await fallbackAniListResponse(body);
@@ -125,7 +135,7 @@ async function fallbackAniListResponse(body) {
     return { data: { Media: type === "manga" ? jikanToAniListManga(data.data) : jikanToAniListAnime(data.data) } };
   }
 
-  const params = new URLSearchParams({ page: String(page), limit: "28" });
+  const params = new URLSearchParams({ page: String(page), limit: "25" });
   if (variables.search) params.set("q", String(variables.search));
   if (variables.year) params.set("start_date", `${variables.year}-01-01`);
   const endpoint = variables.search ? `${JIKAN_BASE_URL}/${type}` : `${JIKAN_BASE_URL}/top/${type}`;
