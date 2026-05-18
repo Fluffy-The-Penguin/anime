@@ -89,7 +89,12 @@ async function searchWeebCentralSitemap(title) {
 
 async function getWeebCentralChapters(path) {
   const safePath = path.startsWith("/") ? path : `/${path}`;
-  const html = await fetchText(`${WEEBCENTRAL_BASE_URL}${safePath}`);
+  let html = "";
+  try {
+    html = await fetchText(`${WEEBCENTRAL_BASE_URL}${safePath}`);
+  } catch (error) {
+    return getWeebCentralChaptersFromRss(safePath);
+  }
   const chapters = [];
   const seen = new Set();
   const pattern = /<a\s+href="https:\/\/weebcentral\.com(\/chapters\/[^"]+)"\s+class="[^"]*hover:bg-base-300[^"]*"[\s\S]*?<span\s+class="">\s*([^<]+?)\s*<\/span>[\s\S]*?<time[^>]*datetime="([^"]+)"/gi;
@@ -146,6 +151,75 @@ async function getWeebCentralChapters(path) {
         };
       }).filter((chapter) => chapter.number !== "0").sort((a, b) => Number.parseFloat(a.number) - Number.parseFloat(b.number));
     }
+  }
+
+  return chapters.filter((chapter) => chapter.number !== "0").sort((a, b) => Number.parseFloat(a.number) - Number.parseFloat(b.number));
+}
+
+async function getWeebCentralChaptersFromRss(seriesPath) {
+  const seriesId = firstMatch(seriesPath, /^\/series\/([^/]+)/i);
+  if (!seriesId) return [];
+
+  const rss = await fetchText(`${WEEBCENTRAL_BASE_URL}/series/${encodeURIComponent(seriesId)}/rss`, {
+    headers: { Accept: "application/rss+xml,application/xml,text/xml,*/*" },
+  });
+  const firstChapterPath = firstMatch(rss, /<link>https:\/\/weebcentral\.com(\/chapters\/[^<]+)<\/link>/i);
+  const firstChapterId = firstMatch(firstChapterPath, /\/chapters\/([^/]+)/i);
+  if (!firstChapterId) return parseWeebCentralRssChapters(rss);
+
+  const selectHtml = await fetchText(`${WEEBCENTRAL_BASE_URL}/series/${encodeURIComponent(seriesId)}/chapter-select?current_chapter=${encodeURIComponent(firstChapterId)}`, {
+    headers: {
+      "HX-Request": "true",
+      "HX-Current-URL": `${WEEBCENTRAL_BASE_URL}${seriesPath}`,
+      Referer: `${WEEBCENTRAL_BASE_URL}${seriesPath}`,
+    },
+  });
+  const selectedTitle = cleanHtml(firstMatch(selectHtml, /<button\s+id="selected_chapter"[^>]*>([\s\S]*?)<\/button>/i));
+  const chapters = selectedTitle ? [{ path: firstChapterPath, title: selectedTitle }] : [];
+  const seen = new Set(chapters.map((chapter) => chapter.path));
+  const pattern = /<a\s+href="https:\/\/weebcentral\.com(\/chapters\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+
+  while ((match = pattern.exec(selectHtml))) {
+    const chapterPath = decodeXml(match[1]);
+    if (seen.has(chapterPath)) continue;
+    seen.add(chapterPath);
+    chapters.push({ path: chapterPath, title: cleanHtml(match[2]) });
+  }
+
+  if (!chapters.length) return parseWeebCentralRssChapters(rss);
+
+  return chapters.map((chapter, index) => {
+    const number = firstMatch(chapter.title, /(?:Chapter|Ch\.?|Episode)\s*([\d.]+)/i) || firstMatch(chapter.title, /([\d.]+)/) || String(index + 1);
+    return {
+      id: `weebcentral:${chapter.path}`,
+      provider: "weebcentral",
+      number,
+      title: chapter.title || `Chapter ${number}`,
+      date: "Date TBA",
+      description: chapter.title || `Chapter ${number}`,
+      pages: 1,
+    };
+  }).filter((chapter) => chapter.number !== "0").sort((a, b) => Number.parseFloat(a.number) - Number.parseFloat(b.number));
+}
+
+function parseWeebCentralRssChapters(rss) {
+  const chapters = [];
+  const pattern = /<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>https:\/\/weebcentral\.com(\/chapters\/[^<]+)<\/link>[\s\S]*?<pubDate>([\s\S]*?)<\/pubDate>[\s\S]*?<\/item>/gi;
+  let match;
+
+  while ((match = pattern.exec(rss))) {
+    const title = cleanHtml(match[1]);
+    const number = firstMatch(title, /(?:Chapter|Ch\.?|Episode)\s*([\d.]+)/i) || firstMatch(title, /([\d.]+)/) || String(chapters.length + 1);
+    chapters.push({
+      id: `weebcentral:${decodeXml(match[2])}`,
+      provider: "weebcentral",
+      number,
+      title: title || `Chapter ${number}`,
+      date: cleanHtml(match[3]) ? new Date(cleanHtml(match[3])).toLocaleDateString("en-US") : "Date TBA",
+      description: title || `Chapter ${number}`,
+      pages: 1,
+    });
   }
 
   return chapters.filter((chapter) => chapter.number !== "0").sort((a, b) => Number.parseFloat(a.number) - Number.parseFloat(b.number));
