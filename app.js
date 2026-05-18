@@ -3308,7 +3308,7 @@ async function playHttpStream(url, tracks = []) {
     <video data-active-video controls autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
   `;
   const video = player.querySelector("[data-active-video]");
-  appendVideoTracks(video, tracks);
+  setupCustomSubtitles(video, tracks);
 
   video.addEventListener("error", () => {
     renderPlayerFallback(url);
@@ -3365,7 +3365,70 @@ async function playHttpStream(url, tracks = []) {
   showToast("Loading stream");
 }
 
-function appendVideoTracks(video, tracks = []) {
+function setupCustomSubtitles(video, tracks = []) {
+  const track = tracks.find((item) => item?.url);
+  if (!track) return;
+
+  const player = video.closest("[data-video-player]");
+  const overlay = document.createElement("div");
+  overlay.className = "custom-subtitles";
+  overlay.setAttribute("aria-live", "polite");
+  player?.append(overlay);
+
+  fetch(track.url)
+    .then((response) => response.ok ? response.text() : Promise.reject(new Error("Subtitle request failed")))
+    .then((text) => {
+      const cues = parseVttCues(text);
+      if (!cues.length) throw new Error("No subtitle cues");
+
+      const renderCue = () => {
+        const current = video.currentTime;
+        const cue = cues.find((item) => current >= item.start && current <= item.end);
+        if (!cue) {
+          overlay.classList.remove("show");
+          overlay.innerHTML = "";
+          return;
+        }
+
+        overlay.innerHTML = cue.text.split(/\n+/).map(escapeHtml).join("<br>");
+        overlay.classList.add("show");
+      };
+
+      video.addEventListener("timeupdate", renderCue);
+      video.addEventListener("seeked", renderCue);
+      video.addEventListener("emptied", () => overlay.remove(), { once: true });
+    })
+    .catch(() => {
+      overlay.remove();
+      appendNativeVideoTracks(video, tracks);
+    });
+}
+
+function parseVttCues(text) {
+  return text
+    .replace(/^WEBVTT[^\n]*(?:\n|$)/i, "")
+    .split(/\n\s*\n/)
+    .map((block) => {
+      const lines = block.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const timeIndex = lines.findIndex((line) => line.includes("-->"));
+      if (timeIndex < 0) return null;
+      const [startRaw, endRaw] = lines[timeIndex].split("-->").map((part) => part.trim().split(/\s+/)[0]);
+      const cueText = lines.slice(timeIndex + 1).join("\n").replace(/<[^>]*>/g, "").trim();
+      if (!cueText) return null;
+      return { start: parseVttTime(startRaw), end: parseVttTime(endRaw), text: cueText };
+    })
+    .filter((cue) => cue && Number.isFinite(cue.start) && Number.isFinite(cue.end));
+}
+
+function parseVttTime(value) {
+  const parts = String(value || "").split(":");
+  const seconds = Number(parts.pop());
+  const minutes = Number(parts.pop() || 0);
+  const hours = Number(parts.pop() || 0);
+  return (hours * 3600) + (minutes * 60) + seconds;
+}
+
+function appendNativeVideoTracks(video, tracks = []) {
   tracks.filter((track) => track?.url).forEach((track, index) => {
     const node = document.createElement("track");
     node.kind = track.kind || "subtitles";

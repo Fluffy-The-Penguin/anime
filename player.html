@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=no-fake-episodes" defer></script>
+    <script src="app.js?v=player-subtitles" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -110,7 +110,8 @@
 
       .video-wrapper {
         position: relative;
-        display: block;
+        display: grid;
+        gap: 8px;
       }
 
       .video-player {
@@ -151,27 +152,45 @@
         object-fit: contain;
       }
 
-      .player-controls {
+      .custom-subtitles {
         position: absolute;
-        left: 12px;
-        right: 12px;
-        bottom: 12px;
+        left: 50%;
+        bottom: clamp(64px, 8.5%, 92px);
+        z-index: 4;
+        max-width: min(78%, 860px);
+        padding: 8px 14px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 16px;
+        color: rgba(255, 255, 255, 0.96);
+        background: rgba(8, 10, 14, 0.46);
+        box-shadow: 0 14px 44px rgba(0, 0, 0, 0.28);
+        backdrop-filter: blur(14px) saturate(130%);
+        text-align: center;
+        font-size: clamp(24px, 3.1vw, 44px);
+        line-height: 1.18;
+        letter-spacing: -0.03em;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.72);
+        transform: translate(-50%, 8px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 130ms ease, transform 130ms ease;
+      }
+
+      .custom-subtitles.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
+      .player-controls {
         display: grid;
         grid-template-columns: 1fr auto;
         gap: 10px;
         align-items: center;
-        padding: 10px 12px;
+        padding: 9px 11px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
-        background: rgba(0, 0, 0, 0.62);
+        background: rgba(255, 255, 255, 0.045);
         backdrop-filter: blur(18px);
-        opacity: 0.18;
-        transition: opacity 160ms ease;
-      }
-
-      .video-wrapper:hover .player-controls,
-      .player-controls:focus-within {
-        opacity: 1;
       }
 
       .player-info h2 {
@@ -402,9 +421,12 @@
       @media (max-width: 720px) {
         .player-controls {
           grid-template-columns: 1fr;
-          position: static;
-          margin-top: 8px;
-          opacity: 1;
+        }
+
+        .custom-subtitles {
+          bottom: 58px;
+          max-width: 88%;
+          font-size: clamp(19px, 5.6vw, 30px);
         }
 
         .player-actions {
