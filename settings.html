@@ -6,7 +6,7 @@
     <meta name="description" content="Customize your AniTrack experience." />
     <title>AniTrack | Settings</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=settings-popover-hitbox" defer></script>
+    <script src="app.js?v=subtitle-position-controls" defer></script>
   </head>
   <body data-page="settings">
     <header class="topbar shell">
@@ -151,6 +151,8 @@
                   <label>Text <input data-subtitle-color type="color" value="#ffffff" aria-label="Subtitle text color"></label>
                   <label>Background <input data-subtitle-background type="color" value="#081018" aria-label="Subtitle background color"></label>
                   <label>Opacity <span data-subtitle-opacity-value>46%</span><input data-subtitle-opacity type="range" min="0" max="90" step="1"></label>
+                  <label>Position <select data-subtitle-position><option value="bottom">Bottom</option><option value="top">Top</option></select></label>
+                  <label>Margin <span data-subtitle-offset-value>58px</span><input data-subtitle-offset type="range" min="16" max="320" step="1"></label>
                   <button class="btn secondary" data-reset-subtitles type="button">Reset subtitles</button>
                 </div>
               </div>

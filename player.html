@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=settings-popover-hitbox" defer></script>
+    <script src="app.js?v=subtitle-position-controls" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -230,7 +230,7 @@
       .custom-subtitles {
         position: absolute;
         left: 50%;
-        bottom: clamp(64px, 8.5%, 92px);
+        bottom: var(--subtitle-base-offset, 58px);
         z-index: 4;
         max-width: min(78%, 860px);
         padding: 8px 14px 10px;
@@ -257,11 +257,18 @@
       }
 
       .video-player:not(.video-controls-idle) .custom-subtitles {
-        bottom: clamp(106px, 15vh, 150px);
+        bottom: var(--subtitle-controls-offset, 110px);
       }
 
       .video-player.player-settings-open .custom-subtitles {
-        bottom: clamp(188px, 26vh, 260px);
+        bottom: var(--subtitle-settings-offset, 192px);
+      }
+
+      .custom-subtitles.subtitle-top,
+      .video-player:not(.video-controls-idle) .custom-subtitles.subtitle-top,
+      .video-player.player-settings-open .custom-subtitles.subtitle-top {
+        top: var(--subtitle-base-offset, 58px);
+        bottom: auto;
       }
 
       .player-controls {

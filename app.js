@@ -9,7 +9,7 @@ const MANGA_PAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const BROWSE_PAGE_SIZE = 28;
 const API_BASE_KEY = "anitrack-api-base";
 const DEFAULT_API_BASE_URL = "http://localhost:3000";
-const DEFAULT_SUBTITLE_STYLE = { size: 28, color: "#ffffff", backgroundColor: "#081018", backgroundOpacity: 46 };
+const DEFAULT_SUBTITLE_STYLE = { size: 28, color: "#ffffff", backgroundColor: "#081018", backgroundOpacity: 46, position: "bottom", offset: 58 };
 const ANIME_SOURCES = [
   { id: "animedex", name: "AnimeDex", description: "Real anime episode lists with direct HLS streams from public AnimeDex APIs.", badge: "HLS" },
   { id: "anizone", name: "AniZone", description: "Anime episode lists with proxied direct HLS playback when available.", badge: "HLS" },
@@ -2825,8 +2825,11 @@ function initSubtitleStyleSettings() {
   const background = document.querySelector("[data-subtitle-background]");
   const opacity = document.querySelector("[data-subtitle-opacity]");
   const opacityValue = document.querySelector("[data-subtitle-opacity-value]");
+  const position = document.querySelector("[data-subtitle-position]");
+  const offset = document.querySelector("[data-subtitle-offset]");
+  const offsetValue = document.querySelector("[data-subtitle-offset-value]");
   const reset = document.querySelector("[data-reset-subtitles]");
-  if (!size || !color || !background || !opacity || !reset) return;
+  if (!size || !color || !background || !opacity || !position || !offset || !reset) return;
 
   const sync = () => {
     const style = { ...defaultSubtitleStyle(), ...(state.settings.subtitleStyle || {}) };
@@ -2834,8 +2837,11 @@ function initSubtitleStyleSettings() {
     color.value = style.color;
     background.value = style.backgroundColor;
     opacity.value = style.backgroundOpacity;
+    position.value = style.position || "bottom";
+    offset.value = style.offset;
     if (sizeValue) sizeValue.textContent = `${style.size}px`;
     if (opacityValue) opacityValue.textContent = `${style.backgroundOpacity}%`;
+    if (offsetValue) offsetValue.textContent = `${style.offset}px`;
   };
 
   const save = () => {
@@ -2844,13 +2850,17 @@ function initSubtitleStyleSettings() {
       color: color.value,
       backgroundColor: background.value,
       backgroundOpacity: Number(opacity.value),
+      position: position.value,
+      offset: Number(offset.value),
     };
     if (sizeValue) sizeValue.textContent = `${state.settings.subtitleStyle.size}px`;
     if (opacityValue) opacityValue.textContent = `${state.settings.subtitleStyle.backgroundOpacity}%`;
+    if (offsetValue) offsetValue.textContent = `${state.settings.subtitleStyle.offset}px`;
     persistSettings();
   };
 
-  [size, color, background, opacity].forEach((control) => control.addEventListener("input", save));
+  [size, color, background, opacity, offset].forEach((control) => control.addEventListener("input", save));
+  position.addEventListener("change", save);
   reset.addEventListener("click", () => {
     state.settings.subtitleStyle = defaultSubtitleStyle();
     persistSettings();
@@ -4407,6 +4417,11 @@ function applySubtitleStyle(overlay) {
   overlay.style.fontSize = `${Math.max(16, Math.min(42, Number(style.size) || DEFAULT_SUBTITLE_STYLE.size))}px`;
   overlay.style.color = style.color || DEFAULT_SUBTITLE_STYLE.color;
   overlay.style.background = hexToRgba(style.backgroundColor || DEFAULT_SUBTITLE_STYLE.backgroundColor, Math.max(0, Math.min(100, Number(style.backgroundOpacity))) / 100);
+  const offset = Math.max(16, Math.min(320, Number(style.offset) || DEFAULT_SUBTITLE_STYLE.offset));
+  overlay.style.setProperty("--subtitle-base-offset", `${offset}px`);
+  overlay.style.setProperty("--subtitle-controls-offset", `${offset + 52}px`);
+  overlay.style.setProperty("--subtitle-settings-offset", `${offset + 134}px`);
+  overlay.classList.toggle("subtitle-top", style.position === "top");
 }
 
 function hexToRgba(hex, alpha = 1) {
