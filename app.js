@@ -3343,13 +3343,26 @@ async function searchAdultAnime(anime) {
 }
 
 function animeTitleCandidates(anime) {
-  return uniqueStrings([
+  const titles = uniqueStrings([
     anime?.romajiTitle,
     anime?.nativeTitle,
     ...(anime?.alternativeTitles || []),
     anime?.title,
     anime?.englishTitle,
   ]).filter((title) => title.length > 1);
+  return uniqueStrings(titles.flatMap((title) => [title, ...romajiSpacingVariants(title)]));
+}
+
+function romajiSpacingVariants(title) {
+  const token = String(title || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!token || token.length < 7 || token.length > 28 || /\d/.test(token)) return [];
+  const words = ["ai", "aki", "ane", "ao", "asa", "boku", "doki", "doro", "fuyu", "gaku", "haha", "hana", "haru", "hime", "hoshi", "inu", "koi", "kono", "kuro", "machi", "mahou", "mama", "mono", "mura", "natsu", "neko", "onna", "otome", "sensei", "shiro", "sora", "tsuma", "uma", "umi", "yama", "yoru", "yume", "zuma"];
+  const variants = [];
+  for (const word of words) {
+    if (token.startsWith(word) && token.length - word.length >= 3) variants.push(`${word} ${token.slice(word.length)}`);
+    if (token.endsWith(word) && token.length - word.length >= 3) variants.push(`${token.slice(0, -word.length)} ${word}`);
+  }
+  return uniqueStrings(variants).slice(0, 4);
 }
 
 async function searchNyaaRss(queries, categories) {
