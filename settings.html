@@ -6,7 +6,7 @@
     <meta name="description" content="Customize your AniTrack experience." />
     <title>AniTrack | Settings</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=subtitle-toggle" defer></script>
+    <script src="app.js?v=subtitle-settings" defer></script>
   </head>
   <body data-page="settings">
     <header class="topbar shell">
@@ -139,6 +139,17 @@
                   <option value="native">Native</option>
                   <option value="both">Both</option>
                 </select>
+              </div>
+
+              <div class="form-group">
+                <label>Custom Subtitles</label>
+                <div class="subtitle-style-controls">
+                  <label>Size <span data-subtitle-size-value>28px</span><input data-subtitle-size type="range" min="16" max="42" step="1"></label>
+                  <label>Text <input data-subtitle-color type="color" value="#ffffff" aria-label="Subtitle text color"></label>
+                  <label>Background <input data-subtitle-background type="color" value="#081018" aria-label="Subtitle background color"></label>
+                  <label>Opacity <span data-subtitle-opacity-value>46%</span><input data-subtitle-opacity type="range" min="0" max="90" step="1"></label>
+                  <button class="btn secondary" data-reset-subtitles type="button">Reset subtitles</button>
+                </div>
               </div>
 
               <div class="form-group">
@@ -350,6 +361,28 @@
       .settings-section.active {
         display: block;
         animation: fadeIn 200ms ease;
+      }
+
+      .subtitle-style-controls {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .subtitle-style-controls label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .subtitle-style-controls span {
+        color: var(--text);
+      }
+
+      .subtitle-style-controls .btn {
+        align-self: end;
       }
 
       @keyframes fadeIn {

@@ -9,6 +9,7 @@ const MANGA_PAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const BROWSE_PAGE_SIZE = 28;
 const API_BASE_KEY = "anitrack-api-base";
 const DEFAULT_API_BASE_URL = "http://localhost:3000";
+const DEFAULT_SUBTITLE_STYLE = { size: 28, color: "#ffffff", backgroundColor: "#081018", backgroundOpacity: 46 };
 const ANIME_SOURCES = [
   { id: "nyaa", name: "Nyaa RSS", description: "Anime torrent search through Nyaa RSS. Opens magnets externally.", badge: "Torrent" },
   { id: "aniwaves", name: "Aniwaves", description: "Searches provider matches when raw streams are not available.", badge: "Provider" },
@@ -2021,10 +2022,15 @@ function animeQueryDefs(baseDefs) {
 
 function loadSettings() {
   try {
-    return { allowAdult: false, animeSources: defaultAnimeSources(), mangaSources: defaultMangaSources(), ...(JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}) };
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
+    return { allowAdult: false, animeSources: defaultAnimeSources(), mangaSources: defaultMangaSources(), subtitleStyle: defaultSubtitleStyle(), ...saved, subtitleStyle: { ...defaultSubtitleStyle(), ...(saved.subtitleStyle || {}) } };
   } catch (error) {
-    return { allowAdult: false, animeSources: defaultAnimeSources(), mangaSources: defaultMangaSources() };
+    return { allowAdult: false, animeSources: defaultAnimeSources(), mangaSources: defaultMangaSources(), subtitleStyle: defaultSubtitleStyle() };
   }
+}
+
+function defaultSubtitleStyle() {
+  return { ...DEFAULT_SUBTITLE_STYLE };
 }
 
 function defaultAnimeSources() {
@@ -2466,6 +2472,8 @@ async function initSettingsPage() {
     persistSettings();
   });
 
+  initSubtitleStyleSettings();
+
   document.querySelector("[data-autoplay-toggle]").checked = state.settings.autoPlayNext || false;
   document.querySelector("[data-autoplay-toggle]").addEventListener("change", (e) => {
     state.settings.autoPlayNext = e.target.checked;
@@ -2515,6 +2523,48 @@ async function initSettingsPage() {
   });
 
   loadAnimeSourcesNew();
+}
+
+function initSubtitleStyleSettings() {
+  const size = document.querySelector("[data-subtitle-size]");
+  const sizeValue = document.querySelector("[data-subtitle-size-value]");
+  const color = document.querySelector("[data-subtitle-color]");
+  const background = document.querySelector("[data-subtitle-background]");
+  const opacity = document.querySelector("[data-subtitle-opacity]");
+  const opacityValue = document.querySelector("[data-subtitle-opacity-value]");
+  const reset = document.querySelector("[data-reset-subtitles]");
+  if (!size || !color || !background || !opacity || !reset) return;
+
+  const sync = () => {
+    const style = { ...defaultSubtitleStyle(), ...(state.settings.subtitleStyle || {}) };
+    size.value = style.size;
+    color.value = style.color;
+    background.value = style.backgroundColor;
+    opacity.value = style.backgroundOpacity;
+    if (sizeValue) sizeValue.textContent = `${style.size}px`;
+    if (opacityValue) opacityValue.textContent = `${style.backgroundOpacity}%`;
+  };
+
+  const save = () => {
+    state.settings.subtitleStyle = {
+      size: Number(size.value),
+      color: color.value,
+      backgroundColor: background.value,
+      backgroundOpacity: Number(opacity.value),
+    };
+    if (sizeValue) sizeValue.textContent = `${state.settings.subtitleStyle.size}px`;
+    if (opacityValue) opacityValue.textContent = `${state.settings.subtitleStyle.backgroundOpacity}%`;
+    persistSettings();
+  };
+
+  [size, color, background, opacity].forEach((control) => control.addEventListener("input", save));
+  reset.addEventListener("click", () => {
+    state.settings.subtitleStyle = defaultSubtitleStyle();
+    persistSettings();
+    sync();
+    showToast("Subtitle style reset.");
+  });
+  sync();
 }
 
 async function loadAnimeSourcesNew() {
@@ -3375,6 +3425,7 @@ function setupCustomSubtitles(video, tracks = []) {
   const overlay = document.createElement("div");
   overlay.className = "custom-subtitles";
   overlay.setAttribute("aria-live", "polite");
+  applySubtitleStyle(overlay);
   player?.append(overlay);
   let subtitlesEnabled = true;
 
@@ -3421,6 +3472,22 @@ function setupCustomSubtitles(video, tracks = []) {
       overlay.remove();
       appendNativeVideoTracks(video, tracks);
     });
+}
+
+function applySubtitleStyle(overlay) {
+  const style = { ...defaultSubtitleStyle(), ...(state.settings.subtitleStyle || {}) };
+  overlay.style.fontSize = `${Math.max(16, Math.min(42, Number(style.size) || DEFAULT_SUBTITLE_STYLE.size))}px`;
+  overlay.style.color = style.color || DEFAULT_SUBTITLE_STYLE.color;
+  overlay.style.background = hexToRgba(style.backgroundColor || DEFAULT_SUBTITLE_STYLE.backgroundColor, Math.max(0, Math.min(100, Number(style.backgroundOpacity))) / 100);
+}
+
+function hexToRgba(hex, alpha = 1) {
+  const value = String(hex || "").replace("#", "");
+  if (!/^[\da-f]{6}$/i.test(value)) return `rgba(8, 16, 24, ${alpha})`;
+  const red = parseInt(value.slice(0, 2), 16);
+  const green = parseInt(value.slice(2, 4), 16);
+  const blue = parseInt(value.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 function setSubtitleToggleAvailable(available, enabled = true, keepHandler = false) {
