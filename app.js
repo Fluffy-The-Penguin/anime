@@ -3747,7 +3747,7 @@ async function playHttpStream(url, tracks = [], options = {}) {
   const streamToken = ++playerRuntime.streamToken;
   destroyActiveStreamEngines();
   player.innerHTML = `
-    <video data-active-video controls autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
+    <video data-active-video controls controlslist="nofullscreen nodownload noremoteplayback" autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
   `;
   setSubtitleToggleAvailable(false);
   const video = player.querySelector("[data-active-video]");
@@ -3978,9 +3978,40 @@ function renderCaughtUpPlayerMessage() {
 
 function setupPlayerChromeControls() {
   const fullscreen = document.querySelector("[data-fullscreen-btn]");
+  const wrapper = document.querySelector(".video-wrapper");
+  let hideTimer = null;
+
+  const showFullscreenChrome = () => {
+    if (!wrapper?.classList.contains("player-fullscreen")) return;
+    wrapper.classList.remove("player-fs-idle");
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      if (!document.querySelector("[data-player-settings-panel]")?.hidden) return;
+      wrapper.classList.add("player-fs-idle");
+    }, 2200);
+  };
+
+  const syncFullscreenState = async () => {
+    const active = document.fullscreenElement;
+    const video = document.querySelector("[data-active-video]");
+    if (active && active === video && wrapper && document.fullscreenEnabled) {
+      try {
+        await document.exitFullscreen();
+        await wrapper.requestFullscreen();
+      } catch (error) {
+        showToast("Use the AniTrack fullscreen button for subtitles");
+      }
+      return;
+    }
+    wrapper?.classList.toggle("player-fullscreen", active === wrapper);
+    wrapper?.classList.remove("player-fs-idle");
+    if (active === wrapper) showFullscreenChrome();
+    else clearTimeout(hideTimer);
+  };
+
   if (fullscreen) {
     fullscreen.onclick = async () => {
-      const target = document.querySelector(".video-wrapper") || document.querySelector("[data-video-player]");
+      const target = wrapper || document.querySelector("[data-video-player]");
       try {
         if (document.fullscreenElement) await document.exitFullscreen();
         else await target?.requestFullscreen?.();
@@ -3989,6 +4020,10 @@ function setupPlayerChromeControls() {
       }
     };
   }
+  wrapper?.addEventListener("mousemove", showFullscreenChrome);
+  wrapper?.addEventListener("touchstart", showFullscreenChrome, { passive: true });
+  wrapper?.addEventListener("click", showFullscreenChrome);
+  document.addEventListener("fullscreenchange", syncFullscreenState);
 }
 
 function setupCustomSubtitles(video, tracks = []) {
