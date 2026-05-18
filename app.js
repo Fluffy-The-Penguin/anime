@@ -64,6 +64,8 @@ const state = {
 const playerRuntime = {
   anime: null,
   episodes: [],
+  allSourceEpisodes: [],
+  currentEpisode: null,
   currentEpisodeNumber: null,
   currentSourceMatches: [],
   currentSourceIndex: -1,
@@ -1838,22 +1840,34 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
     return;
   }
 
+  const audioOptions = animeEpisodeAudioOptions(episodes);
+  const selectedAudio = sourceId === "animedex" && audioOptions.length > 1 ? selectedAnimeEpisodeAudio(anime, episodes) : "";
+  const visibleEpisodes = selectedAudio ? episodes.filter((episode) => episodeAudioKey(episode) === selectedAudio) : episodes;
   const pageSize = 40;
-  const totalPages = Math.max(1, Math.ceil(episodes.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(visibleEpisodes.length / pageSize));
   const currentPage = Math.min(Math.max(1, pageNumber), totalPages);
-  const pageEpisodes = episodes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pageEpisodes = visibleEpisodes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   container.innerHTML = `
+    ${sourceId === "animedex" && audioOptions.length > 1 ? `
+      <div class="detail-list-filter" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+        <span>${visibleEpisodes.length} ${episodeAudioLabel(selectedAudio)} episode${visibleEpisodes.length === 1 ? "" : "s"}</span>
+        <div style="display: inline-flex; gap: 6px; flex-wrap: wrap;">
+          ${audioOptions.map((audio) => `<button class="btn secondary" data-detail-anime-audio="${escapeAttr(audio)}" type="button" style="padding: 6px 10px; min-height: auto; ${audio === selectedAudio ? "border-color: var(--blue); color: var(--blue);" : ""}">${escapeHtml(episodeAudioLabel(audio))}</button>`).join("")}
+        </div>
+      </div>
+    ` : ""}
     <div class="detail-scroll-list">
       ${pageEpisodes.map((episode, index) => {
         const absoluteIndex = (currentPage - 1) * pageSize + index;
+        const episodeIndex = episodes.indexOf(episode);
         return `
-          <button type="button" class="chapter-row detail-chapter-row detail-anime-episode-row" data-detail-watch-episode data-episode-index="${absoluteIndex}">
+          <button type="button" class="chapter-row detail-chapter-row detail-anime-episode-row" data-detail-watch-episode data-episode-index="${episodeIndex}">
             <div class="detail-chapter-text">
               <strong>${sourceId === "hstream" ? "Match" : "Ep"} ${escapeHtml(episode.number || absoluteIndex + 1)}</strong>
               <span>${escapeHtml(episode.title || `Episode ${episode.number || absoluteIndex + 1}`)}</span>
             </div>
-            <small>${escapeHtml(episode.airDate || sourceId)}</small>
+            <small>${escapeHtml([episodeAudioLabel(episode.audio), episode.airDate || sourceId].filter(Boolean).join(" / "))}</small>
           </button>
         `;
       }).join("")}
@@ -1874,8 +1888,40 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
     });
   });
 
+  container.querySelectorAll("[data-detail-anime-audio]").forEach((button) => {
+    button.addEventListener("click", () => {
+      localStorage.setItem(animeAudioPreferenceKey(anime), button.dataset.detailAnimeAudio || "");
+      renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, 1);
+    });
+  });
+
   container.querySelector("[data-detail-anime-prev]")?.addEventListener("click", () => renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, currentPage - 1));
   container.querySelector("[data-detail-anime-next]")?.addEventListener("click", () => renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, currentPage + 1));
+}
+
+function animeEpisodeAudioOptions(episodes) {
+  return uniqueStrings(episodes.map((episode) => episodeAudioKey(episode)).filter(Boolean));
+}
+
+function selectedAnimeEpisodeAudio(anime, episodes) {
+  const options = animeEpisodeAudioOptions(episodes);
+  const saved = localStorage.getItem(animeAudioPreferenceKey(anime)) || "";
+  return options.includes(saved) ? saved : options[0] || "";
+}
+
+function animeAudioPreferenceKey(anime) {
+  return `anime-audio:${anime.id || anime.apiId || "unknown"}`;
+}
+
+function episodeAudioKey(episode) {
+  return String(episode?.audio || "").trim().toLowerCase();
+}
+
+function episodeAudioLabel(audio) {
+  const value = String(audio || "").trim().toLowerCase();
+  if (value === "sub") return "Sub";
+  if (value === "dub") return "Dub";
+  return value ? value.replace(/^./, (char) => char.toUpperCase()) : "";
 }
 
 function openPlayerForAnime(anime, episode = null, sourceId = "anilist", sourceMatches = []) {
@@ -3103,6 +3149,14 @@ async function initPlayerPage() {
     playerRuntime.currentSourceMatches = sourceMatches;
   } else if (sourceMatches.length && ["animedex", "anizone"].includes(startData?.sourceId)) {
     episodes = sourceMatches;
+    playerRuntime.allSourceEpisodes = sourceMatches;
+    if (startData.sourceId === "animedex") {
+      const preferredAudio = episodeAudioKey(startData?.episode) || selectedAnimeEpisodeAudio(anime, sourceMatches);
+      if (preferredAudio) {
+        localStorage.setItem(animeAudioPreferenceKey(anime), preferredAudio);
+        episodes = filterEpisodesByAudio(sourceMatches, preferredAudio);
+      }
+    }
   } else if (!episodes.length && startData?.episode) {
     episodes = [startData.episode];
   }
@@ -3133,13 +3187,27 @@ async function initPlayerPage() {
   });
 
   const targetEpisode = params.get("episode") || startData?.episode?.number || "";
-  const targetButton = targetEpisode ? [...document.querySelectorAll("[data-episode-item]")].find((button) => button.dataset.episodeNumber === String(targetEpisode)) : null;
+  const targetAudio = episodeAudioKey(startData?.episode);
+  const targetButton = targetEpisode ? [...document.querySelectorAll("[data-episode-item]")].find((button) => {
+    if (button.dataset.episodeNumber !== String(targetEpisode)) return false;
+    if (!targetAudio) return true;
+    try {
+      return episodeAudioKey(JSON.parse(button.dataset.episodeData)) === targetAudio;
+    } catch (error) {
+      return true;
+    }
+  }) : null;
   const firstEpisode = targetButton || document.querySelector("[data-episode-item]");
   if (firstEpisode) firstEpisode.click();
   else {
     document.querySelector("[data-video-player]").innerHTML = '<div class="player-loading"><p>No real episodes available.</p><p class="muted" style="font-size: 12px;">Use the details page source selector when a provider exposes episode entries.</p></div>';
     document.querySelector("[data-streaming-sources]").innerHTML = '<div class="empty">No episode list was returned by AniList or the selected source.</div>';
   }
+}
+
+function filterEpisodesByAudio(episodes, audio) {
+  const key = String(audio || "").toLowerCase();
+  return key ? episodes.filter((episode) => episodeAudioKey(episode) === key) : episodes;
 }
 
 function buildEpisodes(anime) {
@@ -3176,7 +3244,7 @@ function renderEpisodesList(episodes, anime) {
       >
         <span class="episode-number">Ep ${ep.number}</span>
         <h4 class="episode-title">${escapeHtml(ep.title)}</h4>
-        <span class="episode-air-date">${escapeHtml(ep.airDate)}</span>
+        <span class="episode-air-date">${escapeHtml([episodeAudioLabel(ep.audio), ep.airDate].filter(Boolean).join(" / "))}</span>
         ${isWatched ? '<span class="muted" style="font-size: 11px;">✓ Watched</span>' : ""}
       </button>`;
     })
@@ -3206,6 +3274,7 @@ async function loadEpisode(anime, episode, episodeNumber) {
   title.textContent = episode.title;
   number.textContent = `Episode ${episodeNumber} of ${anime.total || "?"}`;
   description.innerHTML = `<p>${escapeHtml(episode.description)}</p>`;
+  playerRuntime.currentEpisode = episode;
   playerRuntime.currentEpisodeNumber = String(episodeNumber);
 
   // Show loading state
@@ -3900,6 +3969,17 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
   }
 
   if (audio) {
+    const animeDexAudioVersions = animeDexAudioVersionsForCurrentEpisode();
+    if (animeDexAudioVersions.length) {
+      const currentAudio = episodeAudioKey(playerRuntime.currentEpisode) || episodeAudioKey(animeDexAudioVersions[0]);
+      audio.innerHTML = animeDexAudioVersions.map((episode) => {
+        const value = episodeAudioKey(episode);
+        return `<option value="${escapeAttr(value)}">${escapeHtml(episodeAudioLabel(value))}</option>`;
+      }).join("");
+      audio.value = currentAudio;
+      audio.disabled = animeDexAudioVersions.length <= 1;
+      audio.onchange = () => switchAnimeDexAudioVersion(audio.value);
+    } else {
     const renderAudioTracks = () => {
       const audioTracks = video.audioTracks ? Array.from(video.audioTracks) : [];
       audio.innerHTML = '<option value="default">Default audio</option>' + audioTracks.map((track, index) => `<option value="${index}">${escapeHtml(track.label || track.language || `Track ${index + 1}`)}</option>`).join("");
@@ -3911,6 +3991,7 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
       if (!video.audioTracks || audio.value === "default") return;
       Array.from(video.audioTracks).forEach((track, index) => { track.enabled = String(index) === audio.value; });
     };
+    }
   }
 
   if (autoPlay) {
@@ -3932,6 +4013,35 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
       persistSettings();
     };
   }
+}
+
+function animeDexAudioVersionsForCurrentEpisode() {
+  if (playerRuntime.currentEpisode?.source !== "animedex") return [];
+  const currentNumber = String(playerRuntime.currentEpisode?.number || playerRuntime.currentEpisodeNumber || "");
+  const episodes = playerRuntime.allSourceEpisodes.length ? playerRuntime.allSourceEpisodes : playerRuntime.episodes;
+  const versions = episodes.filter((episode) => String(episode.number || "") === currentNumber && episodeAudioKey(episode));
+  const seen = new Set();
+  return versions.filter((episode) => {
+    const key = episodeAudioKey(episode);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function switchAnimeDexAudioVersion(audio) {
+  const key = String(audio || "").toLowerCase();
+  const currentNumber = String(playerRuntime.currentEpisode?.number || playerRuntime.currentEpisodeNumber || "");
+  const allEpisodes = playerRuntime.allSourceEpisodes.length ? playerRuntime.allSourceEpisodes : playerRuntime.episodes;
+  const nextEpisode = allEpisodes.find((episode) => String(episode.number || "") === currentNumber && episodeAudioKey(episode) === key);
+  if (!nextEpisode) return;
+  localStorage.setItem(animeAudioPreferenceKey(playerRuntime.anime || {}), key);
+  const filtered = filterEpisodesByAudio(allEpisodes, key);
+  playerRuntime.episodes = filtered;
+  renderEpisodesList(filtered, playerRuntime.anime);
+  const button = [...document.querySelectorAll("[data-episode-item]")].find((item) => item.dataset.episodeNumber === currentNumber);
+  if (button) button.click();
+  else loadEpisode(playerRuntime.anime, nextEpisode, nextEpisode.number);
 }
 
 function handlePlayerEnded() {
