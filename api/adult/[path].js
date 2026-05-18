@@ -40,6 +40,10 @@ async function handleAnimeRoute(req, res, backendUrl) {
       res.json(await getAnimeDexStreams(cleanQuery(req.query.episodeId || req.query.id)));
       return;
     }
+    if (route === "animedex/proxy") {
+      await proxyAnimeDexMedia(req, res);
+      return;
+    }
     if (route === "anizone/search") {
       res.json(await searchAniZone(cleanQuery(req.query.title)));
       return;
@@ -122,7 +126,7 @@ async function getAnimeDexStreams(episodeId) {
       name: `AnimeDex ${source.quality || index + 1}`,
       quality: source.quality || "auto",
       type: source.isHLS || String(source.url).includes(".m3u8") ? "application/vnd.apple.mpegurl" : "video/mp4",
-      url: source.url,
+      url: proxyAnimeDexUrl(source.url),
       referer: source.referer || "",
       isHLS: Boolean(source.isHLS || String(source.url).includes(".m3u8")),
       tracks,
@@ -131,6 +135,66 @@ async function getAnimeDexStreams(episodeId) {
     intro: data.intro || null,
     outro: data.outro || null,
   };
+}
+
+async function proxyAnimeDexMedia(req, res) {
+  const target = validateHttpUrl(req.query.url);
+  if (!target || !isAllowedAnimeDexMediaUrl(target)) {
+    res.status(400).json({ error: "valid AnimeDex media url is required" });
+    return;
+  }
+  const response = await fetchWithTimeout(target, { headers: animeDexMediaHeaders(req) });
+  if (!response.ok) {
+    res.status(response.status).send(await response.text().catch(() => response.statusText));
+    return;
+  }
+  const contentType = animeDexContentTypeForUrl(target, response.headers.get("content-type"));
+  res.status(response.status);
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Content-Type", contentType);
+  ["content-length", "content-range", "accept-ranges", "cache-control"].forEach((header) => {
+    const value = response.headers.get(header);
+    if (value) res.setHeader(header, value);
+  });
+  if (target.includes(".m3u8") || contentType.includes("mpegurl")) {
+    const text = await response.text();
+    res.send(rewriteM3u8(text, target, proxyAnimeDexUrl));
+    return;
+  }
+  if (!response.body) {
+    res.end();
+    return;
+  }
+  Readable.fromWeb(response.body).pipe(res);
+}
+
+function animeDexMediaHeaders(req) {
+  return {
+    Accept: "*/*",
+    Referer: "https://kwik.cx/",
+    Origin: "https://kwik.cx",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 AniTrack/1.0",
+    ...(req.headers.range ? { Range: req.headers.range } : {}),
+  };
+}
+
+function proxyAnimeDexUrl(url) {
+  return `/api/anime/animedex/proxy?url=${encodeURIComponent(url)}`;
+}
+
+function isAllowedAnimeDexMediaUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && (parsed.hostname === "owocdn.top" || parsed.hostname.endsWith(".owocdn.top"));
+  } catch (error) {
+    return false;
+  }
+}
+
+function animeDexContentTypeForUrl(url, upstreamType = "") {
+  const path = new URL(url).pathname.toLowerCase();
+  if (path.endsWith(".jpg") || path.includes("/segment-")) return "video/mp2t";
+  return upstreamType || contentTypeForUrl(url);
 }
 
 async function searchAniZone(title) {
@@ -230,15 +294,25 @@ function mediaHeaders(req) {
 }
 
 function rewriteM3u8ForAniZone(text, manifestUrl) {
+  return rewriteM3u8(text, manifestUrl, proxyAniZoneUrl);
+}
+
+function rewriteM3u8(text, manifestUrl, proxyUrl) {
   return String(text || "")
-    .replace(/URI="([^"]+)"/g, (_, uri) => `URI="${proxyAniZoneUrl(new URL(uri, manifestUrl).toString())}"`)
+    .replace(/URI="([^"]+)"/g, (_, uri) => `URI="${proxiedM3u8Url(uri, manifestUrl, proxyUrl)}"`)
     .split(/\r?\n/)
     .map((line) => {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith("#")) return line;
-      return proxyAniZoneUrl(new URL(trimmed, manifestUrl).toString());
+      return proxiedM3u8Url(trimmed, manifestUrl, proxyUrl);
     })
     .join("\n");
+}
+
+function proxiedM3u8Url(value, manifestUrl, proxyUrl) {
+  const url = decodeXml(value);
+  if (url.startsWith("/api/anime/")) return url;
+  return proxyUrl(new URL(url, manifestUrl).toString());
 }
 
 function proxyAniZoneUrl(url) {
