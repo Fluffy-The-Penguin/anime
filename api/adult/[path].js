@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
     return;
   }
   if (route === "anilist") {
-    await handleAniListRoute(req, res);
+    await handleAniListRoute(req, res, backendUrl);
     return;
   }
 
@@ -78,7 +78,7 @@ async function handleAnimeRoute(req, res, backendUrl) {
   await proxyJson(res, `${backendUrl}/api/anime/${route}${query.toString() ? `?${query}` : ""}`);
 }
 
-async function handleAniListRoute(req, res) {
+async function handleAniListRoute(req, res, backendUrl) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
@@ -91,29 +91,12 @@ async function handleAniListRoute(req, res) {
       return;
     }
 
-    let response;
-    try {
-      response = await fetchWithTimeout(ANILIST_URL, {
-        method: "POST",
-        headers: providerHeaders({ "Content-Type": "application/json", Origin: "https://anilist.co", Referer: "https://anilist.co/" }),
-        body: JSON.stringify({ query: body.query, variables: body.variables || {} }),
-      });
-    } catch (error) {
-      const fallback = await fallbackAniListResponse(body);
-      if (fallback) {
-        res.json(fallback);
-        return;
-      }
-      throw error;
-    }
+    const response = await fetchWithTimeout(`${backendUrl}/api/anilist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ query: body.query, variables: body.variables || {} }),
+    });
     const text = await response.text();
-    if (!response.ok) {
-      const fallback = await fallbackAniListResponse(body);
-      if (fallback) {
-        res.json(fallback);
-        return;
-      }
-    }
     res.status(response.status);
     res.setHeader("Content-Type", response.headers.get("content-type") || "application/json");
     res.send(text);
