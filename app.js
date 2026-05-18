@@ -8,7 +8,8 @@ const MANGA_CHAPTER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const MANGA_PAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const BROWSE_PAGE_SIZE = 28;
 const API_BASE_KEY = "anitrack-api-base";
-const DEFAULT_API_BASE_URL = "http://localhost:3000";
+const DEFAULT_API_BASE_URL = "https://anime-api-proxy.aryanpanwar.workers.dev";
+const LEGACY_API_BASE_URLS = ["http://localhost:3000", "http://fi10.bot-hosting.net:21204"];
 const DEFAULT_SUBTITLE_STYLE = { size: 28, color: "#ffffff", backgroundColor: "#081018", backgroundOpacity: 46, position: "bottom", offset: 58 };
 const ANIME_SOURCES = [
   { id: "animedex", name: "AnimeDex", description: "Real anime episode lists with direct HLS streams from public AnimeDex APIs.", badge: "HLS" },
@@ -742,7 +743,7 @@ async function searchManga(query, pageNumber = 1) {
 }
 
 async function anilistQuery(query, variables) {
-  const response = await fetch(ANILIST_URL, {
+  const response = await fetch(apiRequestUrl(ANILIST_URL), {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ query, variables }),
@@ -2315,13 +2316,15 @@ function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
     const defaults = defaultSettings();
-    return {
+    const settings = {
       ...defaults,
       ...saved,
       animeSources: { ...defaults.animeSources, ...(saved.animeSources || {}) },
       mangaSources: { ...defaults.mangaSources, ...(saved.mangaSources || {}) },
       subtitleStyle: { ...defaults.subtitleStyle, ...(saved.subtitleStyle || {}) },
     };
+    settings.apiBaseUrl = normalizeApiBaseUrl(settings.apiBaseUrl || localStorage.getItem(API_BASE_KEY) || DEFAULT_API_BASE_URL);
+    return settings;
   } catch (error) {
     return defaultSettings();
   }
@@ -2638,7 +2641,17 @@ function showToast(message) {
 
 function apiBaseUrl() {
   const value = state.settings.apiBaseUrl || localStorage.getItem(API_BASE_KEY) || window.ANITRACK_API_BASE_URL || DEFAULT_API_BASE_URL;
-  return String(value).trim().replace(/\/+$/, "");
+  const normalized = normalizeApiBaseUrl(value);
+  if (normalized !== value) {
+    state.settings.apiBaseUrl = normalized;
+    localStorage.setItem(API_BASE_KEY, normalized);
+  }
+  return normalized;
+}
+
+function normalizeApiBaseUrl(value) {
+  const normalized = String(value || DEFAULT_API_BASE_URL).trim().replace(/\/+$/, "");
+  return LEGACY_API_BASE_URLS.includes(normalized) ? DEFAULT_API_BASE_URL : normalized;
 }
 
 async function fetchApiJson(path) {
@@ -2649,7 +2662,7 @@ async function fetchApiJson(path) {
 
 function apiRequestUrl(path) {
   const route = String(path || "");
-  if (route.startsWith("/api/anime/") || route.startsWith("/api/anilist")) return route;
+  if (route.startsWith("/api/anime/")) return route;
   return `${apiBaseUrl()}${route}`;
 }
 
@@ -2761,16 +2774,18 @@ async function initSettingsPage() {
   });
 
   const apiInput = document.querySelector("[data-api-base-url]");
-  apiInput.value = state.settings.apiBaseUrl || localStorage.getItem(API_BASE_KEY) || DEFAULT_API_BASE_URL;
+  apiInput.value = apiBaseUrl();
   apiInput.addEventListener("change", (e) => {
-    state.settings.apiBaseUrl = e.target.value.trim().replace(/\/+$/, "");
+    state.settings.apiBaseUrl = normalizeApiBaseUrl(e.target.value);
+    apiInput.value = state.settings.apiBaseUrl;
     localStorage.setItem(API_BASE_KEY, state.settings.apiBaseUrl);
     persistSettings();
     showToast("Backend API URL saved");
   });
 
   document.querySelector("[data-api-test-btn]").addEventListener("click", async () => {
-    state.settings.apiBaseUrl = apiInput.value.trim().replace(/\/+$/, "");
+    state.settings.apiBaseUrl = normalizeApiBaseUrl(apiInput.value);
+    apiInput.value = state.settings.apiBaseUrl;
     localStorage.setItem(API_BASE_KEY, state.settings.apiBaseUrl);
     persistSettings();
     try {

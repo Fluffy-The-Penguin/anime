@@ -6,7 +6,7 @@
     <meta name="description" content="Customize your AniTrack experience." />
     <title>AniTrack | Settings</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=provider-match-ranking" defer></script>
+    <script src="app.js?v=worker-backend-default" defer></script>
   </head>
   <body data-page="settings">
     <header class="topbar shell">
@@ -176,7 +176,7 @@
                 <label>Backend API URL</label>
                 <input type="url" data-api-base-url placeholder="https://your-backend.example.com" aria-label="Backend API URL">
                 <button class="btn secondary" data-api-test-btn type="button">Test Backend</button>
-                <p class="muted" style="font-size: 12px; margin: 0;">Use your Pterodactyl backend URL here. Local default is http://localhost:3000.</p>
+                <p class="muted" style="font-size: 12px; margin: 0;">Default: https://anime-api-proxy.aryanpanwar.workers.dev. Anime playback providers still use same-origin Vercel routes until backend provider playback is fixed.</p>
               </div>
             </div>
           </section>
