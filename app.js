@@ -29,6 +29,7 @@ const state = {
   browsePage: 1,
   browseQuery: "",
   genres: [],
+  adultGenreOnly: false,
   year: "",
   status: "",
   latestPage: 1,
@@ -212,9 +213,20 @@ function initBrowsePage() {
   });
 
   if (adultGenreInput) {
-    adultGenreInput.checked = Boolean(state.settings.allowAdult);
+    adultGenreInput.checked = Boolean(state.adultGenreOnly);
     adultGenreInput.addEventListener("change", () => {
-      setAdultContentEnabled(adultGenreInput.checked);
+      if (adultGenreInput.checked && !state.settings.allowAdult) {
+        adultGenreInput.checked = false;
+        state.adultGenreOnly = false;
+        updateGenreToggleLabel();
+        showToast("Enable 18+ content in Settings first.");
+        return;
+      }
+      state.adultGenreOnly = adultGenreInput.checked;
+      updateGenreToggleLabel();
+      state.browsePage = 1;
+      updateBrowseUrl();
+      loadFeed();
     });
   }
 
@@ -243,7 +255,8 @@ function initBrowsePage() {
   document.querySelector("[data-reset-filters]").addEventListener("click", () => {
     state.feed = page === "manga" ? "top" : "trending";
     state.genres = [];
-    setAdultContentEnabled(false, { reload: false, toast: false });
+    state.adultGenreOnly = false;
+    if (adultGenreInput) adultGenreInput.checked = false;
     genreInputs.forEach((input) => {
       input.checked = false;
     });
@@ -502,6 +515,7 @@ function applyBrowseUrlParams(searchInput) {
     searchInput.value = query;
   }
   if (pageNumber > 0) state.browsePage = pageNumber;
+  state.adultGenreOnly = params.get("adult") === "1" && state.settings.allowAdult;
 }
 
 function updateBrowseUrl() {
@@ -510,6 +524,8 @@ function updateBrowseUrl() {
   else params.delete("search");
   if (state.browsePage > 1) params.set("page", String(state.browsePage));
   else params.delete("page");
+  if (state.adultGenreOnly) params.set("adult", "1");
+  else params.delete("adult");
   const query = params.toString();
   history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}`);
 }
@@ -534,6 +550,7 @@ function browseCacheKey(pageNumber) {
     feed: state.feed,
     query: state.browseQuery,
     genres: state.genres,
+    adultGenreOnly: state.adultGenreOnly,
     year: state.year,
     status: state.status,
     adult: state.settings.allowAdult,
@@ -1902,13 +1919,18 @@ function setAdultContentEnabled(enabled, options = {}) {
   updateGenreToggleLabel();
   if (toast) showToast(state.settings.allowAdult ? "18+ content enabled." : "18+ content disabled.");
   if (!reload) return;
+  if (page === "anime" || page === "manga") updateBrowseUrl();
   if (page === "home") loadHomeSections();
   if (page === "anime" || page === "manga") loadFeed();
 }
 
 function syncAdultControls() {
-  document.querySelectorAll("[data-adult-toggle], [data-adult-genre]").forEach((input) => {
+  if (!state.settings.allowAdult) state.adultGenreOnly = false;
+  document.querySelectorAll("[data-adult-toggle]").forEach((input) => {
     input.checked = Boolean(state.settings.allowAdult);
+  });
+  document.querySelectorAll("[data-adult-genre]").forEach((input) => {
+    input.checked = Boolean(state.adultGenreOnly);
   });
 }
 
@@ -1976,7 +1998,8 @@ function adultFilter() {
 
 function animeFilterArgs(baseArgs, includeBrowseFilters = true) {
   const args = [...baseArgs];
-  if (!state.settings.allowAdult) args.push("isAdult: false");
+  if (includeBrowseFilters && state.adultGenreOnly && state.settings.allowAdult) args.push("isAdult: true");
+  else if (!state.settings.allowAdult) args.push("isAdult: false");
   if (includeBrowseFilters && state.genres.length) args.push("genre_in: $genres");
   if (includeBrowseFilters && state.year) args.push("seasonYear: $year");
   if (includeBrowseFilters && state.status) args.push("status: $status");
@@ -2081,17 +2104,19 @@ function updateGenreToggleLabel() {
   const toggle = document.querySelector("[data-genre-toggle]");
   if (!toggle) return;
 
-  if (!state.genres.length && !state.settings.allowAdult) {
+  const count = state.genres.length + (state.adultGenreOnly ? 1 : 0);
+
+  if (!count) {
     toggle.textContent = "Any genre";
     return;
   }
 
-  if (!state.genres.length) {
+  if (state.adultGenreOnly && !state.genres.length) {
     toggle.textContent = "Adult +18";
     return;
   }
 
-  toggle.textContent = state.genres.length === 1 && !state.settings.allowAdult ? state.genres[0] : `${state.genres.length + (state.settings.allowAdult ? 1 : 0)} filters selected`;
+  toggle.textContent = state.genres.length === 1 && !state.adultGenreOnly ? state.genres[0] : `${count} filters selected`;
 }
 
 function mediaLabel(item) {
@@ -2347,21 +2372,24 @@ function renderStremioAddons() {
 }
 
 async function initSettingsPage() {
-  // Section Navigation
-  const navButtons = document.querySelectorAll("[data-section]");
-  const sections = document.querySelectorAll("[data-section-content]");
+  const settingsRoot = document.querySelector(".settings-layout") || document;
+  const nav = settingsRoot.querySelector(".settings-nav");
+  const navButtons = [...settingsRoot.querySelectorAll(".settings-nav-btn[data-section]")];
+  const sections = [...settingsRoot.querySelectorAll("[data-section-content]")];
 
-  navButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const sectionName = btn.dataset.section;
-      navButtons.forEach((b) => b.classList.remove("active"));
-      sections.forEach((s) => s.classList.remove("active"));
-      btn.classList.add("active");
-      document.querySelector(`[data-section-content="${sectionName}"]`)?.classList.add("active");
-      
-      if (sectionName === "anime-sources") loadAnimeSourcesNew();
-      if (sectionName === "extensions-manga") loadMangaExtensionsNew();
-    });
+  const showSettingsSection = (sectionName) => {
+    navButtons.forEach((button) => button.classList.toggle("active", button.dataset.section === sectionName));
+    sections.forEach((section) => section.classList.toggle("active", section.dataset.sectionContent === sectionName));
+
+    if (sectionName === "anime-sources") loadAnimeSourcesNew();
+    if (sectionName === "extensions-manga") loadMangaExtensionsNew();
+  };
+
+  nav?.addEventListener("click", (event) => {
+    const button = event.target.closest(".settings-nav-btn[data-section]");
+    if (!button) return;
+    event.preventDefault();
+    showSettingsSection(button.dataset.section);
   });
 
   // Theme options
@@ -2402,10 +2430,10 @@ async function initSettingsPage() {
   });
 
   // Content preferences
-  document.querySelector("[data-adult-toggle]").checked = state.settings.allowAdult || false;
-  document.querySelector("[data-adult-toggle]").addEventListener("change", (e) => {
-    state.settings.allowAdult = e.target.checked;
-    persistSettings();
+  const adultToggle = settingsRoot.querySelector("[data-section-content='content'] [data-adult-toggle]");
+  adultToggle.checked = state.settings.allowAdult || false;
+  adultToggle.addEventListener("change", (e) => {
+    setAdultContentEnabled(e.target.checked, { reload: false });
   });
 
   document.querySelector("[data-library-view-select]").value = state.settings.defaultLibraryView || "watching";
@@ -2510,10 +2538,11 @@ async function loadAnimeSourcesNew() {
       state.settings.animeSources = { ...defaultAnimeSources(), ...(state.settings.animeSources || {}) };
       state.settings.animeSources[toggle.dataset.animeSourceToggle] = toggle.checked;
       if (toggle.dataset.animeSourceToggle === "hstream" && toggle.checked && !state.settings.allowAdult) {
-        setAdultContentEnabled(true, { reload: false, toast: false });
+        showToast("hstream appears after 18+ content is enabled.");
+      } else {
+        showToast(`${toggle.checked ? "Enabled" : "Disabled"} ${animeSourceLabel(toggle.dataset.animeSourceToggle)}`);
       }
       persistSettings();
-      showToast(`${toggle.checked ? "Enabled" : "Disabled"} ${animeSourceLabel(toggle.dataset.animeSourceToggle)}`);
     });
   });
 }
@@ -3200,12 +3229,15 @@ function bindAdultSourceButtons(container) {
         const sourceList = document.createElement("div");
         sourceList.className = "source-direct-list";
         sourceList.style.cssText = "display: grid; gap: 6px; margin: -4px 0 8px 0;";
-        sourceList.innerHTML = sources.slice(0, 6).map((source) => `
-          <button class="source-play-stremio" data-adult-stream-url="${escapeAttr(source.url)}" type="button" style="padding: 7px 12px; border-radius: 8px; background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--line); font-weight: 700; cursor: pointer; font-size: 12px; text-align: left;">Play ${escapeHtml(source.quality || source.name || "stream")}</button>
+        sourceList.innerHTML = sources.slice(0, 6).map((source, index) => `
+          <button class="source-play-stremio" data-adult-stream-index="${index}" type="button" style="padding: 7px 12px; border-radius: 8px; background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid var(--line); font-weight: 700; cursor: pointer; font-size: 12px; text-align: left;">Play ${escapeHtml(source.quality || source.name || "stream")}</button>
         `).join("");
         item?.after(sourceList);
-        sourceList.querySelectorAll("[data-adult-stream-url]").forEach((sourceButton) => {
-          sourceButton.addEventListener("click", () => playHttpStream(sourceButton.dataset.adultStreamUrl));
+        sourceList.querySelectorAll("[data-adult-stream-index]").forEach((sourceButton) => {
+          sourceButton.addEventListener("click", () => {
+            const source = sources[Number(sourceButton.dataset.adultStreamIndex)];
+            playHttpStream(source.url, source.tracks || data.tracks || []);
+          });
         });
         button.textContent = "Loaded";
         showToast("hstream sources loaded");
@@ -3265,12 +3297,13 @@ function bindStremioSourceButtons(container) {
   });
 }
 
-async function playHttpStream(url) {
+async function playHttpStream(url, tracks = []) {
   const player = document.querySelector("[data-video-player]");
   player.innerHTML = `
     <video data-active-video controls autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
   `;
   const video = player.querySelector("[data-active-video]");
+  appendVideoTracks(video, tracks);
 
   video.addEventListener("error", () => {
     renderPlayerFallback(url);
@@ -3325,6 +3358,18 @@ async function playHttpStream(url) {
 
   video.src = url;
   showToast("Loading stream");
+}
+
+function appendVideoTracks(video, tracks = []) {
+  tracks.filter((track) => track?.url).forEach((track, index) => {
+    const node = document.createElement("track");
+    node.kind = track.kind || "subtitles";
+    node.label = track.label || "Subtitles";
+    node.srclang = track.srclang || "en";
+    node.src = track.url;
+    node.default = index === 0;
+    video.appendChild(node);
+  });
 }
 
 function renderPlayerFallback(url) {
