@@ -1993,10 +1993,19 @@ function animeQueryDefs(baseDefs) {
 
 function loadSettings() {
   try {
-    return { allowAdult: false, mangaSources: defaultMangaSources(), ...(JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}) };
+    return { allowAdult: false, animeSources: defaultAnimeSources(), mangaSources: defaultMangaSources(), ...(JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}) };
   } catch (error) {
-    return { allowAdult: false, mangaSources: defaultMangaSources() };
+    return { allowAdult: false, animeSources: defaultAnimeSources(), mangaSources: defaultMangaSources() };
   }
+}
+
+function defaultAnimeSources() {
+  return Object.fromEntries(ANIME_SOURCES.map((source) => [source.id, true]));
+}
+
+function animeSourceEnabled(id) {
+  const enabled = { ...defaultAnimeSources(), ...(state.settings.animeSources || {}) };
+  return enabled[id] !== false;
 }
 
 function defaultMangaSources() {
@@ -2350,7 +2359,7 @@ async function initSettingsPage() {
       btn.classList.add("active");
       document.querySelector(`[data-section-content="${sectionName}"]`)?.classList.add("active");
       
-      if (sectionName === "extensions-anime") loadAnimeExtensionsNew();
+      if (sectionName === "anime-sources") loadAnimeSourcesNew();
       if (sectionName === "extensions-manga") loadMangaExtensionsNew();
     });
   });
@@ -2472,41 +2481,41 @@ async function initSettingsPage() {
     }
   });
 
-  // Load initial extensions
-  loadAnimeExtensionsNew();
+  loadAnimeSourcesNew();
 }
 
-async function loadAnimeExtensionsNew() {
-  const container = document.querySelector("[data-anime-extensions]");
+async function loadAnimeSourcesNew() {
+  const container = document.querySelector("[data-anime-sources]");
   if (!container) return;
 
-  container.innerHTML = '<div class="loading-state">Loading anime sources...</div>';
+  const enabled = { ...defaultAnimeSources(), ...(state.settings.animeSources || {}) };
+  container.innerHTML = ANIME_SOURCES.map((source) => `
+    <div class="extension-card source-setting-card${source.adult ? " adult-source-card" : ""}">
+      <div class="source-setting-head">
+        <div>
+          <h4>${escapeHtml(source.name)}${source.adult ? ' <span class="extension-nsfw">+18</span>' : ""}</h4>
+          <p>${escapeHtml(source.description)}</p>
+        </div>
+        <input type="checkbox" class="extension-toggle" data-anime-source-toggle="${escapeAttr(source.id)}" aria-label="Enable ${escapeAttr(source.name)}" ${enabled[source.id] ? "checked" : ""}>
+      </div>
+      <div class="extension-footer">
+        <span class="extension-version">${escapeHtml(source.badge)}</span>
+        ${source.adult ? '<span class="source-note">Requires 18+ content enabled</span>' : ""}
+      </div>
+    </div>
+  `).join("");
 
-  try {
-    const extensions = await fetchApiJson("/api/extensions/anime?limit=2000");
-
-    if (!extensions.length) {
-      container.innerHTML = '<div class="loading-state">No anime sources available</div>';
-      return;
-    }
-
-    renderExtensionsGrid(
-      container,
-      extensions.map((ext) => ({
-        type: "anime",
-        id: ext.id || ext.pkg || ext.name,
-        name: ext.name || "Unknown",
-        version: ext.version || "1.0",
-        description: ext.description || `${ext.lang || "Unknown language"} anime source`,
-        lang: ext.lang || "unknown",
-        nsfw: Boolean(ext.nsfw),
-        url: ext.url || ext.sources?.[0]?.baseUrl || "",
-      }))
-    );
-  } catch (error) {
-    console.error("Failed to load anime extensions:", error);
-    container.innerHTML = '<div class="loading-state">Failed to load anime sources</div>';
-  }
+  container.querySelectorAll("[data-anime-source-toggle]").forEach((toggle) => {
+    toggle.addEventListener("change", () => {
+      state.settings.animeSources = { ...defaultAnimeSources(), ...(state.settings.animeSources || {}) };
+      state.settings.animeSources[toggle.dataset.animeSourceToggle] = toggle.checked;
+      if (toggle.dataset.animeSourceToggle === "hstream" && toggle.checked && !state.settings.allowAdult) {
+        setAdultContentEnabled(true, { reload: false, toast: false });
+      }
+      persistSettings();
+      showToast(`${toggle.checked ? "Enabled" : "Disabled"} ${animeSourceLabel(toggle.dataset.animeSourceToggle)}`);
+    });
+  });
 }
 
 async function loadMangaExtensionsNew() {
@@ -2647,6 +2656,7 @@ function bindExtensionToggles(root) {
 }
 
 function enabledExtensionLinks(type) {
+  if (type === "anime") return [];
   const enabled = JSON.parse(localStorage.getItem("enabled-extensions") || "{}");
   const catalog = JSON.parse(localStorage.getItem("extension-catalog") || "{}");
   return Object.values(catalog).filter((ext) => ext.type === type && enabled[String(ext.id)] && ext.url);
@@ -2867,10 +2877,10 @@ async function loadEpisode(anime, episode, episodeNumber) {
 
   try {
     const [streamData, stremioStreams, aniwavesMatches, adultMatches] = await Promise.all([
-      searchNyaaStreams(anime.title, episodeNumber),
+      animeSourceEnabled("nyaa") ? searchNyaaStreams(anime.title, episodeNumber) : [],
       searchStremioStreams(anime, episodeNumber),
-      searchAniwavesAnime(anime.title),
-      searchAdultAnime(anime),
+      animeSourceEnabled("aniwaves") ? searchAniwavesAnime(anime.title) : [],
+      animeSourceEnabled("hstream") ? searchAdultAnime(anime) : [],
     ]);
     renderStreamingSources(sources, streamData, anime, episodeNumber, stremioStreams, aniwavesMatches, adultMatches);
   } catch (error) {
@@ -3655,6 +3665,10 @@ function mangaSourceCustomQueryKey(manga) {
 
 function providerLabel(provider) {
   return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", toonily: "Toonily" }[provider] || provider || "Source");
+}
+
+function animeSourceLabel(source) {
+  return ({ nyaa: "Nyaa RSS", aniwaves: "Aniwaves", hstream: "hstream.moe" }[source] || source || "Anime source");
 }
 
 function mangaSourceOptionLabel(source, count = null) {
