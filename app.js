@@ -3690,7 +3690,14 @@ function handlePlayerEnded() {
   if (!playerRuntime.autoNext) return;
   const current = document.querySelector("[data-episode-item].active");
   const visible = [...document.querySelectorAll("[data-episode-item]")].filter((item) => item.style.display !== "none");
-  const next = visible[visible.indexOf(current) + 1];
+  const currentNumber = Number.parseFloat(current?.dataset.episodeNumber || "");
+  const nextByNumber = Number.isFinite(currentNumber)
+    ? visible
+      .map((item) => ({ item, number: Number.parseFloat(item.dataset.episodeNumber || "") }))
+      .filter((entry) => Number.isFinite(entry.number) && entry.number > currentNumber)
+      .sort((a, b) => a.number - b.number)[0]?.item
+    : null;
+  const next = nextByNumber || visible[visible.indexOf(current) + 1];
   if (next) next.click();
 }
 
