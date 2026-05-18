@@ -2,6 +2,7 @@ const { Readable } = require("node:stream");
 
 const DEFAULT_BACKEND_URL = "http://fi10.bot-hosting.net:21204";
 const ANILIST_URL = "https://graphql.anilist.co";
+const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const ANIMEDEX_BASE_URL = "https://animedex.pp.ua";
 const ANIZONE_BASE_URL = "https://anizone.to";
 const REQUEST_TIMEOUT_MS = 15000;
@@ -96,12 +97,85 @@ async function handleAniListRoute(req, res) {
       body: JSON.stringify({ query: body.query, variables: body.variables || {} }),
     });
     const text = await response.text();
+    if (!response.ok) {
+      const fallback = await fallbackAniListResponse(body);
+      if (fallback) {
+        res.json(fallback);
+        return;
+      }
+    }
     res.status(response.status);
     res.setHeader("Content-Type", response.headers.get("content-type") || "application/json");
     res.send(text);
   } catch (error) {
     res.status(502).json({ error: "AniList proxy failed" });
   }
+}
+
+async function fallbackAniListResponse(body) {
+  const query = String(body?.query || "");
+  const variables = body?.variables || {};
+  const type = /type:\s*MANGA/.test(query) ? "manga" : "anime";
+  const page = Math.max(1, Number(variables.page) || 1);
+
+  if (/Media\s*\(/.test(query)) {
+    const id = Number(variables.id);
+    if (!id) return null;
+    const data = await fetchJson(`${JIKAN_BASE_URL}/${type}/${id}/full`);
+    return { data: { Media: type === "manga" ? jikanToAniListManga(data.data) : jikanToAniListAnime(data.data) } };
+  }
+
+  const params = new URLSearchParams({ page: String(page), limit: "28" });
+  if (variables.search) params.set("q", String(variables.search));
+  if (variables.year) params.set("start_date", `${variables.year}-01-01`);
+  const endpoint = variables.search ? `${JIKAN_BASE_URL}/${type}` : `${JIKAN_BASE_URL}/top/${type}`;
+  const data = await fetchJson(`${endpoint}?${params}`);
+  const mapper = type === "manga" ? jikanToAniListManga : jikanToAniListAnime;
+  return { data: { Page: { media: asArray(data.data).map(mapper).filter(Boolean) } } };
+}
+
+function jikanToAniListAnime(item) {
+  if (!item) return null;
+  return {
+    id: item.mal_id,
+    idMal: item.mal_id,
+    title: { romaji: item.title || "", english: item.title_english || item.title || "", native: item.title_japanese || "" },
+    synonyms: asArray(item.title_synonyms),
+    description: item.synopsis || "",
+    episodes: item.episodes || 0,
+    duration: parseDurationMinutes(item.duration),
+    averageScore: item.score ? Math.round(Number(item.score) * 10) : null,
+    popularity: item.members || 0,
+    seasonYear: item.year || yearFromDate(item.aired?.from),
+    status: item.status || "Unknown",
+    format: item.type || "Anime",
+    genres: asArray(item.genres).map((genre) => genre.name).filter(Boolean),
+    bannerImage: item.trailer?.images?.maximum_image_url || item.images?.webp?.large_image_url || item.images?.jpg?.large_image_url || "",
+    coverImage: { extraLarge: item.images?.webp?.large_image_url || item.images?.jpg?.large_image_url || "", large: item.images?.jpg?.image_url || "", color: null },
+    studios: { nodes: asArray(item.studios).map((studio) => ({ name: studio.name })) },
+    streamingEpisodes: [],
+  };
+}
+
+function jikanToAniListManga(item) {
+  if (!item) return null;
+  return {
+    id: item.mal_id,
+    title: { romaji: item.title || "", english: item.title_english || item.title || "", native: item.title_japanese || "" },
+    synonyms: asArray(item.title_synonyms),
+    description: item.synopsis || "",
+    chapters: item.chapters || 0,
+    volumes: item.volumes || 0,
+    averageScore: item.score ? Math.round(Number(item.score) * 10) : null,
+    popularity: item.members || 0,
+    seasonYear: yearFromDate(item.published?.from),
+    status: item.status || "Unknown",
+    format: item.type || "Manga",
+    genres: asArray(item.genres).map((genre) => genre.name).filter(Boolean),
+    bannerImage: item.images?.webp?.large_image_url || item.images?.jpg?.large_image_url || "",
+    coverImage: { extraLarge: item.images?.webp?.large_image_url || item.images?.jpg?.large_image_url || "", large: item.images?.jpg?.image_url || "", color: null },
+    staff: { nodes: asArray(item.authors).slice(0, 1).map((author) => ({ name: { full: author.name } })) },
+  };
 }
 
 async function searchAnimeDex(title) {
@@ -503,6 +577,16 @@ function contentTypeForUrl(url) {
   if (path.endsWith(".key")) return "application/octet-stream";
   if (path.endsWith(".vtt")) return "text/vtt";
   return "application/octet-stream";
+}
+
+function yearFromDate(value) {
+  const year = new Date(value || "").getUTCFullYear();
+  return Number.isFinite(year) ? year : null;
+}
+
+function parseDurationMinutes(value) {
+  const match = /([0-9]+)\s*min/i.exec(String(value || ""));
+  return match ? Number(match[1]) : 0;
 }
 
 function titleScore(query, candidate) {
