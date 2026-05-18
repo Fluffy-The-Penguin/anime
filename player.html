@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=subtitle-position-controls" defer></script>
+    <script src="app.js?v=controls-order-time" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -175,7 +175,7 @@
         bottom: 14px;
         z-index: 8;
         display: grid;
-        grid-template-columns: auto auto auto minmax(78px, 120px) 1fr auto auto auto auto;
+        grid-template-columns: auto auto auto minmax(78px, 120px) 1fr auto auto auto;
         align-items: center;
         gap: 10px;
         padding: 10px 12px;
@@ -219,6 +219,10 @@
         font-weight: 800;
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
+      }
+
+      .video-time-range {
+        min-width: 86px;
       }
 
       .video-progress,
@@ -693,8 +697,7 @@
           padding: 8px;
         }
 
-        .custom-video-controls .video-volume,
-        .custom-video-controls [data-video-duration] {
+        .custom-video-controls .video-volume {
           display: none;
         }
 

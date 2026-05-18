@@ -3830,11 +3830,10 @@ async function playHttpStream(url, tracks = [], options = {}) {
     <video data-active-video autoplay playsinline crossorigin="anonymous" style="width: 100%; height: 100%; background: #000;"></video>
     <div class="custom-video-controls" data-custom-video-controls>
       <button class="video-control-btn" data-video-play type="button" aria-label="Play or pause">▶</button>
-      <span class="video-time" data-video-current>0:00</span>
       <button class="video-control-btn" data-video-mute type="button" aria-label="Mute or unmute">♪</button>
+      <span class="video-time video-time-range"><span data-video-current>0:00</span> / <span data-video-duration>0:00</span></span>
       <input class="video-volume" data-video-volume type="range" min="0" max="1" value="1" step="0.01" aria-label="Volume">
       <input class="video-progress" data-video-progress type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
-      <span class="video-time" data-video-duration>0:00</span>
       <button class="video-control-btn" data-video-captions type="button" aria-label="Toggle captions">CC</button>
       <button class="video-control-btn" data-video-settings type="button" aria-label="Player settings">⚙</button>
       <button class="video-control-btn" data-video-fullscreen type="button" aria-label="Fullscreen">⛶</button>
