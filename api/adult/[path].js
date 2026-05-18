@@ -299,7 +299,8 @@ function proxyAnimeDexUrl(url) {
 function isAllowedAnimeDexMediaUrl(url) {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "https:" && (parsed.hostname === "owocdn.top" || parsed.hostname.endsWith(".owocdn.top"));
+    const allowedHosts = ["owocdn.top", "uwucdn.top"];
+    return parsed.protocol === "https:" && allowedHosts.some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`));
   } catch (error) {
     return false;
   }
