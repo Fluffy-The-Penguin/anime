@@ -1817,12 +1817,19 @@ function hstreamMatchesToEpisodes(matches) {
 async function searchAnimeProviderMatch(anime, provider, customTitle = "") {
   const titles = customTitle ? uniqueStrings([customTitle, ...animeTitleCandidates(anime)]) : animeTitleCandidates(anime);
   const endpoint = provider === "animedex" ? "animedex" : "anizone";
-  const results = await Promise.allSettled(titles.map((title) =>
+  const results = await Promise.allSettled(titles.map((title, searchIndex) =>
     fetchApiJson(`/api/anime/${endpoint}/search?title=${encodeURIComponent(title)}`)
-      .then((matches) => matches.map((match) => ({ ...match, searchTitle: title })))
+      .then((matches) => matches.map((match) => ({ ...match, searchTitle: title, searchIndex })))
   ));
   const matches = results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
-  return matches.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))[0] || null;
+  return matches
+    .map((match) => {
+      const providerScore = Number(match.score) || 0;
+      const matchScore = sourceTitleScore(titles, match.title);
+      return { ...match, providerScore, matchScore, score: Math.max(providerScore, matchScore) };
+    })
+    .filter((match) => match.matchScore >= 0.15 || match.providerScore >= 0.2)
+    .sort((a, b) => (b.matchScore - a.matchScore) || (b.providerScore - a.providerScore) || ((a.searchIndex || 0) - (b.searchIndex || 0)))[0] || null;
 }
 
 async function fetchAnimeProviderEpisodes(match) {
