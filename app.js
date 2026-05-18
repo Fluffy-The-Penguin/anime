@@ -11,6 +11,8 @@ const API_BASE_KEY = "anitrack-api-base";
 const DEFAULT_API_BASE_URL = "http://localhost:3000";
 const DEFAULT_SUBTITLE_STYLE = { size: 28, color: "#ffffff", backgroundColor: "#081018", backgroundOpacity: 46 };
 const ANIME_SOURCES = [
+  { id: "animedex", name: "AnimeDex", description: "Real anime episode lists with direct HLS streams from public AnimeDex APIs.", badge: "HLS" },
+  { id: "anizone", name: "AniZone", description: "Anime episode lists with proxied direct HLS playback when available.", badge: "HLS" },
   { id: "nyaa", name: "Nyaa RSS", description: "Anime torrent search through Nyaa RSS. Opens magnets externally.", badge: "Torrent" },
   { id: "aniwaves", name: "Aniwaves", description: "Searches provider matches when raw streams are not available.", badge: "Provider" },
   { id: "hstream", name: "hstream.moe", description: "Adult-only direct playback source shown only when 18+ content is enabled.", badge: "+18", adult: true },
@@ -1512,7 +1514,7 @@ function renderDetails(root, item, isTemporary = false) {
             <h2>Episodes</h2>
             <label class="detail-source-picker">Source <select data-detail-anime-source><option>Loading sources...</option></select></label>
             <span data-detail-anime-source-count>Loading episodes...</span>
-            <label>Find source as <input data-detail-anime-query type="search" placeholder="Custom title for hstream" autocomplete="off"></label>
+            <label>Find source as <input data-detail-anime-query type="search" placeholder="Custom source title" autocomplete="off"></label>
           </div>
           <div class="detail-list-filter">All matching source episodes and entries</div>
           <div class="chapter-list detail-chapter-list detail-anime-episode-list" data-detail-anime-episode-list><div class="empty">Choose a source to load real episodes.</div></div>
@@ -1714,6 +1716,8 @@ async function initAnimeDetailSources(root, anime) {
   if (!sourceSelect || !sourceCount || !episodeList) return;
 
   const sources = [{ id: "anilist", name: "AniList episodes" }];
+  if (animeSourceEnabled("animedex")) sources.push({ id: "animedex", name: "AnimeDex" });
+  if (animeSourceEnabled("anizone")) sources.push({ id: "anizone", name: "AniZone" });
   if (animeSourceEnabled("hstream") && state.settings.allowAdult) sources.push({ id: "hstream", name: "hstream.moe" });
   if (animeSourceEnabled("nyaa")) sources.push({ id: "nyaa", name: "Nyaa search on player" });
   if (stremioAddons().length) sources.push({ id: "stremio", name: "Stremio search on player" });
@@ -1747,6 +1751,23 @@ async function initAnimeDetailSources(root, anime) {
       return;
     }
 
+    if (sourceId === "animedex" || sourceId === "anizone") {
+      const label = sourceId === "animedex" ? "AnimeDex" : "AniZone";
+      sourceCount.textContent = `Searching ${label}...`;
+      episodeList.innerHTML = `<div class="empty">Looking for this anime on ${label} using AniList titles and synonyms...</div>`;
+      const match = await searchAnimeProviderMatch(anime, sourceId, sourceQuery?.value.trim() || "");
+      if (!match) {
+        sourceCount.textContent = "0 episodes";
+        episodeList.innerHTML = `<div class="empty">No ${label} match found. Try a custom source title above.</div>`;
+        return;
+      }
+      sourceCount.textContent = `Loading ${label} episodes...`;
+      const episodes = await fetchAnimeProviderEpisodes(match);
+      sourceCount.textContent = `${episodes.length} ${label} episode${episodes.length === 1 ? "" : "s"}`;
+      renderAnimeDetailEpisodeList(episodeList, { ...anime, providerMatch: match }, sourceId, episodes);
+      return;
+    }
+
     const label = sources.find((source) => source.id === sourceId)?.name || "this source";
     sourceCount.textContent = "Episode catalog unavailable";
     episodeList.innerHTML = `<div class="empty">${escapeHtml(label)} does not expose a browsable episode list here. Open the player to search this source for a selected episode.</div>`;
@@ -1768,6 +1789,45 @@ function hstreamMatchesToEpisodes(matches) {
     sourceUrl: match.url,
     sourceMatch: match,
   }));
+}
+
+async function searchAnimeProviderMatch(anime, provider, customTitle = "") {
+  const titles = customTitle ? uniqueStrings([customTitle, ...animeTitleCandidates(anime)]) : animeTitleCandidates(anime);
+  const endpoint = provider === "animedex" ? "animedex" : "anizone";
+  const results = await Promise.allSettled(titles.map((title) =>
+    fetchApiJson(`/api/anime/${endpoint}/search?title=${encodeURIComponent(title)}`)
+      .then((matches) => matches.map((match) => ({ ...match, searchTitle: title })))
+  ));
+  const matches = results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+  return matches.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))[0] || null;
+}
+
+async function fetchAnimeProviderEpisodes(match) {
+  if (match.provider === "animedex") {
+    const episodes = await fetchApiJson(`/api/anime/animedex/episodes?animeId=${encodeURIComponent(match.id)}&anilistId=${encodeURIComponent(match.anilistId || "")}`);
+    return episodes.map((episode) => animeProviderEpisodeRow(episode, match));
+  }
+  if (match.provider === "anizone") {
+    const episodes = await fetchApiJson(`/api/anime/anizone/episodes?animeId=${encodeURIComponent(match.id)}`);
+    return episodes.map((episode) => animeProviderEpisodeRow(episode, match));
+  }
+  return [];
+}
+
+function animeProviderEpisodeRow(episode, match) {
+  return {
+    number: episode.number || extractEpisodeNumberFromText(episode.title) || "",
+    title: episode.title || `Episode ${episode.number || "?"}`,
+    airDate: episode.date || episode.airDate || episode.audio || match.provider,
+    image: episode.image || match.image || fallbackImage,
+    description: episode.description || `${providerLabel(match.provider)} episode source.`,
+    source: match.provider,
+    providerId: match.id,
+    providerTitle: match.title,
+    episodeId: episode.id,
+    episodeUrl: episode.url,
+    audio: episode.audio || "",
+  };
 }
 
 function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches = [], pageNumber = 1) {
@@ -1808,7 +1868,7 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
   container.querySelectorAll("[data-detail-watch-episode]").forEach((button) => {
     button.addEventListener("click", () => {
       const episode = episodes[Number(button.dataset.episodeIndex)];
-      openPlayerForAnime(anime, episode, sourceId, sourceMatches);
+      openPlayerForAnime(anime, episode, sourceId, sourceId === "hstream" ? sourceMatches : episodes);
     });
   });
 
@@ -3007,6 +3067,8 @@ async function initPlayerPage() {
   if (sourceMatches.length && startData?.sourceId === "hstream") {
     episodes = hstreamMatchesToEpisodes(sourceMatches);
     playerRuntime.currentSourceMatches = sourceMatches;
+  } else if (sourceMatches.length && ["animedex", "anizone"].includes(startData?.sourceId)) {
+    episodes = sourceMatches;
   } else if (!episodes.length && startData?.episode) {
     episodes = [startData.episode];
   }
@@ -3125,6 +3187,19 @@ async function loadEpisode(anime, episode, episodeNumber) {
   if (episode.sourceUrl) {
     sources.innerHTML = adultSourceCards([episode.sourceMatch || episode]);
     bindAdultSourceButtons(sources, { autoplayUrl: episode.sourceUrl });
+    return;
+  }
+
+  if (episode.source === "animedex" || episode.source === "anizone") {
+    try {
+      const data = episode.source === "animedex"
+        ? await fetchApiJson(`/api/anime/animedex/streams?episodeId=${encodeURIComponent(episode.episodeId || episode.id || "")}`)
+        : await fetchApiJson(`/api/anime/anizone/streams?episodeUrl=${encodeURIComponent(episode.episodeUrl || episode.id || "")}`);
+      renderDirectAnimeStreams(sources, data, episode.source, true);
+    } catch (error) {
+      sources.innerHTML = `<div class="empty">Could not load ${escapeHtml(animeSourceLabel(episode.source))} streams for this episode.</div>`;
+      videoPlayer.innerHTML = '<div class="player-loading"><p style="color: var(--red);">No playable source found</p></div>';
+    }
     return;
   }
 
@@ -3420,6 +3495,45 @@ function bindAniwavesSourceButtons(container) {
       showToast("Opening Aniwaves match");
     });
   });
+}
+
+function renderDirectAnimeStreams(container, data, provider, autoplay = false) {
+  const streams = Array.isArray(data.sources) ? data.sources.filter((source) => source?.url) : [];
+  if (!streams.length) {
+    container.innerHTML = `<div class="empty">No playable ${escapeHtml(animeSourceLabel(provider))} streams returned.</div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="scrollable-source-section">
+      <div class="source-section-head"><h4>${escapeHtml(animeSourceLabel(provider))} streams</h4><span>${streams.length} source${streams.length === 1 ? "" : "s"}</span></div>
+      <div class="source-scroll-list">
+        ${streams.map((stream, index) => `
+          <div class="source-item">
+            <div class="source-info">
+              <h4>${escapeHtml(stream.quality || stream.name || `Source ${index + 1}`)}</h4>
+              <p>${escapeHtml(stream.isHLS || String(stream.url).includes(".m3u8") ? "HLS stream" : "Direct stream")}</p>
+            </div>
+            <button class="source-play-stremio" data-direct-stream-index="${index}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">Play</button>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+
+  container.querySelectorAll("[data-direct-stream-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.directStreamIndex);
+      const stream = streams[index];
+      playHttpStream(stream.url, stream.tracks || data.tracks || [], { sources: streams, currentIndex: index });
+    });
+  });
+
+  if (autoplay) {
+    const index = preferredSourceIndex(streams);
+    const stream = streams[index] || streams[0];
+    playHttpStream(stream.url, stream.tracks || data.tracks || [], { sources: streams, currentIndex: index });
+  }
 }
 
 function adultSourceCards(matches) {
@@ -4183,11 +4297,11 @@ function mangaSourceCustomQueryKey(manga) {
 }
 
 function providerLabel(provider) {
-  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", toonily: "Toonily" }[provider] || provider || "Source");
+  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone" }[provider] || provider || "Source");
 }
 
 function animeSourceLabel(source) {
-  return ({ nyaa: "Nyaa RSS", aniwaves: "Aniwaves", hstream: "hstream.moe" }[source] || source || "Anime source");
+  return ({ animedex: "AnimeDex", anizone: "AniZone", nyaa: "Nyaa RSS", aniwaves: "Aniwaves", hstream: "hstream.moe" }[source] || source || "Anime source");
 }
 
 function mangaSourceOptionLabel(source, count = null) {
