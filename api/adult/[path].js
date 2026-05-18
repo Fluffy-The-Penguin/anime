@@ -53,7 +53,7 @@ async function handleAnimeRoute(req, res, backendUrl) {
       return;
     }
     if (route === "anizone/proxy") {
-      await proxyAniZoneMedia(req, res);
+      await proxyAniZoneMedia(req, res, backendUrl);
       return;
     }
   } catch (error) {
@@ -185,13 +185,16 @@ async function getAniZoneStreams(episodeUrl) {
   return { provider: "anizone", sources: [{ name: "AniZone HLS", quality: "auto", type: "application/vnd.apple.mpegurl", url: proxyAniZoneUrl(streamUrl), isHLS: true, tracks }], tracks };
 }
 
-async function proxyAniZoneMedia(req, res) {
+async function proxyAniZoneMedia(req, res, backendUrl) {
   const target = validateHttpUrl(req.query.url);
   if (!target || !isAllowedAniZoneMediaUrl(target)) {
     res.status(400).json({ error: "valid AniZone media url is required" });
     return;
   }
-  const response = await fetchWithTimeout(target, { headers: { Accept: "*/*", Referer: `${ANIZONE_BASE_URL}/`, ...(req.headers.range ? { Range: req.headers.range } : {}) } });
+  let response = await fetchWithTimeout(target, { headers: mediaHeaders(req) });
+  if (response.status === 403 && backendUrl) {
+    response = await fetchWithTimeout(`${backendUrl}/api/anime/anizone/proxy?url=${encodeURIComponent(target)}`, { headers: req.headers.range ? { Range: req.headers.range } : {} });
+  }
   if (!response.ok) {
     res.status(response.status).send(await response.text().catch(() => response.statusText));
     return;
@@ -214,6 +217,16 @@ async function proxyAniZoneMedia(req, res) {
     return;
   }
   Readable.fromWeb(response.body).pipe(res);
+}
+
+function mediaHeaders(req) {
+  return {
+    Accept: "*/*",
+    Referer: `${ANIZONE_BASE_URL}/`,
+    Origin: ANIZONE_BASE_URL,
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 AniTrack/1.0",
+    ...(req.headers.range ? { Range: req.headers.range } : {}),
+  };
 }
 
 function rewriteM3u8ForAniZone(text, manifestUrl) {
