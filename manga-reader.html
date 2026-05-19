@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Read manga with chapter details and tracking." />
     <title>AniTrack | Manga Reader</title>
-    <link rel="stylesheet" href="styles.css?v=doujin-more-sources-2" />
-    <script src="app.js?v=doujin-more-sources-2" defer></script>
+    <link rel="stylesheet" href="styles.css?v=doujin-reader-update-1" />
+    <script src="app.js?v=doujin-reader-update-1" defer></script>
   </head>
   <body data-page="reader">
     <header class="topbar shell">
@@ -48,6 +48,7 @@
             <select id="reading-mode" data-reading-mode>
               <option value="webtoon">Webtoon</option>
               <option value="vertical">Vertical continuous</option>
+              <option value="vertical-fit">Vertical fit</option>
               <option value="single">Single paged</option>
               <option value="double">Double paged</option>
             </select>
@@ -277,21 +278,52 @@
         border-radius: 8px;
       }
 
-      .reader-pages[data-mode="single"] .chapter-page-image {
+      .reader-pages[data-mode="vertical-fit"] .chapter-page-image {
         width: auto;
         max-height: calc(100vh - 190px);
         border-radius: 8px;
       }
 
-      .reader-pages[data-mode="double"] {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        align-items: start;
+      .reader-pages.reader-paged {
+        min-height: 100vh;
+        place-items: center;
+        align-content: center;
+        gap: 0;
+        cursor: pointer;
+        user-select: none;
       }
 
-      .reader-pages[data-mode="double"] .chapter-page-image {
-        width: 100%;
-        max-height: calc(100vh - 190px);
+      .reader-pages.reader-paged[data-mode="single"] {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .reader-pages.reader-paged[data-mode="double"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        column-gap: 10px;
+      }
+
+      .reader-pages.reader-paged .chapter-page-image {
+        width: auto;
+        max-width: 100%;
+        max-height: 100vh;
         border-radius: 8px;
+      }
+
+      .reader-page-indicator {
+        position: fixed;
+        left: 50%;
+        bottom: max(12px, env(safe-area-inset-bottom));
+        z-index: 9998;
+        transform: translateX(-50%);
+        padding: 6px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        background: rgba(8, 10, 14, 0.72);
+        color: #f7f8ff;
+        font-size: 12px;
+        font-weight: 800;
+        pointer-events: none;
       }
 
       .manga-sources-card {
@@ -449,7 +481,7 @@
           transform: none;
         }
 
-        .reader-pages[data-mode="double"] {
+        .reader-pages.reader-paged[data-mode="double"] {
           grid-template-columns: 1fr;
         }
 

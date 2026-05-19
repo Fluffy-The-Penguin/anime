@@ -69,6 +69,8 @@ const state = {
   doujinQuery: "",
   doujinTags: [],
   doujinToken: 0,
+  libraryAdultFilter: "all",
+  readerSession: null,
   browseSpotlightItems: [],
   browseSpotlightIndex: 0,
   browseSpotlightTimer: null,
@@ -108,6 +110,7 @@ function init() {
   if (page === "home") initHomePage();
   if (page === "anime" || page === "manga") initBrowsePage();
   if (page === "doujin") initDoujinPage();
+  if (page === "doujin-preview") initDoujinPreviewPage();
   if (page === "library") initLibraryPage();
   if (page === "details") initDetailsPage();
   if (page === "settings") initSettingsPage();
@@ -389,7 +392,7 @@ function initDoujinPage() {
     search.focus();
   });
 
-  grid.addEventListener("click", openDoujinReader);
+  grid.addEventListener("click", openDoujinPreview);
   loadDoujinSearch();
 }
 
@@ -492,38 +495,143 @@ function renderDoujinCards(container, items) {
   container.append(fragment);
 }
 
-function openDoujinReader(event) {
+function openDoujinPreview(event) {
   const card = event.target.closest("[data-doujin]");
   if (!card) return;
   const source = JSON.parse(card.dataset.doujin);
-  const manga = {
+  const manga = doujinMangaFromSource(source);
+  sessionStorage.setItem("doujin-preview-manga", JSON.stringify(manga));
+  window.location.href = `doujin-preview.html?id=${encodeURIComponent(source.id)}`;
+}
+
+function doujinMangaFromSource(source) {
+  return {
     id: `doujin-${source.id}`,
     apiId: source.id,
     type: "manga",
     displayType: "Doujinshi",
-    title: source.title,
-    englishTitle: source.title,
+    title: source.title || providerLabel(source.provider),
+    englishTitle: source.title || "",
     romajiTitle: "",
     nativeTitle: "",
-    alternativeTitles: [source.title],
+    alternativeTitles: [source.title || ""].filter(Boolean),
     description: source.description || "English doujinshi gallery.",
     image: source.cover || fallbackImage,
     banner: source.cover || "",
-    accent: colorFromString(source.title),
+    accent: colorFromString(source.title || source.id),
     score: "N/A",
     year: "TBA",
     total: 1,
     unit: "chapter",
-    genres: ["Doujinshi", "English"],
+    genres: ["Doujinshi", "English", "Adult"],
     format: "Doujinshi",
     statusText: "Unknown",
     provider: source.provider,
     providerId: source.id,
-    providerTitle: source.title,
+    providerTitle: source.title || providerLabel(source.provider),
     preloadedSources: [source],
+    isAdult: true,
   };
+}
+
+async function initDoujinPreviewPage() {
+  const root = document.querySelector("[data-doujin-preview]");
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id") || "";
+  if (!root || !state.settings.allowAdult) {
+    if (root) renderEmpty(root, "Enable 18+ content to preview doujinshi.");
+    return;
+  }
+
+  let manga = null;
+  try {
+    manga = JSON.parse(sessionStorage.getItem("doujin-preview-manga") || "null");
+  } catch (error) {
+    manga = null;
+  }
+  if (!manga || (id && manga.apiId !== id)) {
+    const provider = String(id).split(":")[0];
+    manga = doujinMangaFromSource({ id, provider, title: providerLabel(provider), cover: fallbackImage });
+  }
+  state.current = { ...manga, ...state.library[manga.id] };
+  document.title = `AniTrack | ${manga.title}`;
+  renderDoujinPreview(root, manga, [], true);
+
+  try {
+    const chapters = await fetchApiJson(`/api/manga/chapters?mangaId=${encodeURIComponent(manga.apiId)}`);
+    const chapter = chapters[0] || { id: manga.apiId, provider: manga.provider, number: "1", title: manga.title };
+    const data = await fetchMangaPagesCached(chapter.id || manga.apiId);
+    renderDoujinPreview(root, manga, data.pages || [], false, chapter);
+  } catch (error) {
+    renderDoujinPreview(root, manga, [], false);
+    showToast("Could not load preview pages.");
+  }
+}
+
+function renderDoujinPreview(root, manga, pages, loading = false, chapter = null) {
+  const tracked = state.library[manga.id];
+  root.innerHTML = `
+    <section class="doujin-preview-hero panel">
+      <img class="doujin-preview-cover" src="${escapeAttr(manga.image || fallbackImage)}" alt="${escapeAttr(manga.title)} cover">
+      <div class="doujin-preview-copy">
+        <span class="eyebrow">${escapeHtml(providerLabel(manga.provider))} / English Doujinshi</span>
+        <h1>${escapeHtml(manga.title)}</h1>
+        <p class="muted">${escapeHtml(manga.description || "Preview pages before you start reading.")}</p>
+        <div class="doujin-preview-meta">
+          <span>Pages: ${loading ? "Loading" : pages.length || "Unavailable"}</span>
+          <span>Language: English</span>
+          <span>Category: Doujinshi</span>
+        </div>
+        <div class="doujin-preview-actions">
+          <button class="btn" data-doujin-read-page="0" type="button">Read online</button>
+          <button class="btn secondary" data-doujin-save type="button">${tracked ? "Saved" : "Add to Library"}</button>
+          <a class="btn secondary" href="doujin.html">Back to Doujin</a>
+        </div>
+      </div>
+    </section>
+    <section class="panel doujin-preview-panel">
+      <div class="section-head compact">
+        <div>
+          <span class="eyebrow">Page preview</span>
+          <h2>${loading ? "Loading pages" : `${pages.length} pages`}</h2>
+        </div>
+      </div>
+      <div class="doujin-preview-grid" data-doujin-preview-grid>
+        ${loading ? Array.from({ length: 12 }, () => '<div class="skeleton-card"></div>').join("") : pages.map((url, index) => `
+          <button class="doujin-page-thumb" data-doujin-read-page="${index}" type="button" aria-label="Read from page ${index + 1}">
+            <img src="${escapeAttr(url)}" alt="${escapeAttr(manga.title)} page ${index + 1}" loading="lazy">
+            <span>${index + 1}</span>
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
+
+  root.querySelector("[data-doujin-save]")?.addEventListener("click", () => saveDoujinToLibrary(manga));
+  root.querySelectorAll("[data-doujin-read-page]").forEach((button) => {
+    button.addEventListener("click", () => openDoujinReaderFromPreview(manga, chapter, Number(button.dataset.doujinReadPage || 0)));
+  });
+}
+
+function saveDoujinToLibrary(manga) {
+  const saved = { ...manga, status: state.library[manga.id]?.status || "reading", progress: state.library[manga.id]?.progress || 0, rating: state.library[manga.id]?.rating || "", notes: state.library[manga.id]?.notes || "", updatedAt: Date.now(), isAdult: true };
+  state.library[saved.id] = saved;
+  state.current = saved;
+  persistLibrary();
+  showToast("Saved to your library.");
+  const button = document.querySelector("[data-doujin-save]");
+  if (button) button.textContent = "Saved";
+}
+
+function openDoujinReaderFromPreview(manga, chapter, pageIndex) {
   sessionStorage.setItem("reader-manga", JSON.stringify(manga));
-  window.location.href = `manga-reader.html?type=doujin&id=${encodeURIComponent(source.id)}`;
+  sessionStorage.setItem("reader-start-page", JSON.stringify({
+    mangaKey: mangaSourceKey(manga),
+    providerId: manga.apiId,
+    chapterId: chapter?.id || manga.apiId,
+    pageIndex: Math.max(0, pageIndex),
+  }));
+  window.location.href = `manga-reader.html?type=doujin&id=${encodeURIComponent(manga.apiId)}&page=${Math.max(1, pageIndex + 1)}`;
 }
 
 function initHomePage() {
@@ -553,9 +661,12 @@ function initHomePage() {
 function initLibraryPage() {
   const filters = document.querySelector("[data-library-filters]");
   const typeFilters = document.querySelector("[data-library-type-filters]");
+  const adultFilter = document.querySelector("[data-library-adult-filter]");
   const lists = document.querySelectorAll("[data-library-list]");
   const params = new URLSearchParams(window.location.search);
   state.libraryType = ["anime", "manga"].includes(params.get("type")) ? params.get("type") : "all";
+  state.libraryAdultFilter = ["all", "adult", "normal"].includes(params.get("adult")) ? params.get("adult") : "all";
+  if (adultFilter) adultFilter.value = state.libraryAdultFilter;
 
   filters.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-filter]");
@@ -573,11 +684,22 @@ function initLibraryPage() {
     renderLibrary();
   });
 
+  adultFilter?.addEventListener("change", () => {
+    state.libraryAdultFilter = adultFilter.value;
+    renderLibrary();
+  });
+
   lists.forEach((list) => {
     list.addEventListener("click", (event) => {
       const row = event.target.closest("[data-id]");
       if (!row) return;
-      goToDetails(state.library[row.dataset.id]);
+      const item = state.library[row.dataset.id];
+      if (isDoujinLibraryItem(item)) {
+        sessionStorage.setItem("doujin-preview-manga", JSON.stringify(item));
+        window.location.href = `doujin-preview.html?id=${encodeURIComponent(item.apiId || item.providerId)}`;
+        return;
+      }
+      goToDetails(item);
     });
   });
 
@@ -1659,7 +1781,12 @@ function renderLibrary() {
   if (!animeList || !mangaList) return;
 
   const allItems = Object.values(state.library).sort((a, b) => b.updatedAt - a.updatedAt);
-  const items = state.filter === "all" ? allItems : allItems.filter((item) => item.status === state.filter);
+  const statusItems = state.filter === "all" ? allItems : allItems.filter((item) => item.status === state.filter);
+  const items = statusItems.filter((item) => {
+    if (state.libraryAdultFilter === "adult") return isAdultLibraryItem(item);
+    if (state.libraryAdultFilter === "normal") return !isAdultLibraryItem(item);
+    return true;
+  });
   const animeItems = items.filter((item) => item.type === "anime");
   const mangaItems = items.filter((item) => item.type === "manga");
 
@@ -1672,8 +1799,23 @@ function renderLibrary() {
   setText("[data-anime-count]", `${animeItems.length} ${animeItems.length === 1 ? "title" : "titles"}`);
   setText("[data-manga-count]", `${mangaItems.length} ${mangaItems.length === 1 ? "title" : "titles"}`);
   setText("[data-library-summary]", `${allItems.filter((item) => item.type === "anime").length} anime / ${allItems.filter((item) => item.type === "manga").length} manga saved locally`);
+  setText("[data-library-total-count]", String(allItems.length));
+  setText("[data-library-adult-count]", String(allItems.filter(isAdultLibraryItem).length));
+  setText("[data-library-normal-count]", String(allItems.filter((item) => !isAdultLibraryItem(item)).length));
 
   updateStats();
+}
+
+function isAdultLibraryItem(item) {
+  return Boolean(item?.isAdult)
+    || /doujinshi|adult|hentai|pornhwa/i.test(`${item?.displayType || ""} ${item?.format || ""} ${(item?.genres || []).join(" ")}`)
+    || isAdultMangaProvider(item?.provider)
+    || isAdultMangaProvider(String(item?.providerId || item?.apiId || "").split(":")[0]);
+}
+
+function isDoujinLibraryItem(item) {
+  return /doujinshi/i.test(`${item?.displayType || ""} ${item?.format || ""} ${(item?.genres || []).join(" ")}`)
+    || DOUJIN_SOURCES.some((source) => String(item?.apiId || item?.providerId || "").startsWith(`${source.id}:`));
 }
 
 function renderLibraryGroup(container, items, emptyMessage) {
@@ -1689,13 +1831,13 @@ function renderLibraryItem(item) {
   const total = item.total || 0;
   const percent = total ? Math.min(100, Math.round(((item.progress || 0) / total) * 100)) : 0;
   const progressText = `${item.progress || 0}${total ? ` / ${total}` : ""} ${item.unit}`;
-  const row = create("a", "library-item");
+  const row = create("a", `library-item ${isAdultLibraryItem(item) ? "adult" : "normal"}`);
   setMediaDataset(row, item);
   row.innerHTML = `
     <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
     <div>
       <h3>${escapeHtml(item.title)}</h3>
-      <div class="meta">${metaHtml([statusLabel(item.status), mediaLabel(item), progressText, item.rating !== "" ? `Rated ${item.rating}/10` : "Unrated"])}</div>
+      <div class="meta">${metaHtml([statusLabel(item.status), mediaLabel(item), isAdultLibraryItem(item) ? "18+" : "Normal", progressText, item.rating !== "" ? `Rated ${item.rating}/10` : "Unrated"])}</div>
       <div class="progress-bar"><span style="width:${percent}%"></span></div>
     </div>
     <div class="library-side"><strong>${percent}%</strong><div class="muted">${escapeHtml(statusLabel(item.status))}</div></div>
@@ -5299,6 +5441,34 @@ function readerStartChapter(manga, providerId) {
   }
 }
 
+function readerStartPage(manga, chapter) {
+  try {
+    const data = JSON.parse(sessionStorage.getItem("reader-start-page") || "null");
+    if (!data || data.mangaKey !== mangaSourceKey(manga)) return null;
+    if (data.providerId && data.providerId !== manga.providerId && data.providerId !== manga.apiId) return null;
+    if (data.chapterId && chapter?.id && data.chapterId !== chapter.id) return null;
+    return { pageIndex: Math.max(0, Number(data.pageIndex || 0)) };
+  } catch (error) {
+    return null;
+  }
+}
+
+function applyAdultReaderDefaultMode() {
+  const select = document.querySelector("[data-reading-mode]");
+  if (!select) return;
+  const adultKey = "reader-mode-adult";
+  const mode = localStorage.getItem(adultKey) || "single";
+  select.value = mode;
+  localStorage.setItem("reader-mode", mode);
+  applyReadingMode(mode);
+  select.onchange = null;
+  select.addEventListener("change", () => {
+    localStorage.setItem(adultKey, select.value);
+    localStorage.setItem("reader-mode", select.value);
+    applyReadingMode(select.value);
+  }, { once: false });
+}
+
 function setupReadingMode() {
   const select = document.querySelector("[data-reading-mode]");
   if (!select) return;
@@ -5316,9 +5486,13 @@ function currentReadingMode() {
 }
 
 function applyReadingMode(mode) {
+  const normalized = mode === "single-fit" ? "vertical-fit" : mode;
   document.querySelectorAll("[data-reader-pages]").forEach((pages) => {
-    pages.dataset.mode = mode;
+    pages.dataset.mode = normalized;
   });
+  if (state.readerSession?.pages?.length) {
+    renderChapterPages(state.readerSession.display, state.readerSession.pages, state.readerSession.chapter, state.readerSession.pageIndex || 0, true);
+  }
 }
 
 function titleSimilarity(a, b) {
@@ -5415,7 +5589,9 @@ async function loadChapter(manga, chapter, chapterNumber) {
     try {
       const data = await fetchMangaPagesCached(chapter.id);
       if (data.pages?.length) {
-        renderChapterPages(display, data.pages, chapter);
+        const startPage = readerStartPage(manga, chapter);
+        if (isAdultMangaProvider(chapter.provider)) applyAdultReaderDefaultMode();
+        renderChapterPages(display, data.pages, chapter, startPage?.pageIndex || 0);
         if (sources) {
           sources.innerHTML = `
             <div class="empty" style="padding: 12px; text-align: center;">
@@ -5424,6 +5600,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
           `;
         }
         markMangaChapterRead(manga, chapterNumber);
+        if (startPage) sessionStorage.removeItem("reader-start-page");
         return;
       }
     } catch (error) {
@@ -5465,12 +5642,20 @@ async function loadChapter(manga, chapter, chapterNumber) {
   markMangaChapterRead(manga, chapterNumber);
 }
 
-function renderChapterPages(display, pages, chapter) {
+function renderChapterPages(display, pages, chapter, startPageIndex = 0, keepPage = false) {
   document.body.classList.add("reader-images-ready");
+  const mode = currentReadingMode();
+  const pageIndex = keepPage ? Math.max(0, Math.min(state.readerSession?.pageIndex || 0, pages.length - 1)) : Math.max(0, Math.min(startPageIndex, pages.length - 1));
+  state.readerSession = { display, pages, chapter, pageIndex };
+  if (mode === "single" || mode === "double") {
+    renderPagedChapterPages(display, pages, chapter, pageIndex, mode);
+    return;
+  }
+
   const wrapper = document.createElement("div");
   wrapper.className = "reader-pages";
   wrapper.dataset.readerPages = "";
-  wrapper.dataset.mode = currentReadingMode();
+  wrapper.dataset.mode = mode;
 
   display.innerHTML = "";
   display.appendChild(wrapper);
@@ -5504,8 +5689,73 @@ function renderChapterPages(display, pages, chapter) {
   loadWindow();
 }
 
+function renderPagedChapterPages(display, pages, chapter, pageIndex, mode) {
+  const step = mode === "double" ? 2 : 1;
+  const current = Math.max(0, Math.min(pageIndex, Math.max(0, pages.length - 1)));
+  state.readerSession = { display, pages, chapter, pageIndex: current };
+  display.innerHTML = "";
+  display.scrollTop = 0;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "reader-pages reader-paged";
+  wrapper.dataset.readerPages = "";
+  wrapper.dataset.mode = mode;
+
+  const spread = pages.slice(current, current + step);
+  spread.forEach((url, offset) => {
+    const image = document.createElement("img");
+    image.className = "chapter-page-image";
+    image.alt = `${chapter.title} page ${current + offset + 1}`;
+    image.decoding = "async";
+    image.loading = "eager";
+    image.src = url;
+    image.addEventListener("load", () => preloadReaderPages(pages, current + step, step + 1), { once: true });
+    wrapper.appendChild(image);
+  });
+
+  const indicator = document.createElement("div");
+  indicator.className = "reader-page-indicator";
+  indicator.textContent = mode === "double" && spread.length > 1 ? `${current + 1}-${current + spread.length} / ${pages.length}` : `${current + 1} / ${pages.length}`;
+  wrapper.appendChild(indicator);
+
+  wrapper.addEventListener("click", (event) => {
+    if (event.target.closest("button, a, select, input, textarea, label")) return;
+    event.stopPropagation();
+    const rect = wrapper.getBoundingClientRect();
+    const zone = (event.clientX - rect.left) / Math.max(1, rect.width);
+    if (zone < 0.33) {
+      changeReaderPage(-step);
+      return;
+    }
+    if (zone > 0.66) {
+      changeReaderPage(step);
+      return;
+    }
+    document.body.classList.toggle("reader-controls-visible");
+  });
+
+  display.appendChild(wrapper);
+  preloadReaderPages(pages, current + step, step + 1);
+}
+
+function changeReaderPage(delta) {
+  const session = state.readerSession;
+  if (!session?.pages?.length) return;
+  const next = Math.max(0, Math.min(session.pageIndex + delta, session.pages.length - 1));
+  if (next === session.pageIndex) return;
+  renderChapterPages(session.display, session.pages, session.chapter, next);
+}
+
+function preloadReaderPages(pages, start, count) {
+  for (let index = start; index < Math.min(pages.length, start + count); index += 1) {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = pages[index];
+  }
+}
+
 async function fetchMangaPagesCached(chapterId) {
-  const key = `manga-pages:${chapterId}`;
+  const key = `manga-pages:v2:${chapterId}`;
   try {
     const cached = JSON.parse(sessionStorage.getItem(key) || "null");
     if (cached && Date.now() - cached.time < MANGA_PAGE_CACHE_TTL_MS && Array.isArray(cached.pages)) return { pages: cached.pages };
