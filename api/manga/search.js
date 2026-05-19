@@ -4,7 +4,7 @@ const { searchProjectSukiManga } = require("../../lib/projectsuki");
 const { searchManhwaZManga } = require("../../lib/manhwaz");
 const { searchAdultMangaSource } = require("../../lib/adult-manga");
 
-const ADULT_MANGA_PROVIDERS = ["pornhwaz", "hentai20", "pornhwapro", "hentai18"];
+const ADULT_MANGA_PROVIDERS = ["pornhwaz", "hentai20", "pornhwapro", "hentai18", "hentainame", "hentaizap", "hentaifox"];
 
 module.exports = async function handler(req, res) {
   const backendUrl = (process.env.ANITRACK_BACKEND_URL || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
@@ -45,5 +45,6 @@ async function fetchBackendJson(target) {
 }
 
 function hasStrongAdultMatch(results, provider) {
+  if (["hentainame", "hentaizap", "hentaifox"].includes(provider)) return results.some((item) => item.provider === provider);
   return results.some((item) => item.provider === provider && Number(item.score || 0) >= 0.45);
 }

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Search English doujinshi from adult gallery sources." />
+    <title>AniTrack | Doujin</title>
+    <link rel="stylesheet" href="styles.css?v=doujin-page-1" />
+    <script src="app.js?v=doujin-page-1" defer></script>
+  </head>
+  <body data-page="doujin">
+    <header class="topbar shell">
+      <a class="brand" href="index.html"><span>AT</span>AniTrack</a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="anime.html">Anime</a>
+        <a href="manga.html">Manga</a>
+        <a class="active" href="doujin.html" data-adult-nav hidden>Doujin</a>
+      </nav>
+    </header>
+
+    <main class="shell">
+      <section class="browse-page doujin-page">
+        <form class="browse-toolbar doujin-toolbar" data-doujin-form>
+          <label class="browse-search"><span>⌕</span><input data-doujin-search type="search" placeholder="Search English doujinshi or tags" autocomplete="off"><button class="search-clear" data-clear-search type="button" aria-label="Clear search">×</button></label>
+          <button class="btn browse-submit" type="submit">Search</button>
+          <div class="doujin-tag-picker" data-doujin-tags aria-label="Doujin tags"></div>
+        </form>
+        <div class="browse-title">
+          <div>
+            <span class="eyebrow">Adult English galleries</span>
+            <h1 data-heading>English Doujinshi</h1>
+          </div>
+          <span data-doujin-status>Search by title or tags.</span>
+        </div>
+        <div class="browse-grid" data-doujin-grid aria-live="polite"></div>
+      </section>
+    </main>
+  </body>
+</html>

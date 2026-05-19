@@ -4,7 +4,7 @@ const { getProjectSukiChapters } = require("../../lib/projectsuki");
 const { getManhwaZChapters } = require("../../lib/manhwaz");
 const { getAdultMangaChapters } = require("../../lib/adult-manga");
 
-const ADULT_MANGA_PROVIDERS = ["pornhwaz", "hentai20", "pornhwapro", "hentai18"];
+const ADULT_MANGA_PROVIDERS = ["pornhwaz", "hentai20", "pornhwapro", "hentai18", "hentainame", "hentaizap", "hentaifox"];
 
 module.exports = async function handler(req, res) {
   const mangaId = String(req.query.mangaId || "");

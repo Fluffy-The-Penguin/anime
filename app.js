@@ -34,6 +34,12 @@ const MANGA_SOURCES = [
   { id: "hentai18", name: "Hentai18", description: "Adult manga/manhwa source with direct chapter image pages.", adult: true },
   { id: "toonily", name: "Toonily", description: "Large manhwa catalog; availability may depend on upstream anti-bot checks." },
 ];
+const DOUJIN_SOURCES = [
+  { id: "hentainame", name: "Hentai.name" },
+  { id: "hentaizap", name: "HentaiZap" },
+  { id: "hentaifox", name: "HentaiFox" },
+];
+const DOUJIN_TAGS = ["cheating", "ntr", "milf", "netorare", "teacher", "mind break", "vanilla", "big breasts", "cosplay", "incest", "schoolgirl", "ahegao"];
 const fallbackImage = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80";
 
 applyStoredTheme();
@@ -59,6 +65,9 @@ const state = {
   browseToken: 0,
   browseLoadingMore: false,
   browseHasMore: true,
+  doujinQuery: "",
+  doujinTags: [],
+  doujinToken: 0,
   browseSpotlightItems: [],
   browseSpotlightIndex: 0,
   browseSpotlightTimer: null,
@@ -97,6 +106,7 @@ function init() {
 
   if (page === "home") initHomePage();
   if (page === "anime" || page === "manga") initBrowsePage();
+  if (page === "doujin") initDoujinPage();
   if (page === "library") initLibraryPage();
   if (page === "details") initDetailsPage();
   if (page === "settings") initSettingsPage();
@@ -129,7 +139,7 @@ function injectChrome() {
       "beforeend",
       `<div class="top-actions">
         <button class="icon-btn menu-toggle" data-menu-toggle type="button" aria-label="Toggle navigation" aria-expanded="false">☰</button>
-        ${(page === "anime" || page === "manga") ? `<button class="icon-btn nav-search-toggle" data-browse-filter-toggle type="button" aria-label="Show search and filters" aria-expanded="false">
+        ${(page === "anime" || page === "manga" || page === "doujin") ? `<button class="icon-btn nav-search-toggle" data-browse-filter-toggle type="button" aria-label="Show search and filters" aria-expanded="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 18.4a7.7 7.7 0 1 1 5.4-13.1 7.7 7.7 0 0 1 0 10.8l4.1 4.1-2 2-4.1-4.1a7.6 7.6 0 0 1-3.4.8Zm0-3a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Z"/></svg>
         </button>` : ""}
         <button class="icon-btn theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">${themeIcon()}</button>
@@ -137,6 +147,7 @@ function injectChrome() {
           <button class="icon-btn profile-btn" data-profile-toggle type="button" aria-label="Open profile settings">AT</button>
           <div class="profile-popover" data-profile-popover>
             <strong>Profile</strong>
+            <button class="settings-row" data-library-button type="button">Library</button>
             <button class="settings-row" data-settings-button type="button">Settings</button>
             <label class="settings-toggle"><span>Show 18+ content</span><input data-adult-toggle type="checkbox" ${state.settings.allowAdult ? "checked" : ""}></label>
             <div class="personalize-block">
@@ -168,6 +179,9 @@ function injectChrome() {
   }
 
   document.querySelector("[data-profile-toggle]").addEventListener("click", toggleProfileMenu);
+  document.querySelector("[data-library-button]").addEventListener("click", () => {
+    window.location.href = "library.html";
+  });
   document.querySelector("[data-settings-button]").addEventListener("click", () => {
     window.location.href = "settings.html";
   });
@@ -177,6 +191,7 @@ function injectChrome() {
   document.querySelector("[data-theme-toggle]").addEventListener("click", toggleTheme);
   document.querySelector("[data-menu-toggle]").addEventListener("click", toggleMobileMenu);
   document.querySelector("[data-browse-filter-toggle]")?.addEventListener("click", toggleBrowseFilters);
+  syncAdultControls();
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeMobileMenu();
   });
@@ -323,6 +338,192 @@ function initBrowsePage() {
   updateGenreToggleLabel();
 
   loadFeed();
+}
+
+function initDoujinPage() {
+  const form = document.querySelector("[data-doujin-form]");
+  const search = document.querySelector("[data-doujin-search]");
+  const tags = document.querySelector("[data-doujin-tags]");
+  const grid = document.querySelector("[data-doujin-grid]");
+  const clear = document.querySelector("[data-clear-search]");
+
+  if (!form || !search || !tags || !grid) return;
+
+  tags.innerHTML = DOUJIN_TAGS.map((tag) => `<button class="chip" data-doujin-tag="${escapeAttr(tag)}" type="button">${escapeHtml(tag)}</button>`).join("");
+  applyDoujinUrlParams(search);
+  syncDoujinTags();
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    state.doujinQuery = search.value.trim();
+    updateDoujinUrl();
+    loadDoujinSearch();
+  });
+
+  search.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    state.doujinQuery = search.value.trim();
+    updateDoujinUrl();
+    loadDoujinSearch();
+  });
+
+  tags.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-doujin-tag]");
+    if (!button) return;
+    const tag = button.dataset.doujinTag;
+    state.doujinTags = state.doujinTags.includes(tag) ? state.doujinTags.filter((item) => item !== tag) : [...state.doujinTags, tag];
+    syncDoujinTags();
+    updateDoujinUrl();
+    loadDoujinSearch();
+  });
+
+  clear?.addEventListener("click", () => {
+    search.value = "";
+    state.doujinQuery = "";
+    state.doujinTags = [];
+    syncDoujinTags();
+    updateDoujinUrl();
+    loadDoujinSearch();
+    search.focus();
+  });
+
+  grid.addEventListener("click", openDoujinReader);
+  loadDoujinSearch();
+}
+
+function applyDoujinUrlParams(searchInput) {
+  const params = new URLSearchParams(window.location.search);
+  state.doujinQuery = params.get("search") || "";
+  state.doujinTags = uniqueStrings((params.get("tags") || "").split(",")).filter((tag) => DOUJIN_TAGS.includes(tag));
+  searchInput.value = state.doujinQuery;
+}
+
+function updateDoujinUrl() {
+  const params = new URLSearchParams();
+  if (state.doujinQuery) params.set("search", state.doujinQuery);
+  if (state.doujinTags.length) params.set("tags", state.doujinTags.join(","));
+  const query = params.toString();
+  history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}`);
+}
+
+function syncDoujinTags() {
+  document.querySelectorAll("[data-doujin-tag]").forEach((button) => {
+    button.classList.toggle("active", state.doujinTags.includes(button.dataset.doujinTag));
+  });
+}
+
+async function loadDoujinSearch() {
+  const grid = document.querySelector("[data-doujin-grid]");
+  const heading = document.querySelector("[data-heading]");
+  const status = document.querySelector("[data-doujin-status]");
+  if (!grid) return;
+
+  if (!state.settings.allowAdult) {
+    if (heading) heading.textContent = "Doujin locked";
+    if (status) status.textContent = "Enable 18+ content from the profile menu to unlock English doujinshi search.";
+    renderEmpty(grid, "18+ content is disabled.");
+    return;
+  }
+
+  const query = doujinSearchQuery();
+  if (!query) {
+    if (heading) heading.textContent = "English Doujinshi";
+    if (status) status.textContent = "Search a title or choose tags like cheating, ntr, milf, or vanilla.";
+    renderEmpty(grid, "Search or select tags to find English doujinshi.");
+    return;
+  }
+
+  const token = ++state.doujinToken;
+  if (heading) heading.textContent = `English doujinshi for "${query}"`;
+  if (status) status.textContent = "Searching English-only sources...";
+  setLoading(grid, 12);
+
+  try {
+    const providers = doujinProviderIds();
+    const results = await fetchApiJson(`/api/manga/search?title=${encodeURIComponent(query)}&providers=${encodeURIComponent(providers.join(","))}`);
+    if (token !== state.doujinToken) return;
+    const items = bestDoujinResults(results, providers);
+    if (status) status.textContent = `${items.length} English result${items.length === 1 ? "" : "s"} from ${providers.length} sources`;
+    renderDoujinCards(grid, items);
+  } catch (error) {
+    if (token !== state.doujinToken) return;
+    if (status) status.textContent = "Search failed";
+    renderEmpty(grid, "Could not load doujinshi results right now.");
+  }
+}
+
+function doujinSearchQuery() {
+  return uniqueStrings([state.doujinQuery, ...state.doujinTags]).join(" ").trim();
+}
+
+function doujinProviderIds() {
+  return DOUJIN_SOURCES.map((source) => source.id);
+}
+
+function bestDoujinResults(results, providers) {
+  const byId = new Map();
+  (Array.isArray(results) ? results : []).forEach((result) => {
+    if (!result?.id || !providers.includes(result.provider)) return;
+    const score = Number(result.score || 0);
+    if (score < 0.15) return;
+    const current = byId.get(result.id);
+    if (!current || score > Number(current.score || 0)) byId.set(result.id, result);
+  });
+  return [...byId.values()].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+}
+
+function renderDoujinCards(container, items) {
+  container.innerHTML = "";
+  if (!items.length) return renderEmpty(container, "No English doujinshi found for this search.");
+
+  const fragment = document.createDocumentFragment();
+  items.forEach((item) => {
+    const card = create("button", "browse-card doujin-card");
+    card.type = "button";
+    card.dataset.doujin = JSON.stringify(item);
+    card.innerHTML = `
+      <img src="${escapeAttr(item.cover || fallbackImage)}" alt="${escapeAttr(item.title)} cover" loading="lazy">
+      <h3>${escapeHtml(item.title)}</h3>
+      <div class="browse-meta"><span>${escapeHtml(providerLabel(item.provider))}</span><i></i><span>English</span></div>
+    `;
+    fragment.append(card);
+  });
+  container.append(fragment);
+}
+
+function openDoujinReader(event) {
+  const card = event.target.closest("[data-doujin]");
+  if (!card) return;
+  const source = JSON.parse(card.dataset.doujin);
+  const manga = {
+    id: `doujin-${source.id}`,
+    apiId: source.id,
+    type: "manga",
+    displayType: "Doujinshi",
+    title: source.title,
+    englishTitle: source.title,
+    romajiTitle: "",
+    nativeTitle: "",
+    alternativeTitles: [source.title],
+    description: source.description || "English doujinshi gallery.",
+    image: source.cover || fallbackImage,
+    banner: source.cover || "",
+    accent: colorFromString(source.title),
+    score: "N/A",
+    year: "TBA",
+    total: 1,
+    unit: "chapter",
+    genres: ["Doujinshi", "English"],
+    format: "Doujinshi",
+    statusText: "Unknown",
+    provider: source.provider,
+    providerId: source.id,
+    providerTitle: source.title,
+    preloadedSources: [source],
+  };
+  sessionStorage.setItem("reader-manga", JSON.stringify(manga));
+  window.location.href = `manga-reader.html?type=doujin&id=${encodeURIComponent(source.id)}`;
 }
 
 function initHomePage() {
@@ -2389,7 +2590,7 @@ function closeMobileMenu() {
 }
 
 function toggleBrowseFilters(event) {
-  if (page !== "anime" && page !== "manga") {
+  if (page !== "anime" && page !== "manga" && page !== "doujin") {
     return;
   }
 
@@ -2418,6 +2619,7 @@ function setAdultContentEnabled(enabled, options = {}) {
   if (page === "anime" || page === "manga") updateBrowseUrl();
   if (page === "home") loadHomeSections();
   if (page === "anime" || page === "manga") loadFeed();
+  if (page === "doujin") loadDoujinSearch();
 }
 
 function syncAdultControls() {
@@ -2427,6 +2629,9 @@ function syncAdultControls() {
   });
   document.querySelectorAll("[data-adult-genre]").forEach((input) => {
     input.checked = Boolean(state.adultGenreOnly);
+  });
+  document.querySelectorAll("[data-adult-nav]").forEach((link) => {
+    link.hidden = !state.settings.allowAdult;
   });
 }
 
@@ -4817,7 +5022,7 @@ async function initReaderPage() {
   }
 
   if (!manga) {
-    document.querySelector("[data-manga-title]").textContent = "Manga not found";
+    document.querySelector("[data-manga-title]").textContent = type === "doujin" ? "Doujinshi not found" : "Manga not found";
     return;
   }
 
@@ -4878,6 +5083,7 @@ function buildChapters(manga) {
 
 async function loadMangaSourceMatches(manga, customTitle = "") {
   try {
+    if (Array.isArray(manga.preloadedSources) && manga.preloadedSources.length) return manga.preloadedSources;
     const providers = enabledMangaProviderIds();
     if (!providers.length) return [];
     const searchTitles = customTitle ? uniqueStrings([customTitle, ...mangaSourceSearchTitles(manga)]) : mangaSourceSearchTitles(manga);
@@ -4917,7 +5123,7 @@ function bestMangaSourceMatches(matches, titles, providers) {
 }
 
 function isAdultMangaProvider(provider) {
-  return ["pornhwaz", "hentai20", "pornhwapro", "hentai18"].includes(provider);
+  return ["pornhwaz", "hentai20", "pornhwapro", "hentai18", "hentainame", "hentaizap", "hentaifox"].includes(provider);
 }
 
 function sourceTitleScore(titles, candidate) {
@@ -5027,7 +5233,7 @@ function mangaSourceCustomQueryKey(manga) {
 }
 
 function providerLabel(provider) {
-  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", projectsuki: "Project Suki", manhwaz: "ManhwaZ", pornhwaz: "PornhwaZ", hentai20: "Hentai20", pornhwapro: "Pornhwa Pro", hentai18: "Hentai18", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider" }[provider] || provider || "Source");
+  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", projectsuki: "Project Suki", manhwaz: "ManhwaZ", pornhwaz: "PornhwaZ", hentai20: "Hentai20", pornhwapro: "Pornhwa Pro", hentai18: "Hentai18", hentainame: "Hentai.name", hentaizap: "HentaiZap", hentaifox: "HentaiFox", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider" }[provider] || provider || "Source");
 }
 
 function animeSourceLabel(source) {
@@ -5177,7 +5383,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
     </div>
   `;
 
-  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral" || chapter.provider === "flamecomics" || chapter.provider === "rizzcomic" || chapter.provider === "projectsuki" || chapter.provider === "manhwaz" || chapter.provider === "pornhwaz" || chapter.provider === "hentai20" || chapter.provider === "pornhwapro" || chapter.provider === "hentai18" || chapter.provider === "toonily") && chapter.id) {
+  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral" || chapter.provider === "flamecomics" || chapter.provider === "rizzcomic" || chapter.provider === "projectsuki" || chapter.provider === "manhwaz" || chapter.provider === "pornhwaz" || chapter.provider === "hentai20" || chapter.provider === "pornhwapro" || chapter.provider === "hentai18" || chapter.provider === "hentainame" || chapter.provider === "hentaizap" || chapter.provider === "hentaifox" || chapter.provider === "toonily") && chapter.id) {
     try {
       const data = await fetchMangaPagesCached(chapter.id);
       if (data.pages?.length) {
