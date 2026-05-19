@@ -4871,7 +4871,7 @@ function bestMangaSourceMatches(matches, titles, providers) {
   const byProvider = new Map();
   for (const match of matches || []) {
     if (!match?.provider || !providers.includes(match.provider)) continue;
-    const scored = { ...match, score: sourceTitleScore(titles, match.title) };
+    const scored = { ...match, score: Math.max(sourceTitleScore(titles, match.title), Number(match.score || 0)) };
     if (scored.score < 0.15) continue;
     const current = byProvider.get(match.provider);
     if (!current || scored.score > current.score) byProvider.set(match.provider, scored);
