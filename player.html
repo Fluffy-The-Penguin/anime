@@ -291,10 +291,9 @@
         bottom: 0;
         z-index: 8;
         display: grid;
-        grid-template-columns: auto auto auto 1fr auto auto auto;
+        grid-template-columns: auto auto auto minmax(90px, 1fr) auto auto auto;
         grid-template-areas:
-          "progress progress progress progress progress progress progress"
-          "play volume time spacer captions settings fullscreen";
+          "play volume time progress captions settings fullscreen";
         align-items: center;
         gap: 3px 7px;
         padding: 5px 10px 5px;
@@ -388,6 +387,7 @@
 
       .video-progress {
         width: 100%;
+        min-width: 0;
         height: 3px;
         accent-color: var(--blue);
       }
@@ -898,7 +898,7 @@
           left: 0;
           right: 0;
           bottom: 0;
-          grid-template-columns: auto auto minmax(58px, auto) 1fr auto auto auto;
+          grid-template-columns: auto auto minmax(58px, auto) minmax(84px, 1fr) auto auto auto;
           gap: 5px;
           padding: 5px 8px 5px;
         }
@@ -955,10 +955,9 @@
         }
 
         .custom-video-controls {
-          grid-template-columns: auto auto minmax(54px, auto) 1fr auto auto auto;
+          grid-template-columns: auto auto minmax(54px, auto) minmax(70px, 1fr) auto auto auto;
           grid-template-areas:
-            "progress progress progress progress progress progress progress"
-            "play volume time spacer captions settings fullscreen";
+            "play volume time progress captions settings fullscreen";
         }
 
         .player-settings-panel {
