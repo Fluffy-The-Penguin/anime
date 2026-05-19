@@ -1812,6 +1812,7 @@ body[data-page="details"] .details-panel {
 
 .detail-anime-episode-row {
   grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
 }
 
 .detail-chapter-text {
@@ -1944,6 +1945,15 @@ body[data-page="details"] .details-panel {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .detail-anime-episode-row {
+    align-items: start;
+    gap: 8px;
+    padding: 13px 14px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.035);
+  }
+
   .detail-chapter-row small {
     border-left: 0;
     padding-left: 0;
@@ -1963,6 +1973,17 @@ body[data-page="details"] .details-panel {
 
   .detail-chapter-text span {
     white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .detail-anime-episode-row .detail-chapter-text strong {
+    width: fit-content;
+    border-radius: 999px;
+    padding: 3px 8px;
+    background: rgba(var(--detail-accent-rgb), 0.16);
+    color: #fff;
+    font-size: 13px;
+    letter-spacing: 0;
   }
 
   .detail-chapter-row img {
@@ -1978,6 +1999,11 @@ body[data-page="details"] .details-panel {
 
   .detail-manga-chapter-row small {
     grid-column: 1;
+  }
+
+  .detail-anime-episode-row small {
+    grid-column: 1;
+    font-size: 12px;
   }
 }
 

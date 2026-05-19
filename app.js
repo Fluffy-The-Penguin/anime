@@ -1595,6 +1595,11 @@ function renderDetails(root, item, isTemporary = false) {
   root.querySelector("[data-track-status]").value = active.status || (active.type === "anime" ? "watching" : "reading");
   root.querySelector("[data-save-track]").addEventListener("click", () => saveCurrent());
   root.querySelector("[data-watch-button]")?.addEventListener("click", () => {
+    const selectedEpisode = root.querySelector("[data-detail-watch-episode]");
+    if (selectedEpisode) {
+      selectedEpisode.click();
+      return;
+    }
     openPlayerForAnime(active, buildEpisodes(active)[0] || null, "anilist");
   });
   root.querySelector("[data-read-button]")?.addEventListener("click", () => {
@@ -1775,68 +1780,132 @@ async function initAnimeDetailSources(root, anime) {
   if (animeSourceEnabled("hstream") && state.settings.allowAdult) sources.push({ id: "hstream", name: "hstream.moe" });
   if (animeSourceEnabled("aniwaves")) sources.push({ id: "aniwaves", name: "Aniwaves provider match" });
 
-  const savedSource = localStorage.getItem(animeSourceKey(anime)) || sources[0]?.id || "";
+  const savedSource = localStorage.getItem(animeSourceKey(anime)) || "";
   const customTitle = localStorage.getItem(animeSourceCustomQueryKey(anime)) || "";
   if (sourceQuery) sourceQuery.value = customTitle;
 
   sourceSelect.innerHTML = sources.map((source) => `<option value="${escapeAttr(source.id)}">${escapeHtml(source.name)}</option>`).join("");
   if (sources.some((source) => source.id === savedSource)) sourceSelect.value = savedSource;
 
-  const renderSource = async () => {
-    const sourceId = sourceSelect.value || sources[0]?.id || "";
-    localStorage.setItem(animeSourceKey(anime), sourceId);
-    if (sourceQuery) localStorage.setItem(animeSourceCustomQueryKey(anime), sourceQuery.value.trim());
+  const sourceStates = new Map(sources.map((source) => [source.id, { ...source, status: "idle", episodes: [], matches: [], activeSourceId: source.id, activeLabel: source.name }]));
 
-    if (sourceId === "hstream") {
-      sourceCount.textContent = "Searching hstream...";
-      episodeList.innerHTML = '<div class="empty">Searching hstream with AniList titles and your custom title...</div>';
-      const matches = await searchAdultAnime({ ...anime, sourceQuery: sourceQuery?.value.trim() || "" });
-      sourceCount.textContent = `${matches.length} hstream match${matches.length === 1 ? "" : "es"}`;
-      renderAnimeDetailEpisodeList(episodeList, anime, "hstream", hstreamMatchesToEpisodes(matches), matches);
-      return;
-    }
-
-    if (sourceId === "anilist") {
-      const episodes = buildEpisodes(anime);
-      const catalogSource = anime.apiSource === "jikan" ? "Jikan" : "AniList";
-      sourceCount.textContent = episodes.length ? `${episodes.length} ${catalogSource} episode${episodes.length === 1 ? "" : "s"}` : `No ${catalogName} list`;
-      renderAnimeDetailEpisodeList(episodeList, anime, "anilist", episodes);
-      return;
-    }
-
-    if (sourceId === "animedex" || sourceId === "anizone") {
-      const label = sourceId === "animedex" ? "AnimeDex" : "AniZone";
-      sourceCount.textContent = `Searching ${label}...`;
-      episodeList.innerHTML = `<div class="empty">Looking for this anime on ${label} using catalog titles and synonyms...</div>`;
-      let activeSourceId = sourceId;
-      let activeLabel = label;
-      let match = await searchAnimeProviderMatch(anime, sourceId, sourceQuery?.value.trim() || "");
-      if (!match && sourceId === "animedex" && animeSourceEnabled("anizone")) {
-        sourceCount.textContent = "AnimeDex unavailable. Trying AniZone...";
-        activeSourceId = "anizone";
-        activeLabel = "AniZone";
-        match = await searchAnimeProviderMatch(anime, "anizone", sourceQuery?.value.trim() || "");
-      }
-      if (!match) {
-        sourceCount.textContent = "0 episodes";
-        episodeList.innerHTML = `<div class="empty">No ${label} match found. Try a custom source title above${sourceId === "animedex" ? ", or switch to AniZone if AnimeDex is down" : ""}.</div>`;
-        return;
-      }
-      sourceCount.textContent = `Loading ${activeLabel} episodes...`;
-      const episodes = await fetchAnimeProviderEpisodes(match);
-      sourceCount.textContent = `${episodes.length} ${activeLabel} episode${episodes.length === 1 ? "" : "s"}${activeSourceId !== sourceId ? " (AnimeDex fallback)" : ""}`;
-      renderAnimeDetailEpisodeList(episodeList, { ...anime, providerMatch: match }, activeSourceId, episodes);
-      return;
-    }
-
-    const label = sources.find((source) => source.id === sourceId)?.name || "this source";
-    sourceCount.textContent = "Episode catalog unavailable";
-    episodeList.innerHTML = `<div class="empty">${escapeHtml(label)} does not expose a browsable episode list here. Open the player to search this source for a selected episode.</div>`;
+  const renderOptions = () => {
+    const selected = sourceSelect.value;
+    sourceSelect.innerHTML = sources.map((source) => {
+      const state = sourceStates.get(source.id);
+      const suffix = state?.status === "loading" ? " - loading" : state?.status === "loaded" ? ` - ${state.episodes.length}` : state?.status === "empty" ? " - none" : state?.status === "error" ? " - failed" : "";
+      return `<option value="${escapeAttr(source.id)}">${escapeHtml(source.name + suffix)}</option>`;
+    }).join("");
+    if (sources.some((source) => source.id === selected)) sourceSelect.value = selected;
   };
 
-  sourceSelect.addEventListener("change", renderSource);
-  sourceQuery?.addEventListener("change", renderSource);
-  await renderSource();
+  const renderSelectedSource = () => {
+    const sourceId = sourceSelect.value || sources[0]?.id || "";
+    const state = sourceStates.get(sourceId);
+    localStorage.setItem(animeSourceKey(anime), sourceId);
+    if (!state) return;
+
+    if (state.status === "loaded" && state.episodes.length) {
+      const fallback = state.activeSourceId !== sourceId ? " (fallback)" : "";
+      sourceCount.textContent = `${state.episodes.length} ${state.activeLabel} episode${state.episodes.length === 1 ? "" : "s"}${fallback}`;
+      renderAnimeDetailEpisodeList(episodeList, { ...anime, providerMatch: state.match }, state.activeSourceId, state.episodes, state.matches);
+      return;
+    }
+
+    if (state.status === "loading") {
+      sourceCount.textContent = `Loading ${state.name}...`;
+      episodeList.innerHTML = `<div class="empty">Fetching ${escapeHtml(state.name)} episodes in the background...</div>`;
+      return;
+    }
+
+    if (state.status === "error") {
+      sourceCount.textContent = "Source unavailable";
+      episodeList.innerHTML = `<div class="empty">${escapeHtml(state.name)} could not load right now. Try another source or a custom title.</div>`;
+      return;
+    }
+
+    if (state.status === "empty") {
+      sourceCount.textContent = "0 episodes";
+      episodeList.innerHTML = `<div class="empty">No ${escapeHtml(state.name)} episodes found. Try a custom source title above or another source.</div>`;
+      return;
+    }
+
+    sourceCount.textContent = `Queued ${state.name}`;
+    episodeList.innerHTML = `<div class="empty">${escapeHtml(state.name)} is queued for loading...</div>`;
+  };
+
+  const resolveSource = async (source) => {
+    if (!source) return null;
+    const state = sourceStates.get(source.id);
+    if (!state || state.status === "loading" || state.status === "loaded") return state;
+    state.status = "loading";
+    renderOptions();
+    if (sourceSelect.value === source.id) renderSelectedSource();
+
+    try {
+      if (source.id === "anilist") {
+        state.episodes = buildEpisodes(anime);
+        state.activeLabel = anime.apiSource === "jikan" ? "Jikan" : "AniList";
+      } else if (source.id === "hstream") {
+        state.matches = await searchAdultAnime({ ...anime, sourceQuery: sourceQuery?.value.trim() || "" });
+        state.episodes = hstreamMatchesToEpisodes(state.matches);
+        state.activeLabel = "hstream";
+      } else if (source.id === "animedex" || source.id === "anizone") {
+        let activeSourceId = source.id;
+        let match = await searchAnimeProviderMatch(anime, source.id, sourceQuery?.value.trim() || "");
+        if (!match && source.id === "animedex" && animeSourceEnabled("anizone")) {
+          activeSourceId = "anizone";
+          match = await searchAnimeProviderMatch(anime, "anizone", sourceQuery?.value.trim() || "");
+        }
+        if (match) {
+          state.match = match;
+          state.activeSourceId = activeSourceId;
+          state.activeLabel = animeSourceLabel(activeSourceId);
+          state.episodes = await fetchAnimeProviderEpisodes(match);
+        }
+      } else {
+        state.episodes = [];
+      }
+      state.status = state.episodes.length ? "loaded" : "empty";
+    } catch (error) {
+      state.status = "error";
+      state.episodes = [];
+    }
+
+    renderOptions();
+    if (sourceSelect.value === source.id) renderSelectedSource();
+    return state;
+  };
+
+  const prefetchSources = () => sources.forEach((source) => resolveSource(source));
+  const preferredSource = preferredAnimeDetailSource(sources, savedSource);
+  sourceSelect.value = preferredSource;
+
+  sourceSelect.addEventListener("change", () => {
+    renderSelectedSource();
+    resolveSource(sources.find((source) => source.id === sourceSelect.value));
+  });
+  sourceQuery?.addEventListener("change", () => {
+    localStorage.setItem(animeSourceCustomQueryKey(anime), sourceQuery.value.trim());
+    sourceStates.forEach((state) => {
+      if (state.id !== "anilist") {
+        state.status = "idle";
+        state.episodes = [];
+        state.matches = [];
+        state.match = null;
+        state.activeSourceId = state.id;
+        state.activeLabel = state.name;
+      }
+    });
+    renderOptions();
+    renderSelectedSource();
+    prefetchSources();
+  });
+
+  renderOptions();
+  sourceSelect.value = preferredSource;
+  renderSelectedSource();
+  prefetchSources();
 }
 
 function hstreamMatchesToEpisodes(matches) {
@@ -1906,7 +1975,7 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
 
   const audioOptions = animeEpisodeAudioOptions(episodes);
   const selectedAudio = sourceId === "animedex" && audioOptions.length > 1 ? selectedAnimeEpisodeAudio(anime, episodes) : "";
-  const visibleEpisodes = selectedAudio ? episodes.filter((episode) => episodeAudioKey(episode) === selectedAudio) : episodes;
+  const visibleEpisodes = (selectedAudio ? episodes.filter((episode) => episodeAudioKey(episode) === selectedAudio) : [...episodes]).sort(compareEpisodesDesc);
   const pageSize = 40;
   const totalPages = Math.max(1, Math.ceil(visibleEpisodes.length / pageSize));
   const currentPage = Math.min(Math.max(1, pageNumber), totalPages);
@@ -1963,6 +2032,13 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
   container.querySelector("[data-detail-anime-next]")?.addEventListener("click", () => renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, currentPage + 1));
 }
 
+function compareEpisodesDesc(a, b) {
+  const left = Number.parseFloat(a?.number);
+  const right = Number.parseFloat(b?.number);
+  if (Number.isFinite(left) && Number.isFinite(right)) return right - left;
+  return String(b?.number || b?.title || "").localeCompare(String(a?.number || a?.title || ""), undefined, { numeric: true });
+}
+
 function animeEpisodeAudioOptions(episodes) {
   return uniqueStrings(episodes.map((episode) => episodeAudioKey(episode)).filter(Boolean));
 }
@@ -2005,6 +2081,14 @@ function animeSourceKey(anime) {
 
 function animeSourceCustomQueryKey(anime) {
   return `${animeSourceKey(anime)}:custom-title`;
+}
+
+function preferredAnimeDetailSource(sources, savedSource = "") {
+  const ids = sources.map((source) => source.id);
+  if (savedSource && ids.includes(savedSource)) return savedSource;
+  const preferred = state.settings.defaultAnimeSource || "animedex";
+  if (ids.includes(preferred)) return preferred;
+  return ["animedex", "anizone", "anilist"].find((id) => ids.includes(id)) || ids[0] || "";
 }
 
 function extractEpisodeNumberFromText(text) {
@@ -2376,6 +2460,7 @@ function defaultSettings() {
     subtitleLanguage: "english",
     autoPlay: true,
     autoPlayNext: false,
+    defaultAnimeSource: "animedex",
     playerSpeed: "1",
     subtitleStyle: defaultSubtitleStyle(),
   };
@@ -2801,6 +2886,16 @@ async function initSettingsPage() {
     autoPlayToggle.addEventListener("change", (e) => {
       state.settings.autoPlay = e.target.checked;
       persistSettings();
+    });
+  }
+
+  const defaultAnimeSource = document.querySelector("[data-default-anime-source]");
+  if (defaultAnimeSource) {
+    defaultAnimeSource.value = state.settings.defaultAnimeSource || "animedex";
+    defaultAnimeSource.addEventListener("change", (e) => {
+      state.settings.defaultAnimeSource = e.target.value;
+      persistSettings();
+      showToast(`Default anime source set to ${animeSourceLabel(e.target.value)}`);
     });
   }
 
@@ -3701,6 +3796,7 @@ async function playHttpStream(url, tracks = [], options = {}) {
       <div class="spinner"></div>
       <span>Loading video...</span>
     </div>
+    <button class="video-center-toggle" data-video-center-toggle type="button" aria-label="Play or pause">▶</button>
     <div class="custom-video-controls" data-custom-video-controls>
       <button class="video-control-btn" data-video-play type="button" aria-label="Play or pause">▶</button>
       <div class="video-volume-control" data-video-volume-control>
@@ -3870,6 +3966,7 @@ function setupCustomVideoControls(video) {
   if (!player || !controls) return;
 
   const play = controls.querySelector("[data-video-play]");
+  const centerToggle = player.querySelector("[data-video-center-toggle]");
   const progress = controls.querySelector("[data-video-progress]");
   const current = controls.querySelector("[data-video-current]");
   const duration = controls.querySelector("[data-video-duration]");
@@ -3917,8 +4014,10 @@ function setupCustomVideoControls(video) {
     if (duration) duration.textContent = formatPlayerTime(total);
     if (progress && !seeking) progress.value = total ? String(Math.round((now / total) * 1000)) : "0";
     if (play) play.textContent = video.paused ? "▶" : "❚❚";
+    if (centerToggle) centerToggle.textContent = video.paused ? "▶" : "❚❚";
     if (mute) mute.textContent = video.muted || video.volume === 0 ? "×" : "♪";
     if (volume) volume.value = String(video.muted ? 0 : video.volume);
+    player.classList.toggle("is-paused", video.paused);
     const subtitleToggle = document.querySelector("[data-subtitle-toggle]");
     if (captions) {
       captions.disabled = !subtitleToggle || subtitleToggle.hidden || subtitleToggle.disabled;
@@ -3926,22 +4025,25 @@ function setupCustomVideoControls(video) {
     }
   };
 
-  play?.addEventListener("click", async () => {
-    showControls();
+  const togglePlayback = async () => {
     if (video.paused) {
       try { await video.play(); } catch (error) {}
     } else {
       video.pause();
     }
+    showControls();
+  };
+
+  play?.addEventListener("click", togglePlayback);
+  centerToggle?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    togglePlayback();
   });
 
-  video.addEventListener("click", async () => {
+  video.addEventListener("click", showControls);
+  player.addEventListener("click", (event) => {
+    if (event.target.closest?.("button, input, select, .custom-video-controls, .video-volume-panel")) return;
     showControls();
-    if (video.paused) {
-      try { await video.play(); } catch (error) {}
-    } else {
-      video.pause();
-    }
   });
 
   progress?.addEventListener("input", () => {
