@@ -3991,6 +3991,7 @@ function setupCustomVideoControls(video) {
   const panel = document.querySelector("[data-player-settings-panel]");
   let seeking = false;
   let hideTimer = null;
+  let emptyPointerStartedIdle = null;
 
   const hideVolumePanel = () => {
     if (!volumePanel) return;
@@ -4006,15 +4007,27 @@ function setupCustomVideoControls(video) {
     showControls();
   };
 
+  const toggleVolumePanel = () => {
+    if (!volumePanel) return;
+    if (volumePanel.hidden) showVolumePanel();
+    else hideVolumePanel();
+    showControls();
+  };
+
+  const hideControls = () => {
+    clearTimeout(hideTimer);
+    player.classList.add("video-controls-idle");
+    hidePlayerSettingsPanel();
+    hideVolumePanel();
+  };
+
   const showControls = () => {
     player.classList.remove("video-controls-idle");
     clearTimeout(hideTimer);
     hideTimer = setTimeout(() => {
-      if (!video.paused) {
-        player.classList.add("video-controls-idle");
-        hidePlayerSettingsPanel();
-        hideVolumePanel();
-      }
+      player.classList.add("video-controls-idle");
+      hidePlayerSettingsPanel();
+      hideVolumePanel();
     }, 2400);
   };
 
@@ -4061,10 +4074,18 @@ function setupCustomVideoControls(video) {
     showControls();
   });
 
-  video.addEventListener("click", showControls);
+  const isEmptyPlayerTarget = (event) => !event.target.closest?.("button, input, select, .custom-video-controls, .video-volume-panel");
+
+  player.addEventListener("pointerdown", (event) => {
+    emptyPointerStartedIdle = isEmptyPlayerTarget(event) ? player.classList.contains("video-controls-idle") : null;
+  });
+
   player.addEventListener("click", (event) => {
-    if (event.target.closest?.("button, input, select, .custom-video-controls, .video-volume-panel")) return;
-    showControls();
+    if (!isEmptyPlayerTarget(event)) return;
+    const wasIdle = emptyPointerStartedIdle ?? player.classList.contains("video-controls-idle");
+    emptyPointerStartedIdle = null;
+    if (wasIdle) showControls();
+    else hideControls();
   });
 
   progress?.addEventListener("input", () => {
@@ -4080,11 +4101,7 @@ function setupCustomVideoControls(video) {
   });
 
   mute?.addEventListener("click", () => {
-    video.muted = !video.muted;
-    if (!video.muted && video.volume === 0) video.volume = 1;
-    update();
-    showVolumePanel();
-    showControls();
+    toggleVolumePanel();
   });
   volume?.addEventListener("input", () => {
     video.volume = Math.max(0, Math.min(1, Number(volume.value) || 0));
@@ -4104,9 +4121,6 @@ function setupCustomVideoControls(video) {
     document.querySelector("[data-player-settings-toggle]")?.click();
     showControls();
   });
-  volumeControl?.addEventListener("mouseenter", showVolumePanel);
-  volumeControl?.addEventListener("focusin", showVolumePanel);
-  volumeControl?.addEventListener("touchstart", showVolumePanel, { passive: true });
   volumeControl?.addEventListener("mousemove", showControls);
   setupPlayerKeyboardControls(video, showControls);
 

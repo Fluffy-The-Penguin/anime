@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=watch-layout-fix" defer></script>
+    <script src="app.js?v=player-interaction-fix" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -229,7 +229,7 @@
         outline: none;
       }
 
-      .video-controls-idle:not(.is-paused) .video-center-toggle {
+      .video-controls-idle .video-center-toggle {
         opacity: 0;
         pointer-events: none;
       }
@@ -266,7 +266,7 @@
         left: calc(50% + 76px);
       }
 
-      .video-controls-idle:not(.is-paused) .video-center-skip {
+      .video-controls-idle .video-center-skip {
         opacity: 0;
         pointer-events: none;
       }
@@ -431,15 +431,12 @@
       }
 
       .player-controls {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 10px;
-        align-items: center;
-        padding: 9px 11px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        background: rgba(12, 16, 24, 0.82);
-        backdrop-filter: blur(18px);
+        display: block;
+        padding: 10px 0 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        backdrop-filter: none;
       }
 
       .video-wrapper:fullscreen,
@@ -508,19 +505,20 @@
       }
 
       .player-actions {
-        display: flex;
-        gap: 8px;
+        display: none !important;
       }
 
       .player-settings-panel {
         position: absolute;
-        right: 14px;
-        bottom: clamp(88px, 14vh, 132px);
+        right: 48px;
+        bottom: 58px;
         z-index: 9;
         display: grid;
-        grid-template-columns: repeat(2, minmax(160px, 1fr));
-        gap: 10px;
-        width: min(460px, calc(100% - 28px));
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+        width: min(280px, calc(100% - 28px));
+        max-height: min(360px, 52vh);
+        overflow: auto;
         padding: 10px;
         border: 1px solid rgba(255, 255, 255, 0.22);
         border-radius: 14px;
@@ -558,10 +556,8 @@
       }
 
       .player-settings-panel .player-check-row {
-        grid-column: 1 / -1;
-        display: flex;
-        align-items: center;
-        gap: 18px;
+        display: grid;
+        gap: 8px;
         padding: 2px 4px 0;
       }
 
@@ -867,14 +863,6 @@
           font-size: 22px;
         }
 
-        .player-actions {
-          width: 100%;
-        }
-
-        .player-settings-panel {
-          grid-template-columns: 1fr 1fr;
-        }
-
         .custom-video-controls {
           left: 0;
           right: 0;
@@ -895,16 +883,11 @@
         }
 
         .player-settings-panel {
-          left: 8px;
-          right: 8px;
-          bottom: 104px;
-          width: auto;
-          grid-template-columns: 1fr 1fr;
-        }
-
-        .player-actions .btn,
-        .player-actions .icon-btn {
-          flex: 1;
+          left: auto;
+          right: 38px;
+          bottom: 54px;
+          width: min(270px, calc(100% - 46px));
+          grid-template-columns: 1fr;
         }
 
         .video-player {
@@ -948,7 +931,8 @@
         }
 
         .player-settings-panel {
-          grid-template-columns: 1fr;
+          right: 8px;
+          width: min(260px, calc(100% - 16px));
         }
       }
     </style>
