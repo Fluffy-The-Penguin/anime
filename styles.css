@@ -26,13 +26,13 @@
   color-scheme: light;
   --bg: color-mix(in srgb, var(--theme-primary) 8%, #f8fbff);
   --bg-2: color-mix(in srgb, var(--theme-secondary) 10%, #eef4ff);
-  --panel: rgba(255, 255, 255, 0.9);
+  --panel: rgba(255, 255, 255, 0.96);
   --solid: #ffffff;
-  --soft: rgba(12, 22, 44, 0.1);
-  --line: rgba(18, 28, 52, 0.2);
-  --text: #101727;
-  --muted: #62708a;
-  --shadow: 0 18px 50px rgba(42, 55, 90, 0.16);
+  --soft: rgba(15, 28, 55, 0.14);
+  --line: rgba(18, 28, 52, 0.28);
+  --text: #0b1220;
+  --muted: #40516d;
+  --shadow: 0 18px 50px rgba(42, 55, 90, 0.2);
   --poster-shadow: rgba(37, 52, 85, 0.2);
 }
 
@@ -4465,6 +4465,62 @@ body[data-page="reader"] .reader-top-button {
 :root[data-theme="light"] .library-item,
 :root[data-theme="light"] .detail-chapter-row,
 :root[data-theme="light"] .detail-list-filter,
+:root[data-theme="light"] .manga-sources-card,
+:root[data-theme="light"] .source-item,
+:root[data-theme="light"] .episode-item,
+:root[data-theme="light"] .reader-source-bar,
+:root[data-theme="light"] .reader-control-bar {
+  border-color: rgba(18, 28, 52, 0.26);
+  background: rgba(255, 255, 255, 0.94);
+  color: #0b1220;
+  box-shadow: 0 10px 30px rgba(42, 55, 90, 0.12);
+}
+
+:root[data-theme="light"] .panel,
+:root[data-theme="light"] .details-panel,
+:root[data-theme="light"] .search-box,
+:root[data-theme="light"] .library-group,
+:root[data-theme="light"] .episode-card,
 :root[data-theme="light"] .manga-sources-card {
-  background: color-mix(in srgb, #fff 82%, var(--soft));
+  border-color: rgba(18, 28, 52, 0.24);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+:root[data-theme="light"] .card-body p,
+:root[data-theme="light"] .browse-meta,
+:root[data-theme="light"] .detail-chapter-row small,
+:root[data-theme="light"] .source-info p,
+:root[data-theme="light"] .episode-air-date,
+:root[data-theme="light"] .source-note,
+:root[data-theme="light"] .extensions-summary,
+:root[data-theme="light"] .loading-state,
+:root[data-theme="light"] .muted,
+:root[data-theme="light"] .empty {
+  color: #40516d;
+}
+
+:root[data-theme="light"] .library-item h3,
+:root[data-theme="light"] .search-result h3,
+:root[data-theme="light"] .update-item h3,
+:root[data-theme="light"] .ranking-item h3,
+:root[data-theme="light"] .source-info h4,
+:root[data-theme="light"] .episode-title,
+:root[data-theme="light"] .detail-chapter-row span,
+:root[data-theme="light"] .detail-chapter-text strong {
+  color: #0b1220;
+}
+
+:root[data-theme="light"] input,
+:root[data-theme="light"] select,
+:root[data-theme="light"] textarea,
+:root[data-theme="light"] .browse-toolbar input,
+:root[data-theme="light"] .browse-toolbar select,
+:root[data-theme="light"] .genre-toggle,
+:root[data-theme="light"] .genre-menu,
+:root[data-theme="light"] .detail-source-search,
+:root[data-theme="light"] .detail-source-search input,
+:root[data-theme="light"] .detail-source-picker select {
+  border-color: rgba(18, 28, 52, 0.26);
+  background: #ffffff;
+  color: #0b1220;
 }
