@@ -1,11 +1,20 @@
 const DEFAULT_BACKEND_URL = "http://fi10.bot-hosting.net:21204";
 const { getWeebCentralPages } = require("../../lib/weebcentral");
+const { getProjectSukiPages } = require("../../lib/projectsuki");
 
 module.exports = async function handler(req, res) {
   const chapterId = String(req.query.chapterId || "");
   if (chapterId.startsWith("weebcentral:")) {
     try {
       res.status(200).json({ pages: await getWeebCentralPages(chapterId.slice(12)) });
+      return;
+    } catch (error) {
+      // Fall back to the backend proxy below.
+    }
+  }
+  if (chapterId.startsWith("projectsuki:")) {
+    try {
+      res.status(200).json({ pages: await getProjectSukiPages(chapterId.slice(12)) });
       return;
     } catch (error) {
       // Fall back to the backend proxy below.

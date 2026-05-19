@@ -1,11 +1,20 @@
 const DEFAULT_BACKEND_URL = "http://fi10.bot-hosting.net:21204";
 const { getWeebCentralChapters } = require("../../lib/weebcentral");
+const { getProjectSukiChapters } = require("../../lib/projectsuki");
 
 module.exports = async function handler(req, res) {
   const mangaId = String(req.query.mangaId || "");
   if (mangaId.startsWith("weebcentral:")) {
     try {
       res.status(200).json(await getWeebCentralChapters(mangaId.slice(12)));
+      return;
+    } catch (error) {
+      // Fall back to the backend proxy below.
+    }
+  }
+  if (mangaId.startsWith("projectsuki:")) {
+    try {
+      res.status(200).json(await getProjectSukiChapters(mangaId.slice(12)));
       return;
     } catch (error) {
       // Fall back to the backend proxy below.
