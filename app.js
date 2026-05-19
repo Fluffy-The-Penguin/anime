@@ -35,7 +35,6 @@ const MANGA_SOURCES = [
   { id: "toonily", name: "Toonily", description: "Large manhwa catalog; availability may depend on upstream anti-bot checks." },
 ];
 const DOUJIN_SOURCES = [
-  { id: "hentaizap", name: "HentaiZap" },
   { id: "hentaifox", name: "HentaiFox" },
   { id: "3hentai", name: "3Hentai" },
   { id: "hentaiera", name: "HentaiEra" },
