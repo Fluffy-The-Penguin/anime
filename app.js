@@ -35,7 +35,6 @@ const MANGA_SOURCES = [
   { id: "toonily", name: "Toonily", description: "Large manhwa catalog; availability may depend on upstream anti-bot checks." },
 ];
 const DOUJIN_SOURCES = [
-  { id: "hentainame", name: "Hentai.name" },
   { id: "hentaizap", name: "HentaiZap" },
   { id: "hentaifox", name: "HentaiFox" },
 ];
@@ -429,22 +428,21 @@ async function loadDoujinSearch() {
   const query = doujinSearchQuery();
   if (!query) {
     if (heading) heading.textContent = "English Doujinshi";
-    if (status) status.textContent = "Search a title or choose tags like cheating, ntr, milf, or vanilla.";
-    renderEmpty(grid, "Search or select tags to find English doujinshi.");
-    return;
+    if (status) status.textContent = "Loading latest English doujinshi...";
   }
 
   const token = ++state.doujinToken;
-  if (heading) heading.textContent = `English doujinshi for "${query}"`;
-  if (status) status.textContent = "Searching English-only sources...";
+  if (query && heading) heading.textContent = `English doujinshi for "${query}"`;
+  if (query && status) status.textContent = "Searching English-only sources...";
   setLoading(grid, 12);
 
   try {
     const providers = doujinProviderIds();
-    const results = await fetchApiJson(`/api/manga/search?title=${encodeURIComponent(query)}&providers=${encodeURIComponent(providers.join(","))}`);
+    const queryParam = query ? `title=${encodeURIComponent(query)}&` : "latest=1&";
+    const results = await fetchApiJson(`/api/manga/search?${queryParam}providers=${encodeURIComponent(providers.join(","))}`);
     if (token !== state.doujinToken) return;
     const items = bestDoujinResults(results, providers);
-    if (status) status.textContent = `${items.length} English result${items.length === 1 ? "" : "s"} from ${providers.length} sources`;
+    if (status) status.textContent = `${items.length} ${query ? "English result" : "latest English doujinshi"}${items.length === 1 ? "" : "s"} from ${providers.length} sources`;
     renderDoujinCards(grid, items);
   } catch (error) {
     if (token !== state.doujinToken) return;
@@ -1800,7 +1798,7 @@ function renderDetails(root, item, isTemporary = false) {
           <span data-detail-source-search-status></span>
         </form>
         <div class="detail-list-filter">All ⌕ <span>|</span> ${escapeHtml(active.title)}</div>
-        <div class="chapter-list detail-chapter-list" data-detail-chapter-list>${chapters.map((chapter, index) => `<button type="button" class="chapter-row detail-chapter-row"><img src="${escapeAttr(chapter.image || active.image || fallbackImage)}" alt="${escapeAttr(chapter.title)} thumbnail" loading="lazy"><span>${index + 1}. ${escapeHtml(chapter.title)}</span><small>${escapeHtml(chapter.time)}</small></button>`).join("")}</div>
+        <div class="detail-chapter-list detail-manga-card-grid" data-detail-chapter-list>${chapters.map((chapter, index) => detailMangaChapterCardHtml(chapter, active, index)).join("")}</div>
       </section>` : ""}
     </section>
   `;
@@ -2438,14 +2436,11 @@ function renderMangaDetailChapterList(container, manga, source, pageNumber = 1) 
   const currentPage = Math.min(Math.max(1, pageNumber), totalPages);
   const pageChapters = chapters.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  container.classList.add("detail-manga-card-grid");
   container.innerHTML = `
     ${pageChapters.map((chapter) => `
-    <button type="button" class="chapter-row detail-chapter-row detail-manga-chapter-row" data-detail-read-chapter data-chapter-data="${escapeAttr(JSON.stringify(chapter))}">
-      <div class="detail-chapter-text">
-        <strong>Ch ${escapeHtml(chapter.number || "?")}</strong>
-        <span>${escapeHtml(chapter.title || `Chapter ${chapter.number}`)}</span>
-      </div>
-      <small>${escapeHtml(chapter.date || "Date TBA")}</small>
+    <button type="button" class="detail-manga-chapter-card" data-detail-read-chapter data-chapter-data="${escapeAttr(JSON.stringify(chapter))}">
+      ${detailMangaChapterCardInnerHtml(chapter, manga)}
     </button>
     `).join("")}
     ${totalPages > 1 ? `
@@ -2476,6 +2471,22 @@ function renderMangaDetailChapterList(container, manga, source, pageNumber = 1) 
 
   container.querySelector("[data-detail-chapter-prev]")?.addEventListener("click", () => renderMangaDetailChapterList(container, manga, source, currentPage - 1));
   container.querySelector("[data-detail-chapter-next]")?.addEventListener("click", () => renderMangaDetailChapterList(container, manga, source, currentPage + 1));
+}
+
+function detailMangaChapterCardHtml(chapter, manga, index = 0) {
+  return `<button type="button" class="detail-manga-chapter-card">${detailMangaChapterCardInnerHtml({ ...chapter, number: chapter.number || index + 1 }, manga)}</button>`;
+}
+
+function detailMangaChapterCardInnerHtml(chapter, manga) {
+  const number = chapter.number || "?";
+  const title = chapter.title || `Chapter ${number}`;
+  const image = chapter.image || manga.image || manga.banner || fallbackImage;
+  return `
+    <img src="${escapeAttr(image)}" alt="${escapeAttr(title)} thumbnail" loading="lazy">
+    <span class="detail-manga-chapter-chip">Ch ${escapeHtml(number)}</span>
+    <strong>${escapeHtml(title)}</strong>
+    <small>${escapeHtml(chapter.date || chapter.time || "Date TBA")}</small>
+  `;
 }
 
 function compareChaptersDesc(a, b) {
