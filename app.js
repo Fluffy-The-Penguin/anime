@@ -39,7 +39,6 @@ const DOUJIN_SOURCES = [
   { id: "hentaifox", name: "HentaiFox" },
   { id: "3hentai", name: "3Hentai" },
   { id: "hentaiera", name: "HentaiEra" },
-  { id: "hentaicity", name: "HentaiCity" },
 ];
 const DOUJIN_TAGS = ["cheating", "ntr", "milf", "netorare", "teacher", "mind break", "vanilla", "big breasts", "cosplay", "incest", "schoolgirl", "ahegao"];
 const fallbackImage = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80";
