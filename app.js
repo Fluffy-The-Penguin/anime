@@ -1505,7 +1505,6 @@ function renderDetails(root, item, isTemporary = false) {
   const chapters = active.type === "manga" ? buildChapterRows(active) : [];
   const countLabel = active.total ? `${active.total} ${active.type === "anime" ? "episodes" : "chapters"}` : active.type === "anime" ? "Episodes TBA" : "Chapters TBA";
   const audience = (active.extra || []).find((value) => /popular|members/i.test(value)) || "Library ready";
-  const actionLabel = tracked ? "Update Library" : "Add to Library";
   const backdrop = active.banner || "";
   state.current = active;
   document.title = `AniTrack | ${active.title}`;
@@ -1535,29 +1534,34 @@ function renderDetails(root, item, isTemporary = false) {
           </div>
           <div class="detail-genre-line">${(active.genres || []).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
           <div class="detail-description"><p>${escapeHtml(active.description)}</p></div>
-          <section class="detail-tracker-card" aria-label="Library controls">
-            <div class="detail-tracker-head">
-              <div>
-                <span class="detail-source">Library</span>
-                <strong>${tracked ? "Saved to your library" : "Not in your library yet"}</strong>
+          <section class="detail-library-inline" aria-label="Library controls">
+            ${active.type === "anime" ? `<button class="btn" data-watch-button type="button" style="background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a;">▶ Watch Now</button>` : ""}
+            ${active.type === "manga" ? `<button class="btn" data-read-button type="button" style="background: linear-gradient(135deg, var(--mint), var(--blue)); color: #06101a;">Read Now</button>` : ""}
+            <div class="detail-library-popover-wrap">
+              <button class="btn detail-library-toggle" data-library-editor-toggle type="button" aria-expanded="false">${tracked ? "Edit Library" : "Add to Library"}</button>
+              <div class="detail-library-popover" data-library-editor hidden>
+                <div class="detail-tracker-head">
+                  <div>
+                    <span class="detail-source">Library</span>
+                    <strong>${tracked ? "Saved to your library" : "Add tracking details"}</strong>
+                  </div>
+                  <div class="detail-progress-ring"><span>${progressPercent}%</span></div>
+                </div>
+                <div class="detail-track-grid">
+                  <label>Status <select data-track-status>${statusOptions(active.type)}</select></label>
+                  <label>Progress <div class="detail-progress-control"><button data-minus-progress type="button">−</button><input data-track-progress type="number" min="0" ${total ? `max="${escapeAttr(total)}"` : ""} step="1" value="${Number(active.progress || 0)}" aria-label="Progress"><span>/ ${escapeHtml(total || "?")}</span><button data-plus-progress type="button">+</button></div></label>
+                  <label>Rating <input data-track-rating class="detail-rating" type="number" min="0" max="10" step="0.5" value="${escapeAttr(active.rating ?? "")}" placeholder="0-10" aria-label="Rating out of 10"></label>
+                </div>
+                <textarea data-track-notes class="detail-notes" placeholder="Private notes...">${escapeHtml(active.notes || "")}</textarea>
+                <div class="details-progress-card detail-progress-card">
+                  <div><span class="muted">Your progress</span><strong>${progress}${total ? ` / ${total}` : ""} ${escapeHtml(active.unit)}</strong></div>
+                  <div class="progress-bar"><span style="width:${progressPercent}%"></span></div>
+                </div>
+                <div class="detail-primary-actions">
+                  <button class="btn detail-save" data-save-track type="button">Confirm</button>
+                  <button class="detail-remove" data-remove-track type="button" ${tracked ? "" : "hidden"}>Remove</button>
+                </div>
               </div>
-              <div class="detail-progress-ring"><span>${progressPercent}%</span></div>
-            </div>
-            <div class="detail-primary-actions">
-              ${active.type === "anime" ? `<button class="btn" data-watch-button type="button" style="background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a;">▶ Watch Now</button>` : ""}
-              ${active.type === "manga" ? `<button class="btn" data-read-button type="button" style="background: linear-gradient(135deg, var(--mint), var(--blue)); color: #06101a;">Read Now</button>` : ""}
-              <button class="btn detail-save" data-save-track type="button">${actionLabel}</button>
-              <button class="detail-remove" data-remove-track type="button" ${tracked ? "" : "hidden"}>Remove</button>
-            </div>
-            <div class="detail-track-grid">
-              <label>Status <select data-track-status>${statusOptions(active.type)}</select></label>
-              <label>Progress <div class="detail-progress-control"><button data-minus-progress type="button">−</button><input data-track-progress type="number" min="0" ${total ? `max="${escapeAttr(total)}"` : ""} step="1" value="${Number(active.progress || 0)}" aria-label="Progress"><span>/ ${escapeHtml(total || "?")}</span><button data-plus-progress type="button">+</button></div></label>
-              <label>Rating <input data-track-rating class="detail-rating" type="number" min="0" max="10" step="0.5" value="${escapeAttr(active.rating ?? "")}" placeholder="0-10" aria-label="Rating out of 10"></label>
-            </div>
-            <textarea data-track-notes class="detail-notes" placeholder="Private notes...">${escapeHtml(active.notes || "")}</textarea>
-            <div class="details-progress-card detail-progress-card">
-              <div><span class="muted">Your progress</span><strong>${progress}${total ? ` / ${total}` : ""} ${escapeHtml(active.unit)}</strong></div>
-              <div class="progress-bar"><span style="width:${progressPercent}%"></span></div>
             </div>
           </section>
         </main>
@@ -1593,6 +1597,13 @@ function renderDetails(root, item, isTemporary = false) {
   `;
 
   root.querySelector("[data-track-status]").value = active.status || (active.type === "anime" ? "watching" : "reading");
+  const editorToggle = root.querySelector("[data-library-editor-toggle]");
+  const editorPanel = root.querySelector("[data-library-editor]");
+  editorToggle?.addEventListener("click", () => {
+    const isHidden = editorPanel.hidden;
+    editorPanel.hidden = !isHidden;
+    editorToggle.setAttribute("aria-expanded", String(isHidden));
+  });
   root.querySelector("[data-save-track]").addEventListener("click", () => saveCurrent());
   root.querySelector("[data-watch-button]")?.addEventListener("click", () => {
     const selectedEpisode = root.querySelector("[data-detail-watch-episode]");

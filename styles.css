@@ -4319,6 +4319,70 @@ body[data-page="reader"] .reader-top-button {
   grid-template-columns: 34px minmax(52px, 1fr) auto 34px;
 }
 
+.detail-library-inline {
+  position: relative;
+  z-index: 12;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 24px;
+}
+
+.detail-library-popover-wrap {
+  position: relative;
+}
+
+.detail-library-toggle[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--theme-primary) 55%, transparent);
+  box-shadow: 0 0 0 3px rgba(var(--theme-primary-rgb), 0.16);
+}
+
+.detail-library-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 40;
+  display: grid;
+  gap: 10px;
+  width: min(620px, calc(100vw - 36px));
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--theme-primary) 22%, var(--line));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--solid) 92%, #000 8%);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.48);
+}
+
+.detail-library-popover[hidden] {
+  display: none !important;
+}
+
+.detail-library-popover .detail-progress-card {
+  max-width: none;
+  margin-top: 0;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--soft) 76%, transparent);
+}
+
+.detail-library-popover .detail-notes {
+  width: 100%;
+  min-height: 54px;
+  margin-top: 0;
+}
+
+.detail-library-popover .detail-rating {
+  width: 100%;
+}
+
+.detail-library-popover .detail-progress-control {
+  grid-template-columns: 34px minmax(52px, 1fr) auto 34px;
+}
+
+:root[data-theme="light"] .detail-library-popover {
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 28px 80px rgba(42, 55, 90, 0.22);
+}
+
 @media (max-width: 900px) {
   .detail-track-grid {
     grid-template-columns: 1fr;
@@ -4372,6 +4436,12 @@ body[data-page="reader"] .reader-top-button {
   .detail-tracker-card {
     padding: 13px;
     border-radius: 16px;
+  }
+
+  .detail-library-popover {
+    right: auto;
+    left: 0;
+    width: calc(100vw - 28px);
   }
 
   .detail-primary-actions .btn,
