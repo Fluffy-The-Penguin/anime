@@ -5,6 +5,7 @@ const ANILIST_URL = "https://graphql.anilist.co";
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const ANIMEDEX_BASE_URL = "https://animedex.pp.ua";
 const ANIZONE_BASE_URL = "https://anizone.to";
+const ANILIBRIA_BASE_URL = "https://anilibria.top";
 const TOKYOINSIDER_BASE_URL = "https://www.tokyoinsider.com";
 const REQUEST_TIMEOUT_MS = 15000;
 
@@ -65,6 +66,22 @@ async function handleAnimeRoute(req, res, backendUrl) {
     }
     if (route === "anizone/proxy") {
       await proxyAniZoneMedia(req, res, backendUrl);
+      return;
+    }
+    if (route === "anilibria/search") {
+      res.json(await searchAniLibria(cleanQuery(req.query.title)));
+      return;
+    }
+    if (route === "anilibria/episodes") {
+      res.json(await getAniLibriaEpisodes(cleanQuery(req.query.animeId)));
+      return;
+    }
+    if (route === "anilibria/streams") {
+      res.json(await getAniLibriaStreams(cleanQuery(req.query.releaseId || req.query.animeId), cleanQuery(req.query.episodeId || req.query.id)));
+      return;
+    }
+    if (route === "anilibria/proxy") {
+      await proxyAniLibriaMedia(req, res);
       return;
     }
     if (route === "tokyoinsider/search") {
@@ -455,6 +472,124 @@ function isAllowedAniZoneMediaUrl(url) {
   try {
     const parsed = new URL(url);
     return parsed.protocol === "https:" && (parsed.hostname.endsWith(".xin-cdn.xyz") || parsed.hostname.endsWith(".vid-cdn.xyz"));
+  } catch (error) {
+    return false;
+  }
+}
+
+async function searchAniLibria(title) {
+  if (!title) return [];
+  const data = await fetchJson(`${ANILIBRIA_BASE_URL}/api/v1/app/search/releases?query=${encodeURIComponent(title)}&limit=20`);
+  return asArray(data).map((item) => {
+    const mainTitle = item?.name?.english || item?.name?.main || item?.name?.alternative || "";
+    const nativeTitle = item?.name?.main || "";
+    const image = item?.poster?.optimized?.src || item?.poster?.src || item?.poster?.preview || item?.poster?.thumbnail || "";
+    return {
+      provider: "anilibria",
+      id: String(item.id || ""),
+      title: mainTitle,
+      nativeTitle,
+      url: `${ANILIBRIA_BASE_URL}/anime/releases/${item.alias || item.id}`,
+      image: absolutizeUrl(image, ANILIBRIA_BASE_URL),
+      year: item.year || "",
+      episodeCount: Number(item.episodes_total || 0),
+      score: Math.max(titleScore(title, mainTitle), titleScore(title, nativeTitle)),
+    };
+  }).filter((item) => item.id && item.title && item.score >= 0.2).sort((a, b) => b.score - a.score).slice(0, 20);
+}
+
+async function getAniLibriaEpisodes(releaseId) {
+  const release = await getAniLibriaRelease(releaseId);
+  const releaseNumber = String(release?.id || releaseId || "");
+  return asArray(release?.episodes).filter((episode) => episode?.id && (episode.hls_480 || episode.hls_720 || episode.hls_1080)).map((episode, index) => {
+    const number = Number(episode.ordinal || episode.sort_order || index + 1);
+    return {
+      id: episode.id,
+      provider: "anilibria",
+      number,
+      title: cleanHtml(episode.name_english || episode.name) || `Episode ${number || index + 1}`,
+      date: "AniLibria RU HLS",
+      url: `${ANILIBRIA_BASE_URL}/anime/releases/${releaseNumber}?episode=${encodeURIComponent(episode.id)}`,
+      image: absolutizeUrl(episode.preview?.optimized?.src || episode.preview?.src || release?.poster?.optimized?.src || release?.poster?.src || "", ANILIBRIA_BASE_URL),
+      description: "AniLibria Russian/fansub HLS episode.",
+    };
+  }).sort((a, b) => Number(a.number) - Number(b.number));
+}
+
+async function getAniLibriaStreams(releaseId, episodeId) {
+  const release = await getAniLibriaRelease(releaseId);
+  const episode = asArray(release?.episodes).find((item) => String(item.id) === String(episodeId) || String(item.ordinal) === String(episodeId) || String(item.sort_order) === String(episodeId));
+  if (!episode) return { provider: "anilibria", sources: [], tracks: [] };
+  const sources = [
+    ["1080p", episode.hls_1080],
+    ["720p", episode.hls_720],
+    ["480p", episode.hls_480],
+  ].filter(([, url]) => url).map(([quality, url]) => ({
+    name: `AniLibria ${quality}`,
+    quality,
+    type: "application/vnd.apple.mpegurl",
+    url: proxyAniLibriaUrl(url),
+    isHLS: true,
+    tracks: [],
+  }));
+  return { provider: "anilibria", sources, tracks: [] };
+}
+
+async function getAniLibriaRelease(releaseId) {
+  const id = String(releaseId || "").replace(/^anilibria:/, "").replace(/[^0-9]/g, "");
+  if (!id) return null;
+  return fetchJson(`${ANILIBRIA_BASE_URL}/api/v1/anime/releases/${encodeURIComponent(id)}`);
+}
+
+async function proxyAniLibriaMedia(req, res) {
+  const target = validateHttpUrl(req.query.url);
+  if (!target || !isAllowedAniLibriaMediaUrl(target)) {
+    res.status(400).json({ error: "valid AniLibria media url is required" });
+    return;
+  }
+  const response = await fetchWithTimeout(target, { headers: aniLibriaMediaHeaders(req) });
+  if (!response.ok) {
+    res.status(response.status).send(await response.text().catch(() => response.statusText));
+    return;
+  }
+  const contentType = response.headers.get("content-type") || contentTypeForUrl(target);
+  res.status(response.status);
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Content-Type", contentType.includes("mpegURL") ? "application/vnd.apple.mpegurl" : contentType);
+  ["content-length", "content-range", "accept-ranges", "cache-control"].forEach((header) => {
+    const value = response.headers.get(header);
+    if (value) res.setHeader(header, value);
+  });
+  if (target.includes(".m3u8") || contentType.toLowerCase().includes("mpegurl")) {
+    const text = await response.text();
+    res.send(rewriteM3u8(text, target, proxyAniLibriaUrl));
+    return;
+  }
+  if (!response.body) {
+    res.end();
+    return;
+  }
+  Readable.fromWeb(response.body).pipe(res);
+}
+
+function aniLibriaMediaHeaders(req) {
+  return {
+    Accept: "*/*",
+    Referer: `${ANILIBRIA_BASE_URL}/`,
+    Origin: ANILIBRIA_BASE_URL,
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 AniTrack/1.0",
+    ...(req.headers.range ? { Range: req.headers.range } : {}),
+  };
+}
+
+function proxyAniLibriaUrl(url) {
+  return `/api/anime/anilibria/proxy?url=${encodeURIComponent(url)}`;
+}
+
+function isAllowedAniLibriaMediaUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === "cache.libria.fun" && /\.(?:m3u8|ts)$/i.test(parsed.pathname);
   } catch (error) {
     return false;
   }
