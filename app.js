@@ -37,6 +37,9 @@ const MANGA_SOURCES = [
 const DOUJIN_SOURCES = [
   { id: "hentaizap", name: "HentaiZap" },
   { id: "hentaifox", name: "HentaiFox" },
+  { id: "3hentai", name: "3Hentai" },
+  { id: "hentaiera", name: "HentaiEra" },
+  { id: "hentaicity", name: "HentaiCity" },
 ];
 const DOUJIN_TAGS = ["cheating", "ntr", "milf", "netorare", "teacher", "mind break", "vanilla", "big breasts", "cosplay", "incest", "schoolgirl", "ahegao"];
 const fallbackImage = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80";
@@ -3105,8 +3108,9 @@ function shouldUseSameOriginMangaApi(path) {
     if (!url.pathname.startsWith("/api/manga/")) return false;
     const providers = (url.searchParams.get("providers") || "").split(",");
     const chapterId = url.searchParams.get("chapterId") || "";
-    return providers.some((provider) => ["hentaizap", "hentaifox"].includes(provider))
-      || ["hentaizap:", "hentaifox:"].some((prefix) => chapterId.startsWith(prefix));
+    const doujinProviders = DOUJIN_SOURCES.map((source) => source.id);
+    return providers.some((provider) => doujinProviders.includes(provider))
+      || doujinProviders.some((provider) => chapterId.startsWith(`${provider}:`));
   } catch (error) {
     return false;
   }
@@ -5148,7 +5152,7 @@ function bestMangaSourceMatches(matches, titles, providers) {
 }
 
 function isAdultMangaProvider(provider) {
-  return ["pornhwaz", "hentai20", "pornhwapro", "hentai18", "hentainame", "hentaizap", "hentaifox"].includes(provider);
+  return ["pornhwaz", "hentai20", "pornhwapro", "hentai18", "hentainame", "hentaizap", "hentaifox", "3hentai", "hentaiera", "hentaicity"].includes(provider);
 }
 
 function sourceTitleScore(titles, candidate) {
@@ -5258,7 +5262,7 @@ function mangaSourceCustomQueryKey(manga) {
 }
 
 function providerLabel(provider) {
-  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", projectsuki: "Project Suki", manhwaz: "ManhwaZ", pornhwaz: "PornhwaZ", hentai20: "Hentai20", pornhwapro: "Pornhwa Pro", hentai18: "Hentai18", hentainame: "Hentai.name", hentaizap: "HentaiZap", hentaifox: "HentaiFox", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider" }[provider] || provider || "Source");
+  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", projectsuki: "Project Suki", manhwaz: "ManhwaZ", pornhwaz: "PornhwaZ", hentai20: "Hentai20", pornhwapro: "Pornhwa Pro", hentai18: "Hentai18", hentainame: "Hentai.name", hentaizap: "HentaiZap", hentaifox: "HentaiFox", "3hentai": "3Hentai", hentaiera: "HentaiEra", hentaicity: "HentaiCity", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider" }[provider] || provider || "Source");
 }
 
 function animeSourceLabel(source) {
@@ -5408,7 +5412,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
     </div>
   `;
 
-  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral" || chapter.provider === "flamecomics" || chapter.provider === "rizzcomic" || chapter.provider === "projectsuki" || chapter.provider === "manhwaz" || chapter.provider === "pornhwaz" || chapter.provider === "hentai20" || chapter.provider === "pornhwapro" || chapter.provider === "hentai18" || chapter.provider === "hentainame" || chapter.provider === "hentaizap" || chapter.provider === "hentaifox" || chapter.provider === "toonily") && chapter.id) {
+  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral" || chapter.provider === "flamecomics" || chapter.provider === "rizzcomic" || chapter.provider === "projectsuki" || chapter.provider === "manhwaz" || chapter.provider === "pornhwaz" || chapter.provider === "hentai20" || chapter.provider === "pornhwapro" || chapter.provider === "hentai18" || chapter.provider === "hentainame" || chapter.provider === "hentaizap" || chapter.provider === "hentaifox" || chapter.provider === "3hentai" || chapter.provider === "hentaiera" || chapter.provider === "hentaicity" || chapter.provider === "toonily") && chapter.id) {
     try {
       const data = await fetchMangaPagesCached(chapter.id);
       if (data.pages?.length) {
