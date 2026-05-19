@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
   const shouldTryWeebCentral = req.query.title && (!providers.length || providers.includes("weebcentral")) && !results.some((item) => item.provider === "weebcentral");
   const shouldTryProjectSuki = req.query.title && (!providers.length || providers.includes("projectsuki")) && !results.some((item) => item.provider === "projectsuki");
   const shouldTryManhwaZ = req.query.title && (!providers.length || providers.includes("manhwaz")) && !results.some((item) => item.provider === "manhwaz");
-  const adultProviders = ADULT_MANGA_PROVIDERS.filter((provider) => req.query.title && (!providers.length || providers.includes(provider)) && !results.some((item) => item.provider === provider));
+  const adultProviders = ADULT_MANGA_PROVIDERS.filter((provider) => req.query.title && (!providers.length || providers.includes(provider)) && !hasStrongAdultMatch(results, provider));
 
   const title = String(req.query.title || "").trim();
   const [weebCentralResults, projectSukiResults, manhwaZResults, ...adultResults] = await Promise.allSettled([
@@ -42,4 +42,8 @@ async function fetchBackendJson(target) {
   } catch (error) {
     return [];
   }
+}
+
+function hasStrongAdultMatch(results, provider) {
+  return results.some((item) => item.provider === provider && Number(item.score || 0) >= 0.45);
 }
