@@ -2,12 +2,12 @@
   color-scheme: dark;
   --bg: #030303;
   --bg-2: #0b0b0c;
-  --panel: rgba(16, 16, 18, 0.86);
-  --solid: #111113;
-  --soft: rgba(255, 255, 255, 0.07);
-  --line: rgba(255, 255, 255, 0.12);
+  --panel: rgba(18, 19, 23, 0.92);
+  --solid: #121318;
+  --soft: rgba(255, 255, 255, 0.12);
+  --line: rgba(255, 255, 255, 0.2);
   --text: #f7f8ff;
-  --muted: #a7a7ad;
+  --muted: #c2c6d1;
   --pink: #ff4fc3;
   --blue: #48dbfb;
   --theme-primary: var(--blue);
@@ -26,10 +26,10 @@
   color-scheme: light;
   --bg: color-mix(in srgb, var(--theme-primary) 8%, #f8fbff);
   --bg-2: color-mix(in srgb, var(--theme-secondary) 10%, #eef4ff);
-  --panel: rgba(255, 255, 255, 0.82);
+  --panel: rgba(255, 255, 255, 0.9);
   --solid: #ffffff;
-  --soft: rgba(12, 22, 44, 0.06);
-  --line: rgba(18, 28, 52, 0.12);
+  --soft: rgba(12, 22, 44, 0.1);
+  --line: rgba(18, 28, 52, 0.2);
   --text: #101727;
   --muted: #62708a;
   --shadow: 0 18px 50px rgba(42, 55, 90, 0.16);
@@ -137,13 +137,13 @@ h2 { margin: 7px 0 0; font-size: clamp(28px, 4vw, 48px); }
 p, .muted, .empty { color: var(--muted); line-height: 1.7; }
 
 .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
-input, select, textarea { width: 100%; border: 1px solid transparent; outline: 0; border-radius: 13px; color: var(--text); background: color-mix(in srgb, var(--solid) 72%, transparent); }
+input, select, textarea { width: 100%; border: 1px solid var(--line); outline: 0; border-radius: 13px; color: var(--text); background: color-mix(in srgb, var(--solid) 84%, var(--soft)); }
 input, select { min-height: 46px; padding: 0 13px; }
 textarea { min-height: 86px; padding: 12px; resize: vertical; }
-input:focus, select:focus, textarea:focus { border-color: color-mix(in srgb, var(--blue) 70%, transparent); }
+input:focus, select:focus, textarea:focus { border-color: color-mix(in srgb, var(--blue) 80%, var(--line)); box-shadow: 0 0 0 3px rgba(var(--theme-primary-rgb), 0.18); }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; border: 1px solid color-mix(in srgb, var(--theme-on-primary) 18%, transparent); border-radius: 13px; padding: 0 14px; color: var(--theme-on-primary); background: linear-gradient(135deg, var(--blue), var(--pink)); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16); font-weight: 900; }
-.btn.secondary { color: var(--text); border: 1px solid var(--line); background: var(--soft); }
+.btn.secondary { color: var(--text); border: 1px solid color-mix(in srgb, var(--theme-primary) 18%, var(--line)); background: color-mix(in srgb, var(--soft) 78%, var(--solid)); }
 .btn.danger { color: white; background: var(--red); }
 
 .hero-card, .mini-stat { border: 1px solid var(--line); border-radius: 22px; padding: 18px; background: var(--soft); }
@@ -4145,4 +4145,93 @@ body[data-page="reader"] .reader-top-button {
   opacity: 1 !important;
   visibility: visible !important;
   pointer-events: auto !important;
+}
+
+/* Final contrast pass: keep surfaces visually separated in every theme. */
+.panel,
+.details-panel,
+.search-box,
+.library-group,
+.episode-card,
+.reader-source-bar,
+.reader-control-bar {
+  border-color: color-mix(in srgb, var(--theme-primary) 18%, var(--line));
+  background: color-mix(in srgb, var(--panel) 90%, var(--solid));
+}
+
+.card,
+.search-result,
+.update-item,
+.ranking-item,
+.library-item,
+.detail-chapter-row,
+.detail-list-filter,
+.manga-sources-card,
+.source-item,
+.episode-item {
+  border-color: color-mix(in srgb, var(--theme-primary) 12%, var(--line));
+  background: color-mix(in srgb, var(--soft) 82%, var(--solid));
+}
+
+.card {
+  border-width: 1px;
+  box-shadow: 0 18px 52px color-mix(in srgb, var(--poster-shadow) 80%, transparent), 0 0 0 1px color-mix(in srgb, var(--theme-primary) 8%, transparent);
+}
+
+.meta span,
+.chip,
+.tag,
+.library-count,
+.page-number,
+.pager-btn,
+.details-button,
+.search-action,
+.progress-pill {
+  border-color: color-mix(in srgb, var(--theme-primary) 16%, var(--line));
+  background: color-mix(in srgb, var(--soft) 88%, var(--solid));
+}
+
+.card-body p,
+.browse-meta,
+.detail-chapter-row small,
+.source-info p,
+.episode-air-date,
+.source-note,
+.extensions-summary,
+.loading-state,
+.muted,
+.empty {
+  color: var(--muted);
+}
+
+.browse-toolbar input,
+.browse-toolbar select,
+.genre-toggle,
+.genre-menu,
+.detail-source-search,
+.detail-source-search input,
+.detail-source-picker select {
+  border-color: color-mix(in srgb, var(--theme-primary) 16%, var(--line));
+  background: color-mix(in srgb, var(--solid) 86%, var(--soft));
+  color: var(--text);
+}
+
+.detail-source-search span,
+.detail-chapter-pagination span {
+  color: var(--muted);
+}
+
+.episode-item.watched {
+  opacity: 0.86;
+}
+
+:root[data-theme="light"] .card,
+:root[data-theme="light"] .search-result,
+:root[data-theme="light"] .update-item,
+:root[data-theme="light"] .ranking-item,
+:root[data-theme="light"] .library-item,
+:root[data-theme="light"] .detail-chapter-row,
+:root[data-theme="light"] .detail-list-filter,
+:root[data-theme="light"] .manga-sources-card {
+  background: color-mix(in srgb, #fff 82%, var(--soft));
 }

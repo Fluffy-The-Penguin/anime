@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=worker-backend-default" defer></script>
+    <script src="app.js?v=final-polish" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -130,7 +130,7 @@
         position: relative;
         width: 100%;
         aspect-ratio: 16 / 9;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.18);
         border-radius: 14px;
         background: #000;
         overflow: hidden;
@@ -213,9 +213,9 @@
         align-items: center;
         gap: 8px;
         padding: 6px 9px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.24);
         border-radius: 11px;
-        background: rgba(8, 12, 18, 0.68);
+        background: rgba(8, 12, 18, 0.86);
         backdrop-filter: blur(18px) saturate(130%);
         transition: opacity 160ms ease, transform 160ms ease;
       }
@@ -229,10 +229,10 @@
       .video-control-btn {
         width: 30px;
         min-height: 30px;
-        border: 0;
+        border: 1px solid rgba(255, 255, 255, 0.16);
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.1);
-        color: var(--text);
+        background: rgba(255, 255, 255, 0.14);
+        color: #f7f8ff;
         font-weight: 900;
         cursor: pointer;
       }
@@ -267,9 +267,9 @@
         width: 46px;
         height: 138px;
         padding: 12px 8px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.24);
         border-radius: 14px;
-        background: rgba(8, 12, 18, 0.82);
+        background: rgba(8, 12, 18, 0.92);
         box-shadow: 0 14px 44px rgba(0, 0, 0, 0.28);
         backdrop-filter: blur(18px) saturate(130%);
         transform: translateX(-50%);
@@ -315,7 +315,7 @@
         border: 1px solid rgba(255, 255, 255, 0.16);
         border-radius: 16px;
         color: rgba(255, 255, 255, 0.96);
-        background: rgba(8, 10, 14, 0.46);
+        background: rgba(8, 10, 14, 0.62);
         box-shadow: 0 14px 44px rgba(0, 0, 0, 0.28);
         backdrop-filter: blur(14px) saturate(130%);
         text-align: center;
@@ -355,9 +355,9 @@
         gap: 10px;
         align-items: center;
         padding: 9px 11px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 12px;
-        background: rgba(255, 255, 255, 0.045);
+        background: rgba(12, 16, 24, 0.82);
         backdrop-filter: blur(18px);
       }
 
@@ -441,9 +441,9 @@
         gap: 10px;
         width: min(460px, calc(100% - 28px));
         padding: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.22);
         border-radius: 14px;
-        background: rgba(8, 12, 18, 0.82);
+        background: rgba(8, 12, 18, 0.94);
         backdrop-filter: blur(18px) saturate(130%);
         transition: opacity 180ms ease, transform 180ms ease;
       }
@@ -505,7 +505,7 @@
       .episode-card {
         border-radius: 14px;
         padding: 14px;
-        background: rgba(255, 255, 255, 0.035);
+        background: rgba(12, 16, 24, 0.78);
       }
 
       .episode-meta {
@@ -574,13 +574,13 @@
         padding: 12px;
         border: 1px solid var(--line);
         border-radius: 12px;
-        background: color-mix(in srgb, var(--soft) 60%, transparent);
+        background: rgba(255, 255, 255, 0.1);
         transition: all 200ms ease;
       }
 
       .source-item:hover {
         border-color: color-mix(in srgb, var(--blue) 50%, var(--line));
-        background: color-mix(in srgb, var(--soft) 80%, transparent);
+        background: rgba(255, 255, 255, 0.15);
       }
 
       .source-info h4 {
@@ -614,10 +614,10 @@
         align-content: start;
         max-height: none;
         position: static;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.18);
         border-radius: 14px;
         padding: 12px;
-        background: rgba(255, 255, 255, 0.035);
+        background: rgba(12, 16, 24, 0.78);
       }
 
       .sidebar-head {
@@ -694,7 +694,7 @@
         padding: 12px;
         border: 1px solid var(--line);
         border-radius: 12px;
-        background: color-mix(in srgb, var(--soft) 50%, transparent);
+        background: rgba(255, 255, 255, 0.1);
         cursor: pointer;
         transition: all 200ms ease;
         text-align: left;
@@ -702,7 +702,7 @@
 
       .episode-item:hover {
         border-color: color-mix(in srgb, var(--blue) 50%, var(--line));
-        background: color-mix(in srgb, var(--soft) 70%, transparent);
+        background: rgba(255, 255, 255, 0.15);
       }
 
       .episode-item.active {
@@ -712,7 +712,7 @@
       }
 
       .episode-item.watched {
-        opacity: 0.6;
+        opacity: 0.86;
       }
 
       .episode-number {
