@@ -28,6 +28,10 @@ const MANGA_SOURCES = [
   { id: "rizzcomic", name: "Rizz Comic", description: "WordPress manga/manhwa source with fast chapter pages." },
   { id: "projectsuki", name: "Project Suki", description: "Public manga/manhwa source with direct reader page images." },
   { id: "manhwaz", name: "ManhwaZ", description: "Public manhwa/manhua source with direct CDN page images." },
+  { id: "pornhwaz", name: "PornhwaZ", description: "Adult manhwa source with direct CDN page images.", adult: true },
+  { id: "hentai20", name: "Hentai20", description: "Adult manga/manhwa source with direct chapter image pages.", adult: true },
+  { id: "pornhwapro", name: "Pornhwa Pro", description: "Adult manhwa source with direct CDN page images.", adult: true },
+  { id: "hentai18", name: "Hentai18", description: "Adult manga/manhwa source with direct chapter image pages.", adult: true },
   { id: "toonily", name: "Toonily", description: "Large manhwa catalog; availability may depend on upstream anti-bot checks." },
 ];
 const fallbackImage = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80";
@@ -2405,6 +2409,10 @@ function setAdultContentEnabled(enabled, options = {}) {
   persistSettings();
   syncAdultControls();
   updateGenreToggleLabel();
+  if (page === "settings") {
+    loadAnimeSourcesNew();
+    loadMangaExtensionsNew();
+  }
   if (toast) showToast(state.settings.allowAdult ? "18+ content enabled." : "18+ content disabled.");
   if (!reload) return;
   if (page === "anime" || page === "manga") updateBrowseUrl();
@@ -2554,7 +2562,7 @@ function defaultMangaSources() {
 
 function enabledMangaProviderIds() {
   const enabled = { ...defaultMangaSources(), ...(state.settings.mangaSources || {}) };
-  return MANGA_SOURCES.filter((source) => enabled[source.id]).map((source) => source.id);
+  return MANGA_SOURCES.filter((source) => enabled[source.id] && (!source.adult || state.settings.allowAdult)).map((source) => source.id);
 }
 
 function persistSettings() {
@@ -3079,7 +3087,7 @@ async function loadAnimeSourcesNew() {
   if (!container) return;
 
   const enabled = { ...defaultAnimeSources(), ...(state.settings.animeSources || {}) };
-  container.innerHTML = ANIME_SOURCES.map((source) => `
+  container.innerHTML = ANIME_SOURCES.filter((source) => !source.adult || state.settings.allowAdult).map((source) => `
     <div class="extension-card source-setting-card${source.adult ? " adult-source-card" : ""}">
       <div class="source-setting-head">
         <div>
@@ -3114,12 +3122,13 @@ async function loadMangaExtensionsNew() {
   if (!container) return;
 
   const enabled = { ...defaultMangaSources(), ...(state.settings.mangaSources || {}) };
-  container.innerHTML = MANGA_SOURCES.map((source) => `
+  container.innerHTML = MANGA_SOURCES.filter((source) => !source.adult || state.settings.allowAdult).map((source) => `
     <div class="extension-card">
       <h4>${escapeHtml(source.name)}</h4>
       <p>${escapeHtml(source.description)}</p>
       <div class="extension-footer">
-        <span class="extension-version">Real source</span>
+        <span class="extension-version">${source.adult ? "Adult source" : "Real source"}</span>
+        ${source.adult ? '<span class="source-note">Requires 18+ content enabled</span>' : ""}
         <input type="checkbox" class="extension-toggle" data-manga-provider-toggle="${escapeAttr(source.id)}" aria-label="Enable ${escapeAttr(source.name)}" ${enabled[source.id] ? "checked" : ""}>
       </div>
     </div>
@@ -4977,7 +4986,7 @@ function mangaSourceCustomQueryKey(manga) {
 }
 
 function providerLabel(provider) {
-  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", projectsuki: "Project Suki", manhwaz: "ManhwaZ", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider" }[provider] || provider || "Source");
+  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", projectsuki: "Project Suki", manhwaz: "ManhwaZ", pornhwaz: "PornhwaZ", hentai20: "Hentai20", pornhwapro: "Pornhwa Pro", hentai18: "Hentai18", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider" }[provider] || provider || "Source");
 }
 
 function animeSourceLabel(source) {
@@ -5127,7 +5136,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
     </div>
   `;
 
-  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral" || chapter.provider === "flamecomics" || chapter.provider === "rizzcomic" || chapter.provider === "projectsuki" || chapter.provider === "manhwaz" || chapter.provider === "toonily") && chapter.id) {
+  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral" || chapter.provider === "flamecomics" || chapter.provider === "rizzcomic" || chapter.provider === "projectsuki" || chapter.provider === "manhwaz" || chapter.provider === "pornhwaz" || chapter.provider === "hentai20" || chapter.provider === "pornhwapro" || chapter.provider === "hentai18" || chapter.provider === "toonily") && chapter.id) {
     try {
       const data = await fetchMangaPagesCached(chapter.id);
       if (data.pages?.length) {
