@@ -2014,7 +2014,6 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
               <strong>${escapeHtml(episode.number || absoluteIndex + 1)}</strong>
               <span>${escapeHtml(episode.title || `Episode ${episode.number || absoluteIndex + 1}`)}</span>
             </div>
-            <small>Watch now</small>
           </button>
         `;
       }).join("")}

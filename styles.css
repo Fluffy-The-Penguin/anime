@@ -4742,3 +4742,57 @@ body[data-page="reader"] .reader-top-button {
     font-size: 17px;
   }
 }
+
+/* Keep long featured and episode titles contained. */
+.browse-spotlight-copy {
+  max-width: min(470px, 52vw);
+}
+
+.browse-spotlight-copy h2 {
+  display: -webkit-box;
+  max-height: 4.35em;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  font-size: clamp(28px, 3.2vw, 44px);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.browse-spotlight-copy p {
+  display: -webkit-box;
+  max-height: 4.8em;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.detail-anime-episode-row {
+  overflow: hidden;
+}
+
+.detail-anime-episode-row .detail-chapter-text {
+  min-width: 0;
+}
+
+.detail-anime-episode-row .detail-chapter-text span {
+  display: -webkit-box;
+  max-height: 3.45em;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .browse-spotlight-copy {
+    max-width: min(390px, 72vw);
+  }
+
+  .browse-spotlight-copy h2 {
+    font-size: clamp(24px, 8vw, 34px);
+    -webkit-line-clamp: 3;
+  }
+}
