@@ -27,6 +27,7 @@ const MANGA_SOURCES = [
   { id: "flamecomics", name: "Flame Comics", description: "Scanlation source with Flame-hosted webtoon chapters." },
   { id: "rizzcomic", name: "Rizz Comic", description: "WordPress manga/manhwa source with fast chapter pages." },
   { id: "projectsuki", name: "Project Suki", description: "Public manga/manhwa source with direct reader page images." },
+  { id: "manhwaz", name: "ManhwaZ", description: "Public manhwa/manhua source with direct CDN page images." },
   { id: "toonily", name: "Toonily", description: "Large manhwa catalog; availability may depend on upstream anti-bot checks." },
 ];
 const fallbackImage = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80";
@@ -4976,7 +4977,7 @@ function mangaSourceCustomQueryKey(manga) {
 }
 
 function providerLabel(provider) {
-  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", projectsuki: "Project Suki", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider" }[provider] || provider || "Source");
+  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", projectsuki: "Project Suki", manhwaz: "ManhwaZ", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider" }[provider] || provider || "Source");
 }
 
 function animeSourceLabel(source) {
@@ -5126,7 +5127,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
     </div>
   `;
 
-  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral" || chapter.provider === "flamecomics" || chapter.provider === "rizzcomic" || chapter.provider === "projectsuki" || chapter.provider === "toonily") && chapter.id) {
+  if ((chapter.provider === "mangadex" || chapter.provider === "asura" || chapter.provider === "mangakatana" || chapter.provider === "weebcentral" || chapter.provider === "flamecomics" || chapter.provider === "rizzcomic" || chapter.provider === "projectsuki" || chapter.provider === "manhwaz" || chapter.provider === "toonily") && chapter.id) {
     try {
       const data = await fetchMangaPagesCached(chapter.id);
       if (data.pages?.length) {

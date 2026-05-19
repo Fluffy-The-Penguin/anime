@@ -1,6 +1,7 @@
 const DEFAULT_BACKEND_URL = "http://fi10.bot-hosting.net:21204";
 const { searchWeebCentralManga } = require("../../lib/weebcentral");
 const { searchProjectSukiManga } = require("../../lib/projectsuki");
+const { searchManhwaZManga } = require("../../lib/manhwaz");
 
 module.exports = async function handler(req, res) {
   const backendUrl = (process.env.ANITRACK_BACKEND_URL || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
@@ -10,14 +11,17 @@ module.exports = async function handler(req, res) {
   const results = Array.isArray(backendResults) ? backendResults.filter((item) => !providers.length || providers.includes(item.provider)) : [];
   const shouldTryWeebCentral = req.query.title && (!providers.length || providers.includes("weebcentral")) && !results.some((item) => item.provider === "weebcentral");
   const shouldTryProjectSuki = req.query.title && (!providers.length || providers.includes("projectsuki")) && !results.some((item) => item.provider === "projectsuki");
+  const shouldTryManhwaZ = req.query.title && (!providers.length || providers.includes("manhwaz")) && !results.some((item) => item.provider === "manhwaz");
 
   const title = String(req.query.title || "").trim();
-  const [weebCentralResults, projectSukiResults] = await Promise.allSettled([
+  const [weebCentralResults, projectSukiResults, manhwaZResults] = await Promise.allSettled([
     shouldTryWeebCentral ? searchWeebCentralManga(title) : [],
     shouldTryProjectSuki ? searchProjectSukiManga(title) : [],
+    shouldTryManhwaZ ? searchManhwaZManga(title) : [],
   ]);
   if (weebCentralResults.status === "fulfilled") results.push(...weebCentralResults.value);
   if (projectSukiResults.status === "fulfilled") results.push(...projectSukiResults.value);
+  if (manhwaZResults.status === "fulfilled") results.push(...manhwaZResults.value);
 
   res.status(200).json(results);
 };
