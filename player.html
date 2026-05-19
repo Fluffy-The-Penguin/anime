@@ -96,15 +96,19 @@
         background: #000;
       }
 
-      body[data-page="player"] .topbar,
       body[data-page="player"] .mobile-bottom-nav,
       body[data-page="player"] .site-footer {
         display: none;
       }
 
+      body[data-page="player"] .topbar {
+        padding-top: 10px;
+        padding-bottom: 10px;
+      }
+
       body[data-page="player"] main.shell {
         width: min(100%, 1320px);
-        padding: 10px clamp(8px, 2vw, 18px) 24px;
+        padding: 0 clamp(8px, 2vw, 18px) 24px;
       }
 
       .player-container {
