@@ -6,7 +6,7 @@
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
     <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=final-polish" defer></script>
+    <script src="app.js?v=library-mobile-polish" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -770,9 +770,19 @@
           left: 8px;
           right: 8px;
           bottom: 8px;
-          grid-template-columns: auto auto auto 1fr auto auto auto;
+          grid-template-columns: auto auto minmax(58px, auto) 1fr auto auto auto;
           gap: 5px;
           padding: 6px;
+        }
+
+        .video-time-range {
+          min-width: 58px;
+          font-size: 11px;
+        }
+
+        .video-control-btn {
+          width: 28px;
+          min-height: 28px;
         }
 
         .player-settings-panel {
@@ -791,6 +801,31 @@
         .video-player {
           aspect-ratio: 16 / 9;
           border-radius: 10px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        body[data-page="player"] main.shell {
+          padding-inline: 6px;
+        }
+
+        .custom-video-controls {
+          grid-template-columns: auto auto 1fr auto auto;
+          grid-template-areas:
+            "play volume progress captions settings"
+            "time time time time fullscreen";
+        }
+
+        .custom-video-controls [data-video-play] { grid-area: play; }
+        .custom-video-controls .video-volume-control { grid-area: volume; }
+        .custom-video-controls .video-time { grid-area: time; }
+        .custom-video-controls .video-progress { grid-area: progress; }
+        .custom-video-controls [data-video-captions] { grid-area: captions; }
+        .custom-video-controls [data-video-settings] { grid-area: settings; }
+        .custom-video-controls [data-video-fullscreen] { grid-area: fullscreen; justify-self: end; }
+
+        .player-settings-panel {
+          grid-template-columns: 1fr;
         }
       }
     </style>

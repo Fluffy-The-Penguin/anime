@@ -14,7 +14,6 @@ const DEFAULT_SUBTITLE_STYLE = { size: 28, color: "#ffffff", backgroundColor: "#
 const ANIME_SOURCES = [
   { id: "animedex", name: "AnimeDex", description: "Real anime episode lists with direct HLS streams from public AnimeDex APIs.", badge: "HLS" },
   { id: "anizone", name: "AniZone", description: "Anime episode lists with proxied direct HLS playback when available.", badge: "HLS" },
-  { id: "nyaa", name: "Nyaa RSS", description: "Anime torrent search through Nyaa RSS. Opens magnets externally.", badge: "Torrent" },
   { id: "aniwaves", name: "Aniwaves", description: "Searches provider matches when raw streams are not available.", badge: "Provider" },
   { id: "hstream", name: "hstream.moe", description: "Adult-only direct playback source shown only when 18+ content is enabled.", badge: "+18", adult: true },
 ];
@@ -56,6 +55,7 @@ const state = {
   browseSpotlightIndex: 0,
   browseSpotlightTimer: null,
   homePointerStart: null,
+  libraryType: "all",
   settings: loadSettings(),
   library: loadLibrary(),
   current: null,
@@ -343,13 +343,24 @@ function initHomePage() {
 
 function initLibraryPage() {
   const filters = document.querySelector("[data-library-filters]");
+  const typeFilters = document.querySelector("[data-library-type-filters]");
   const lists = document.querySelectorAll("[data-library-list]");
+  const params = new URLSearchParams(window.location.search);
+  state.libraryType = ["anime", "manga"].includes(params.get("type")) ? params.get("type") : "all";
 
   filters.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-filter]");
     if (!button) return;
     setActive(filters, button);
     state.filter = button.dataset.filter;
+    renderLibrary();
+  });
+
+  typeFilters?.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-library-type]");
+    if (!link) return;
+    event.preventDefault();
+    state.libraryType = link.dataset.libraryType;
     renderLibrary();
   });
 
@@ -392,38 +403,52 @@ async function loadHomeSections() {
   setRailLoading(featuredRail, 8);
   setLoading(animeGrid, 4);
   setLoading(mangaGrid, 4);
-  setRailLoading(latestAnime, 5);
-  setRailLoading(latestManga, 5);
+  setRailLoading(latestAnime, 3);
+  setRailLoading(latestManga, 3);
   setListLoading(rankingList, 4);
 
-  const [animeResult, mangaResult, latestResult, latestMangaResult, rankingResult] = await Promise.allSettled([
+  const [animeResult, mangaResult, rankingResult] = await Promise.allSettled([
     fetchAnimeFeed("trending"),
     fetchMangaFeed("top"),
-    fetchAnimeLatest(state.latestAnimePage),
-    fetchMangaLatest(state.latestMangaPage),
     fetchAnimeFeed("popular"),
   ]);
   const animeItems = animeResult.status === "fulfilled" ? animeResult.value.slice(0, 4) : samples.filter((item) => item.type === "anime");
   const mangaItems = mangaResult.status === "fulfilled" ? mangaResult.value.slice(0, 4) : samples.filter((item) => item.type === "manga");
-  const latestAnimeItems = latestResult.status === "fulfilled" ? latestResult.value : animeItems;
-  const latestMangaItems = latestMangaResult.status === "fulfilled" ? latestMangaResult.value : mangaItems;
   const rankingItems = rankingResult.status === "fulfilled" ? rankingResult.value.slice(0, 4) : animeItems;
   const featuredItems = mergeItems([...(animeResult.status === "fulfilled" ? animeResult.value : []), ...(mangaResult.status === "fulfilled" ? mangaResult.value : [])]).slice(0, 12);
 
-  state.latestItems = [...latestAnimeItems, ...latestMangaItems];
-  state.latestAnimeItems = latestAnimeItems;
-  state.latestMangaItems = latestMangaItems;
+  state.latestItems = [];
+  state.latestAnimeItems = [];
+  state.latestMangaItems = [];
   state.latestPage = 1;
-  state.currentItems = mergeItems([...featuredItems, ...animeItems, ...mangaItems, ...latestAnimeItems, ...latestMangaItems, ...rankingItems]);
+  state.currentItems = mergeItems([...featuredItems, ...animeItems, ...mangaItems, ...rankingItems]);
   renderPosterRail(featuredRail, featuredItems.length ? featuredItems : [...animeItems, ...mangaItems]);
   renderCards(animeGrid, animeItems);
   renderCards(mangaGrid, mangaItems);
-  renderStaticRail(latestAnime, latestAnimeItems);
-  renderStaticRail(latestManga, latestMangaItems);
   renderRankingList(rankingList, rankingItems);
   renderEditorPick(editorPick, mangaItems[0] || animeItems[0]);
   syncHomePanelHeights();
   window.setTimeout(syncHomePanelHeights, 250);
+  window.setTimeout(loadInitialHomeUpdates, 350);
+}
+
+async function loadInitialHomeUpdates() {
+  if (page !== "home") return;
+  const latestAnime = document.querySelector("[data-home-latest-anime]");
+  const latestManga = document.querySelector("[data-home-latest-manga]");
+  const [latestResult, latestMangaResult] = await Promise.allSettled([
+    fetchAnimeLatest(state.latestAnimePage),
+    fetchMangaLatest(state.latestMangaPage),
+  ]);
+  const latestAnimeItems = latestResult.status === "fulfilled" ? latestResult.value.slice(0, 8) : [];
+  const latestMangaItems = latestMangaResult.status === "fulfilled" ? latestMangaResult.value.slice(0, 8) : [];
+  state.latestAnimeItems = latestAnimeItems;
+  state.latestMangaItems = latestMangaItems;
+  state.latestItems = [...latestAnimeItems, ...latestMangaItems];
+  state.currentItems = mergeItems([...state.currentItems, ...latestAnimeItems, ...latestMangaItems]);
+  renderStaticRail(latestAnime, latestAnimeItems);
+  renderStaticRail(latestManga, latestMangaItems);
+  syncHomePanelHeights();
 }
 
 async function initDetailsPage() {
@@ -1420,6 +1445,8 @@ function renderEditorPick(container, item) {
 function renderLibrary() {
   const animeList = document.querySelector('[data-library-list="anime"]');
   const mangaList = document.querySelector('[data-library-list="manga"]');
+  const animeGroup = document.querySelector('[data-library-group="anime"]');
+  const mangaGroup = document.querySelector('[data-library-group="manga"]');
   if (!animeList || !mangaList) return;
 
   const allItems = Object.values(state.library).sort((a, b) => b.updatedAt - a.updatedAt);
@@ -1427,10 +1454,15 @@ function renderLibrary() {
   const animeItems = items.filter((item) => item.type === "anime");
   const mangaItems = items.filter((item) => item.type === "manga");
 
+  document.querySelectorAll("[data-library-type]").forEach((item) => item.classList.toggle("active", item.dataset.libraryType === state.libraryType));
+  animeGroup.hidden = state.libraryType === "manga";
+  mangaGroup.hidden = state.libraryType === "anime";
+
   renderLibraryGroup(animeList, animeItems, allItems.length ? "No anime match this filter." : "No anime tracked yet. Add titles from the Anime page.");
   renderLibraryGroup(mangaList, mangaItems, allItems.length ? "No manga match this filter." : "No manga tracked yet. Add titles from the Manga page.");
   setText("[data-anime-count]", `${animeItems.length} ${animeItems.length === 1 ? "title" : "titles"}`);
   setText("[data-manga-count]", `${mangaItems.length} ${mangaItems.length === 1 ? "title" : "titles"}`);
+  setText("[data-library-summary]", `${allItems.filter((item) => item.type === "anime").length} anime / ${allItems.filter((item) => item.type === "manga").length} manga saved locally`);
 
   updateStats();
 }
@@ -1447,16 +1479,17 @@ function renderLibraryGroup(container, items, emptyMessage) {
 function renderLibraryItem(item) {
   const total = item.total || 0;
   const percent = total ? Math.min(100, Math.round(((item.progress || 0) / total) * 100)) : 0;
+  const progressText = `${item.progress || 0}${total ? ` / ${total}` : ""} ${item.unit}`;
   const row = create("a", "library-item");
   setMediaDataset(row, item);
   row.innerHTML = `
     <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
     <div>
       <h3>${escapeHtml(item.title)}</h3>
-      <div class="meta">${metaHtml([statusLabel(item.status), mediaLabel(item), item.rating !== "" ? `Rated ${item.rating}/10` : "Unrated"])}</div>
+      <div class="meta">${metaHtml([statusLabel(item.status), mediaLabel(item), progressText, item.rating !== "" ? `Rated ${item.rating}/10` : "Unrated"])}</div>
       <div class="progress-bar"><span style="width:${percent}%"></span></div>
     </div>
-    <div class="library-side"><strong>${item.progress || 0}${total ? `/${total}` : ""}</strong><div class="muted">${item.unit}</div></div>
+    <div class="library-side"><strong>${percent}%</strong><div class="muted">${escapeHtml(statusLabel(item.status))}</div></div>
   `;
   return row;
 }
@@ -1502,26 +1535,31 @@ function renderDetails(root, item, isTemporary = false) {
           </div>
           <div class="detail-genre-line">${(active.genres || []).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
           <div class="detail-description"><p>${escapeHtml(active.description)}</p></div>
-           <div class="detail-actions">
-             <span class="detail-mark">A<span>.</span></span>
-             ${active.type === "anime" ? `<button class="btn" data-watch-button type="button" style="background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a;">▶ Watch Now</button>` : ""}
-             ${active.type === "manga" ? `<button class="btn" data-read-button type="button" style="background: linear-gradient(135deg, var(--mint), var(--blue)); color: #06101a;">📖 Read Now</button>` : ""}
-             <div class="field detail-status-field"><select data-track-status>${statusOptions(active.type)}</select></div>
-             <button class="btn detail-save" data-save-track type="button">${actionLabel}</button>
-             <div class="detail-progress-control">
-               <button data-minus-progress type="button">−</button>
-                <input data-track-progress type="number" min="0" ${total ? `max="${escapeAttr(total)}"` : ""} step="1" value="${Number(active.progress || 0)}" aria-label="Progress">
-               <span>/ ${escapeHtml(total || "?")}</span>
-               <button data-plus-progress type="button">+</button>
-             </div>
-             <input data-track-rating class="detail-rating" type="number" min="0" max="10" step="0.5" value="${escapeAttr(active.rating ?? "")}" placeholder="Rating / 10" aria-label="Rating out of 10">
-             <button class="detail-remove" data-remove-track type="button" ${tracked ? "" : "hidden"}>Remove</button>
-           </div>
-          <textarea data-track-notes class="detail-notes" placeholder="Private notes...">${escapeHtml(active.notes || "")}</textarea>
-          <div class="details-progress-card detail-progress-card">
-            <div><span class="muted">Your progress</span><strong>${progress}${total ? ` / ${total}` : ""} ${escapeHtml(active.unit)}</strong></div>
-            <div class="progress-bar"><span style="width:${progressPercent}%"></span></div>
-          </div>
+          <section class="detail-tracker-card" aria-label="Library controls">
+            <div class="detail-tracker-head">
+              <div>
+                <span class="detail-source">Library</span>
+                <strong>${tracked ? "Saved to your library" : "Not in your library yet"}</strong>
+              </div>
+              <div class="detail-progress-ring"><span>${progressPercent}%</span></div>
+            </div>
+            <div class="detail-primary-actions">
+              ${active.type === "anime" ? `<button class="btn" data-watch-button type="button" style="background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a;">▶ Watch Now</button>` : ""}
+              ${active.type === "manga" ? `<button class="btn" data-read-button type="button" style="background: linear-gradient(135deg, var(--mint), var(--blue)); color: #06101a;">Read Now</button>` : ""}
+              <button class="btn detail-save" data-save-track type="button">${actionLabel}</button>
+              <button class="detail-remove" data-remove-track type="button" ${tracked ? "" : "hidden"}>Remove</button>
+            </div>
+            <div class="detail-track-grid">
+              <label>Status <select data-track-status>${statusOptions(active.type)}</select></label>
+              <label>Progress <div class="detail-progress-control"><button data-minus-progress type="button">−</button><input data-track-progress type="number" min="0" ${total ? `max="${escapeAttr(total)}"` : ""} step="1" value="${Number(active.progress || 0)}" aria-label="Progress"><span>/ ${escapeHtml(total || "?")}</span><button data-plus-progress type="button">+</button></div></label>
+              <label>Rating <input data-track-rating class="detail-rating" type="number" min="0" max="10" step="0.5" value="${escapeAttr(active.rating ?? "")}" placeholder="0-10" aria-label="Rating out of 10"></label>
+            </div>
+            <textarea data-track-notes class="detail-notes" placeholder="Private notes...">${escapeHtml(active.notes || "")}</textarea>
+            <div class="details-progress-card detail-progress-card">
+              <div><span class="muted">Your progress</span><strong>${progress}${total ? ` / ${total}` : ""} ${escapeHtml(active.unit)}</strong></div>
+              <div class="progress-bar"><span style="width:${progressPercent}%"></span></div>
+            </div>
+          </section>
         </main>
       </div>
       ${active.type === "anime" ? `<section class="detail-episodes detail-anime-episodes">
@@ -1735,7 +1773,6 @@ async function initAnimeDetailSources(root, anime) {
   if (animeSourceEnabled("animedex")) sources.push({ id: "animedex", name: "AnimeDex" });
   if (animeSourceEnabled("anizone")) sources.push({ id: "anizone", name: "AniZone" });
   if (animeSourceEnabled("hstream") && state.settings.allowAdult) sources.push({ id: "hstream", name: "hstream.moe" });
-  if (animeSourceEnabled("nyaa")) sources.push({ id: "nyaa", name: "Nyaa search on player" });
   if (animeSourceEnabled("aniwaves")) sources.push({ id: "aniwaves", name: "Aniwaves provider match" });
 
   const savedSource = localStorage.getItem(animeSourceKey(anime)) || sources[0]?.id || "";
@@ -3319,23 +3356,22 @@ async function loadEpisode(anime, episode, episodeNumber) {
   }
 
   try {
-    const [streamData, aniwavesMatches, adultMatches] = await Promise.all([
-      animeSourceEnabled("nyaa") ? searchNyaaStreams(anime.title, episodeNumber) : [],
+    const [aniwavesMatches, adultMatches] = await Promise.all([
       animeSourceEnabled("aniwaves") ? searchAniwavesAnime(anime.title) : [],
       animeSourceEnabled("hstream") ? searchAdultAnime(anime) : [],
     ]);
-    renderStreamingSources(sources, streamData, anime, episodeNumber, aniwavesMatches, adultMatches);
+    renderStreamingSources(sources, anime, episodeNumber, aniwavesMatches, adultMatches);
   } catch (error) {
     sources.innerHTML = `
       <div class="empty" style="padding: 16px; text-align: center;">
         <p class="muted">No streams found for this episode</p>
-        <p class="muted" style="font-size: 12px;">Try searching manually on Nyaa.si</p>
+        <p class="muted" style="font-size: 12px;">Try another enabled source from Settings.</p>
       </div>
     `;
     videoPlayer.innerHTML = `
       <div class="player-loading">
         <p style="color: var(--red);">No playable sources found</p>
-        <p class="muted" style="font-size: 12px;">Check back later or search on Nyaa.si</p>
+        <p class="muted" style="font-size: 12px;">Check back later or try another enabled source.</p>
       </div>
     `;
   }
@@ -3362,18 +3398,6 @@ function setupMarkWatchedButton(anime, episodeNumber) {
     document.querySelector(`[data-episode-item][data-episode-number="${episodeNumber}"]`)?.classList.add("watched");
     showToast(`Marked Episode ${episodeNumber} as watched`);
   };
-}
-
-async function searchNyaaStreams(animeTitle, episodeNumber) {
-  try {
-    return await fetchApiJson(`/api/torrents/anime?title=${encodeURIComponent(animeTitle)}&episode=${encodeURIComponent(episodeNumber)}`);
-  } catch (error) {
-    return [];
-  }
-}
-
-async function searchNyaaMangaTorrents(mangaTitle, chapterNumber) {
-  return fetchApiJson(`/api/torrents/manga?title=${encodeURIComponent(mangaTitle)}&chapter=${encodeURIComponent(chapterNumber)}`);
 }
 
 async function searchAniwavesAnime(animeTitle) {
@@ -3443,89 +3467,18 @@ function romajiSpacingVariants(title) {
   return uniqueStrings(variants).slice(0, 4);
 }
 
-async function searchNyaaRss(queries, categories) {
-  for (const category of categories) {
-    for (const query of queries) {
-      const url = `https://nyaa.si/?page=rss&q=${encodeURIComponent(query)}&c=${category}&f=0`;
-      try {
-        const xmlText = await fetchTextWithCorsFallback(url);
-        const results = parseNyaaRss(xmlText);
-        if (results.length) return results;
-      } catch (error) {
-        console.warn("Nyaa RSS search failed:", query, category, error);
-      }
-    }
-  }
-
-  return [];
-}
-
-async function fetchTextWithCorsFallback(url) {
-  const urls = [
-    url,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  ];
-
-  for (const candidate of urls) {
-    try {
-      const response = await fetch(candidate);
-      if (response.ok) return response.text();
-    } catch (error) {
-      // Try the next URL.
-    }
-  }
-
-  throw new Error("All torrent search endpoints failed");
-}
-
-function parseNyaaRss(xmlText) {
-  const xml = new DOMParser().parseFromString(xmlText, "application/xml");
-  if (xml.querySelector("parsererror")) return [];
-
-  return [...xml.querySelectorAll("item")]
-    .map((item) => {
-      const name = item.querySelector("title")?.textContent?.trim() || "Unknown torrent";
-      const link = item.querySelector("link")?.textContent?.trim() || "";
-      const infoHash = item.getElementsByTagNameNS("https://nyaa.si/xmlns/nyaa", "infoHash")[0]?.textContent?.trim() || "";
-      const seeders = Number(item.getElementsByTagNameNS("https://nyaa.si/xmlns/nyaa", "seeders")[0]?.textContent || 0);
-      const leechers = Number(item.getElementsByTagNameNS("https://nyaa.si/xmlns/nyaa", "leechers")[0]?.textContent || 0);
-      const size = item.getElementsByTagNameNS("https://nyaa.si/xmlns/nyaa", "size")[0]?.textContent?.trim() || "";
-      const category = item.getElementsByTagNameNS("https://nyaa.si/xmlns/nyaa", "category")[0]?.textContent?.trim() || "";
-
-      return {
-        name,
-        link,
-        magnet_uri: infoHash ? buildMagnetLink(infoHash, name) : link,
-        seeders,
-        leechers,
-        size,
-        category,
-      };
-    })
-    .sort((a, b) => b.seeders - a.seeders);
-}
-
-function buildMagnetLink(infoHash, name) {
-  const trackers = [
-    "udp://tracker.opentrackr.org:1337/announce",
-    "udp://open.stealth.si:80/announce",
-    "udp://tracker.openbittorrent.com:6969/announce",
-  ];
-  return `magnet:?xt=urn:btih:${encodeURIComponent(infoHash)}&dn=${encodeURIComponent(name)}${trackers.map((tracker) => `&tr=${encodeURIComponent(tracker)}`).join("")}`;
-}
-
-function renderStreamingSources(container, results, anime, episodeNumber, aniwavesMatches = [], adultMatches = []) {
+function renderStreamingSources(container, anime, episodeNumber, aniwavesMatches = [], adultMatches = []) {
   const extensionHtml = extensionSourceCards("anime");
   const aniwavesHtml = aniwavesSourceCards(aniwavesMatches, episodeNumber);
   const adultHtml = adultSourceCards(adultMatches);
-  if (!results.length && !aniwavesMatches.length && !adultMatches.length) {
+  if (!aniwavesMatches.length && !adultMatches.length) {
     container.innerHTML = `
       ${extensionHtml}
       ${aniwavesHtml}
       ${adultHtml}
       <div class="empty" style="padding: 16px; text-align: center;">
         <p class="muted">No sources available</p>
-        <p class="muted" style="font-size: 12px;">Nyaa may be blocking requests, or this title may need a different search name.</p>
+        <p class="muted" style="font-size: 12px;">Try AnimeDex/AniZone on the details page, or enable another provider in Settings.</p>
       </div>
     `;
     bindExtensionSourceButtons(container);
@@ -3533,51 +3486,23 @@ function renderStreamingSources(container, results, anime, episodeNumber, aniwav
     bindAdultSourceButtons(container);
     document.querySelector("[data-video-player]").innerHTML = `
       <div class="player-loading">
-        <p style="color: var(--red);">No torrent sources found</p>
+        <p style="color: var(--red);">No provider sources found</p>
         <p class="muted" style="font-size: 12px;">Try another episode or search the title manually.</p>
       </div>
     `;
     return;
   }
 
-  container.innerHTML = `${extensionHtml}${aniwavesHtml}${adultHtml}${results
-    .slice(0, 5)
-    .map((result) => {
-      const seeders = result.seeders || 0;
-      const leechers = result.leechers || 0;
-      const quality = extractQuality(result.name);
-      const seeds = seeders > 0 ? `${seeders} seeders` : "No seeders";
-      const target = result.magnet_uri || result.link;
-
-      return `
-        <div class="source-item">
-          <div class="source-info">
-            <h4>${escapeHtml(quality || "Unknown Quality")}</h4>
-            <p>${escapeHtml(result.name.substring(0, 60))}...</p>
-            <p style="font-size: 11px; margin-top: 4px;">${escapeHtml(seeds)}${result.size ? ` / ${escapeHtml(result.size)}` : ""}</p>
-          </div>
-          <button class="source-play" data-magnet-link="${escapeAttr(target)}" type="button">Open</button>
-        </div>
-      `;
-    })
-    .join("")}`;
+  container.innerHTML = `${extensionHtml}${aniwavesHtml}${adultHtml}`;
 
   // Add play button handlers
   bindExtensionSourceButtons(container);
   bindAniwavesSourceButtons(container);
   bindAdultSourceButtons(container);
-  container.querySelectorAll(".source-play").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const magnetLink = btn.dataset.magnetLink;
-      window.open(magnetLink, "_blank");
-      showToast("Opening torrent in your default client");
-    });
-  });
-
   document.querySelector("[data-video-player]").innerHTML = `
     <div class="player-loading">
       <p>Select a source above</p>
-      <p class="muted" style="font-size: 12px;">Torrents open externally. Aniwaves opens the provider page because it returns embeds, not raw browser-playable streams.</p>
+      <p class="muted" style="font-size: 12px;">Provider links may open externally when raw browser-playable streams are not available.</p>
     </div>
   `;
 }
@@ -4601,58 +4526,6 @@ function loadDashLibrary() {
   return loadDashLibrary.promise;
 }
 
-function renderMangaTorrentSources(container, results, manga, chapterNumber) {
-  const extensionHtml = extensionSourceCards("manga");
-  if (!results.length) {
-    container.innerHTML = `
-      ${extensionHtml}
-      <div class="empty" style="padding: 16px; text-align: center;">
-        <p class="muted">No torrent sources available</p>
-        <p class="muted" style="font-size: 12px;">Try searching manually on Nyaa.si</p>
-      </div>
-    `;
-    bindExtensionSourceButtons(container);
-    return;
-  }
-
-  container.innerHTML = `
-    ${extensionHtml}
-    <div style="margin-top: 16px;">
-      <h4 style="margin: 0 0 12px; font-size: 14px;">📥 Available Torrents</h4>
-      ${results
-        .slice(0, 5)
-        .map((result) => {
-          const seeders = result.seeders || 0;
-          const quality = extractQuality(result.name);
-          const seeds = seeders > 0 ? `${seeders} seeders` : "No seeders";
-          const target = result.magnet_uri || result.link;
-
-          return `
-            <div class="source-item" style="display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--soft) 50%, transparent); margin-bottom: 8px;">
-              <div class="source-info">
-                <h4 style="margin: 0 0 4px; font-size: 12px;">${escapeHtml(quality || "Unknown Quality")}</h4>
-                <p style="margin: 0; font-size: 11px; color: var(--muted);">${escapeHtml(result.name.substring(0, 50))}...</p>
-                <p style="font-size: 10px; margin-top: 4px; color: var(--muted);">${escapeHtml(seeds)}${result.size ? ` / ${escapeHtml(result.size)}` : ""}</p>
-              </div>
-              <button class="source-play" data-magnet-link="${escapeAttr(target)}" type="button" style="min-width: 50px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: rgba(72, 219, 251, 0.1); color: var(--blue); font-size: 11px; cursor: pointer; white-space: nowrap;">Torrent</button>
-            </div>
-          `;
-        })
-        .join("")}
-    </div>
-  `;
-
-  // Add play button handlers
-  bindExtensionSourceButtons(container);
-  container.querySelectorAll(".source-play").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const magnetLink = btn.dataset.magnetLink;
-      window.open(magnetLink, "_blank");
-      showToast("Opening torrent in your default client");
-    });
-  });
-}
-
 function extractQuality(name) {
   const qualities = ["4K", "2160p", "1440p", "1080p", "720p", "480p", "360p"];
   for (const quality of qualities) {
@@ -4891,7 +4764,7 @@ function providerLabel(provider) {
 }
 
 function animeSourceLabel(source) {
-  return ({ animedex: "AnimeDex", anizone: "AniZone", nyaa: "Nyaa RSS", aniwaves: "Aniwaves", hstream: "hstream.moe" }[source] || source || "Anime source");
+  return ({ animedex: "AnimeDex", anizone: "AniZone", aniwaves: "Aniwaves", hstream: "hstream.moe" }[source] || source || "Anime source");
 }
 
 function mangaSourceOptionLabel(source, count = null) {
@@ -5053,7 +4926,7 @@ async function loadChapter(manga, chapter, chapterNumber) {
         return;
       }
     } catch (error) {
-      showToast("Could not load provider pages; trying torrents");
+      showToast("Could not load provider pages; try another source");
     }
   }
 
@@ -5072,47 +4945,20 @@ async function loadChapter(manga, chapter, chapterNumber) {
       `;
     }, 800);
   } else {
-    // Search for manga torrents
-    try {
-      const torrentData = await searchNyaaMangaTorrents(manga.title, chapterNumber);
-      renderMangaTorrentSources(sources, torrentData, manga, chapterNumber);
-      display.innerHTML = `
-        <div style="padding: 20px; text-align: center; color: var(--muted);">
-          <p>Chapter ${chapterNumber}</p>
-          <p style="font-size: 12px;">Use the torrent sources below, or open an enabled manga extension source from Settings.</p>
-          <div style="margin-top: 20px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--soft) 40%, transparent);">
-            <p style="margin: 0 0 8px;"><strong>${escapeHtml(chapter.title)}</strong></p>
-            <p style="margin: 0; font-size: 12px;">${escapeHtml(chapter.description)}</p>
-          </div>
-        </div>
-      `;
-      
-      if (torrentData.length === 0) {
-        display.innerHTML = `
-          <div style="padding: 20px; text-align: center; color: var(--muted);">
-            <p>Chapter ${chapterNumber}</p>
-            <p style="font-size: 12px;">No direct provider available. Use torrent sources below.</p>
-            <div style="margin-top: 20px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--soft) 40%, transparent);">
-              <p style="margin: 0 0 8px;"><strong>${escapeHtml(chapter.title)}</strong></p>
-              <p style="margin: 0; font-size: 12px;">${escapeHtml(chapter.description)}</p>
-            </div>
-          </div>
-        `;
-      }
-    } catch (error) {
-      sources.innerHTML = `
-        <div class="empty" style="padding: 16px; text-align: center;">
-          <p class="muted">Could not load manga sources</p>
-          <p class="muted" style="font-size: 12px;">Try searching manually</p>
-        </div>
-      `;
-      display.innerHTML = `
-        <div style="padding: 20px; text-align: center; color: var(--muted);">
-          <p>Chapter ${chapterNumber}</p>
-          <p style="font-size: 12px;">Torrent search failed. Try again later or use an extension source from Settings.</p>
-        </div>
-      `;
-    }
+    sources.innerHTML = `
+      ${extensionSourceCards("manga")}
+      <div class="empty" style="padding: 16px; text-align: center;">
+        <p class="muted">No direct pages returned by this source.</p>
+        <p class="muted" style="font-size: 12px;">Choose another enabled manga source from the reader controls or Settings.</p>
+      </div>
+    `;
+    bindExtensionSourceButtons(sources);
+    display.innerHTML = `
+      <div style="padding: 20px; text-align: center; color: var(--muted);">
+        <p>Chapter ${chapterNumber}</p>
+        <p style="font-size: 12px;">No direct page images were available for this chapter.</p>
+      </div>
+    `;
   }
 
   markMangaChapterRead(manga, chapterNumber);
