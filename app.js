@@ -2000,10 +2000,10 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
         return `
           <button type="button" class="chapter-row detail-chapter-row detail-anime-episode-row" data-detail-watch-episode data-episode-index="${episodeIndex}">
             <div class="detail-chapter-text">
-              <strong>${sourceId === "hstream" ? "Match" : "Ep"} ${escapeHtml(episode.number || absoluteIndex + 1)}</strong>
+              <strong>${escapeHtml(episode.number || absoluteIndex + 1)}</strong>
               <span>${escapeHtml(episode.title || `Episode ${episode.number || absoluteIndex + 1}`)}</span>
             </div>
-            <small>${escapeHtml([episodeAudioLabel(episode.audio), episode.airDate || sourceId].filter(Boolean).join(" / "))}</small>
+            <small>Watch now</small>
           </button>
         `;
       }).join("")}
@@ -3820,6 +3820,16 @@ async function playHttpStream(url, tracks = [], options = {}) {
       <button class="video-control-btn" data-video-settings type="button" aria-label="Player settings">⚙</button>
       <button class="video-control-btn" data-video-fullscreen type="button" aria-label="Fullscreen">⛶</button>
     </div>
+    <div class="player-settings-panel" data-player-settings-panel hidden>
+      <label>Quality <select data-player-quality><option value="">Auto / selected source</option></select></label>
+      <label>Speed <select data-player-speed><option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></label>
+      <label>Subtitles <select data-player-subtitles><option value="off">Off</option></select></label>
+      <label>Audio <select data-player-audio><option value="default">Default audio</option></select></label>
+      <div class="player-check-row">
+        <label class="player-check"><input data-player-auto-play type="checkbox"> Auto play</label>
+        <label class="player-check"><input data-player-auto-next type="checkbox"> Auto next</label>
+      </div>
+    </div>
   `;
   setSubtitleToggleAvailable(false);
   const video = player.querySelector("[data-active-video]");
@@ -4074,7 +4084,7 @@ function setupCustomVideoControls(video) {
     showControls();
   });
 
-  const isEmptyPlayerTarget = (event) => !event.target.closest?.("button, input, select, .custom-video-controls, .video-volume-panel");
+  const isEmptyPlayerTarget = (event) => !event.target.closest?.("button, input, select, .custom-video-controls, .video-volume-panel, .player-settings-panel");
 
   player.addEventListener("pointerdown", (event) => {
     emptyPointerStartedIdle = isEmptyPlayerTarget(event) ? player.classList.contains("video-controls-idle") : null;

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
-    <link rel="stylesheet" href="styles.css?v=light-contrast-fix" />
-    <script src="app.js?v=player-navbar-controls-fix" defer></script>
+    <link rel="stylesheet" href="styles.css?v=layout-card-settings-fix" />
+    <script src="app.js?v=layout-card-settings-fix" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell">
@@ -29,6 +29,16 @@
                 <div class="spinner"></div>
                 <p>Loading episode...</p>
               </div>
+              <div class="player-settings-panel" data-player-settings-panel hidden>
+                <label>Quality <select data-player-quality><option value="">Auto / selected source</option></select></label>
+                <label>Speed <select data-player-speed><option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></label>
+                <label>Subtitles <select data-player-subtitles><option value="off">Off</option></select></label>
+                <label>Audio <select data-player-audio><option value="default">Default audio</option></select></label>
+                <div class="player-check-row">
+                  <label class="player-check"><input data-player-auto-play type="checkbox"> Auto play</label>
+                  <label class="player-check"><input data-player-auto-next type="checkbox"> Auto next</label>
+                </div>
+              </div>
             </div>
             <div class="player-controls" data-player-controls>
               <div class="player-info">
@@ -40,16 +50,6 @@
                 <button class="icon-btn" data-player-settings-toggle type="button" aria-label="Player settings" aria-expanded="false">⚙</button>
                 <button class="btn secondary" data-mark-watched type="button">Mark as Watched</button>
                 <button class="icon-btn" data-fullscreen-btn type="button" aria-label="Fullscreen">⛶</button>
-              </div>
-            </div>
-            <div class="player-settings-panel" data-player-settings-panel hidden>
-              <label>Quality <select data-player-quality><option value="">Auto / selected source</option></select></label>
-              <label>Speed <select data-player-speed><option value="0.5">0.5x</option><option value="0.75">0.75x</option><option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option></select></label>
-              <label>Subtitles <select data-player-subtitles><option value="off">Off</option></select></label>
-              <label>Audio <select data-player-audio><option value="default">Default audio</option></select></label>
-              <div class="player-check-row">
-                <label class="player-check"><input data-player-auto-play type="checkbox"> Auto play</label>
-                <label class="player-check"><input data-player-auto-next type="checkbox"> Auto next</label>
               </div>
             </div>
           </div>
@@ -478,7 +478,7 @@
 
       .video-wrapper:fullscreen .player-settings-panel,
       .video-wrapper.player-fullscreen .player-settings-panel {
-        bottom: 116px;
+        bottom: 46px;
       }
 
       .video-wrapper:fullscreen .custom-subtitles,
