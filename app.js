@@ -1947,10 +1947,52 @@ async function searchAnimeProviderMatch(anime, provider, customTitle = "") {
     .map((match) => {
       const providerScore = Number(match.score) || 0;
       const matchScore = sourceTitleScore(titles, match.title);
-      return { ...match, providerScore, matchScore, score: Math.max(providerScore, matchScore) };
+      const sequencePenalty = animeSequenceMismatchPenalty(anime, titles, match);
+      const identityBoost = animeProviderIdentityMatches(anime, match) ? 0.35 : 0;
+      return { ...match, providerScore, matchScore, sequencePenalty, score: Math.max(providerScore, matchScore) + identityBoost - sequencePenalty };
     })
-    .filter((match) => match.matchScore >= 0.15 || match.providerScore >= 0.2)
-    .sort((a, b) => (b.matchScore - a.matchScore) || (b.providerScore - a.providerScore) || ((a.searchIndex || 0) - (b.searchIndex || 0)))[0] || null;
+    .filter((match) => match.score >= 0.2 && (match.matchScore >= 0.15 || match.providerScore >= 0.2))
+    .sort((a, b) => (b.score - a.score) || (b.matchScore - a.matchScore) || (b.providerScore - a.providerScore) || ((a.searchIndex || 0) - (b.searchIndex || 0)))[0] || null;
+}
+
+function animeProviderIdentityMatches(anime, match) {
+  const animeIds = [anime?.apiId, anime?.id].map((id) => String(id || "")).filter(Boolean);
+  return Boolean(match?.anilistId && animeIds.includes(String(match.anilistId)));
+}
+
+function animeSequenceMismatchPenalty(anime, titles, match) {
+  if (animeProviderIdentityMatches(anime, match)) return 0;
+  const requested = bestAnimeSequenceInfo([...titles, anime?.title, anime?.englishTitle, anime?.romajiTitle]);
+  if (!requested?.number || requested.number <= 1) return 0;
+  const candidate = bestAnimeSequenceInfo([match?.title, match?.nativeTitle]);
+  if (!candidate?.number) return 0.9;
+  return candidate.number === requested.number ? 0 : 0.9;
+}
+
+function bestAnimeSequenceInfo(titles) {
+  return titles.reduce((best, title) => {
+    const info = animeSequenceInfo(title);
+    return (info?.number || 0) > (best?.number || 0) ? info : best;
+  }, null);
+}
+
+function animeSequenceInfo(title) {
+  const value = normalizeSearchText(title);
+  if (!value) return null;
+  const wordNumber = { second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6 };
+  const patterns = [
+    /\b(?:season|part|cour)\s*(\d+)\b/,
+    /\b(\d+)\s*(?:st|nd|rd|th)?\s*(?:season|part|cour)\b/,
+    /\bs\s*(\d+)\b/,
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(value);
+    if (match) return { number: Number(match[1]) };
+  }
+  for (const [word, number] of Object.entries(wordNumber)) {
+    if (new RegExp(`\\b${word}\\s+(?:season|part|cour)\\b`).test(value)) return { number };
+  }
+  return null;
 }
 
 async function fetchAnimeProviderEpisodes(match) {
