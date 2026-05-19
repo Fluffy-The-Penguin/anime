@@ -3095,7 +3095,21 @@ async function fetchApiJson(path) {
 function apiRequestUrl(path) {
   const route = String(path || "");
   if (route.startsWith("/api/anime/")) return route;
+  if (shouldUseSameOriginMangaApi(route)) return route;
   return `${apiBaseUrl()}${route}`;
+}
+
+function shouldUseSameOriginMangaApi(path) {
+  try {
+    const url = new URL(path, window.location.origin);
+    if (!url.pathname.startsWith("/api/manga/")) return false;
+    const providers = (url.searchParams.get("providers") || "").split(",");
+    const chapterId = url.searchParams.get("chapterId") || "";
+    return providers.some((provider) => ["hentaizap", "hentaifox"].includes(provider))
+      || ["hentaizap:", "hentaifox:"].some((prefix) => chapterId.startsWith(prefix));
+  } catch (error) {
+    return false;
+  }
 }
 
 function isMangaApiPath(path) {
