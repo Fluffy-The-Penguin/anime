@@ -1422,6 +1422,23 @@ body[data-page="details"] .details-panel {
   line-height: 1.05;
 }
 
+.detail-api-badge {
+  display: inline-flex;
+  align-items: center;
+  transform: translateY(-0.18em);
+  margin-left: 8px;
+  border: 1px solid color-mix(in srgb, var(--theme-primary) 42%, var(--line));
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: color-mix(in srgb, var(--theme-primary) 14%, transparent);
+  color: color-mix(in srgb, var(--theme-primary) 70%, #fff);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .detail-source,
 .detail-native {
   color: #b6b8bf;
@@ -4205,10 +4222,10 @@ body[data-page="reader"] .reader-top-button {
 
 .detail-tracker-card {
   display: grid;
-  gap: 14px;
-  width: min(760px, 100%);
-  margin-top: 28px;
-  padding: 16px;
+  gap: 10px;
+  width: min(560px, 100%);
+  margin-top: 20px;
+  padding: 12px;
   border: 1px solid color-mix(in srgb, var(--theme-primary) 20%, var(--line));
   border-radius: 18px;
   background: color-mix(in srgb, var(--solid) 86%, var(--soft));
@@ -4226,24 +4243,29 @@ body[data-page="reader"] .reader-top-button {
 
 .detail-tracker-head strong {
   display: block;
-  margin-top: 4px;
-  font-size: 18px;
+  margin-top: 2px;
+  font-size: 15px;
 }
 
 .detail-primary-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, auto));
   justify-content: flex-start;
+  gap: 8px;
 }
 
 .detail-primary-actions .btn,
 .detail-primary-actions .detail-remove {
-  min-height: 42px;
-  border-radius: 13px;
+  min-height: 34px;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 12px;
 }
 
 .detail-track-grid {
   display: grid;
-  grid-template-columns: minmax(140px, 0.8fr) minmax(240px, 1.2fr) minmax(120px, 0.6fr);
-  gap: 10px;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(190px, 1.2fr) minmax(96px, 0.6fr);
+  gap: 8px;
 }
 
 .detail-track-grid label {
@@ -4285,7 +4307,7 @@ body[data-page="reader"] .reader-top-button {
 
 .detail-tracker-card .detail-notes {
   width: 100%;
-  min-height: 78px;
+  min-height: 54px;
   margin-top: 0;
 }
 
@@ -4294,7 +4316,7 @@ body[data-page="reader"] .reader-top-button {
 }
 
 .detail-tracker-card .detail-progress-control {
-  grid-template-columns: 42px minmax(64px, 1fr) auto 42px;
+  grid-template-columns: 34px minmax(52px, 1fr) auto 34px;
 }
 
 @media (max-width: 900px) {
@@ -4354,8 +4376,7 @@ body[data-page="reader"] .reader-top-button {
 
   .detail-primary-actions .btn,
   .detail-primary-actions .detail-remove {
-    flex: 1 1 100%;
-    width: 100%;
+    width: auto;
   }
 }
 

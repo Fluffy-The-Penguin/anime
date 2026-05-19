@@ -1522,7 +1522,7 @@ function renderDetails(root, item, isTemporary = false) {
         <main class="detail-pro-main">
           <div class="detail-title-block">
             <span class="detail-source">${escapeHtml(mediaLabel(active))}${isTemporary ? " / saved copy" : ""}</span>
-            <h1>${escapeHtml(active.title)}</h1>
+            <h1>${escapeHtml(active.title)} <span class="detail-api-badge">${escapeHtml(active.source || (active.apiSource === "jikan" ? "Jikan" : "AniList"))}</span></h1>
             ${active.nativeTitle ? `<p class="detail-native">${escapeHtml(active.nativeTitle)}</p>` : ""}
           </div>
           <div class="detail-meta-line">
@@ -1773,23 +1773,27 @@ async function initAnimeDetailSources(root, anime) {
   const sourceQuery = root.querySelector("[data-detail-anime-query]");
   if (!sourceSelect || !sourceCount || !episodeList) return;
 
-  const catalogName = anime.apiSource === "jikan" ? "Jikan episodes" : "AniList episodes";
-  const sources = [{ id: "anilist", name: catalogName }];
+  const sources = [];
   if (animeSourceEnabled("animedex")) sources.push({ id: "animedex", name: "AnimeDex" });
   if (animeSourceEnabled("anizone")) sources.push({ id: "anizone", name: "AniZone" });
   if (animeSourceEnabled("hstream") && state.settings.allowAdult) sources.push({ id: "hstream", name: "hstream.moe" });
-  if (animeSourceEnabled("aniwaves")) sources.push({ id: "aniwaves", name: "Aniwaves provider match" });
 
   const savedSource = localStorage.getItem(animeSourceKey(anime)) || "";
   const customTitle = localStorage.getItem(animeSourceCustomQueryKey(anime)) || "";
   if (sourceQuery) sourceQuery.value = customTitle;
 
-  sourceSelect.innerHTML = sources.map((source) => `<option value="${escapeAttr(source.id)}">${escapeHtml(source.name)}</option>`).join("");
+  sourceSelect.innerHTML = sources.length ? sources.map((source) => `<option value="${escapeAttr(source.id)}">${escapeHtml(source.name)}</option>`).join("") : '<option value="">No enabled sources</option>';
   if (sources.some((source) => source.id === savedSource)) sourceSelect.value = savedSource;
 
   const sourceStates = new Map(sources.map((source) => [source.id, { ...source, status: "idle", episodes: [], matches: [], activeSourceId: source.id, activeLabel: source.name }]));
 
   const renderOptions = () => {
+    if (!sources.length) {
+      sourceSelect.innerHTML = '<option value="">No enabled sources</option>';
+      sourceSelect.disabled = true;
+      return;
+    }
+    sourceSelect.disabled = false;
     const selected = sourceSelect.value;
     sourceSelect.innerHTML = sources.map((source) => {
       const state = sourceStates.get(source.id);
@@ -1803,7 +1807,11 @@ async function initAnimeDetailSources(root, anime) {
     const sourceId = sourceSelect.value || sources[0]?.id || "";
     const state = sourceStates.get(sourceId);
     localStorage.setItem(animeSourceKey(anime), sourceId);
-    if (!state) return;
+    if (!state) {
+      sourceCount.textContent = "No anime sources enabled";
+      episodeList.innerHTML = '<div class="empty">Enable AnimeDex or AniZone in Settings to load real episodes.</div>';
+      return;
+    }
 
     if (state.status === "loaded" && state.episodes.length) {
       const fallback = state.activeSourceId !== sourceId ? " (fallback)" : "";
@@ -1843,10 +1851,7 @@ async function initAnimeDetailSources(root, anime) {
     if (sourceSelect.value === source.id) renderSelectedSource();
 
     try {
-      if (source.id === "anilist") {
-        state.episodes = buildEpisodes(anime);
-        state.activeLabel = anime.apiSource === "jikan" ? "Jikan" : "AniList";
-      } else if (source.id === "hstream") {
+      if (source.id === "hstream") {
         state.matches = await searchAdultAnime({ ...anime, sourceQuery: sourceQuery?.value.trim() || "" });
         state.episodes = hstreamMatchesToEpisodes(state.matches);
         state.activeLabel = "hstream";
@@ -1888,14 +1893,12 @@ async function initAnimeDetailSources(root, anime) {
   sourceQuery?.addEventListener("change", () => {
     localStorage.setItem(animeSourceCustomQueryKey(anime), sourceQuery.value.trim());
     sourceStates.forEach((state) => {
-      if (state.id !== "anilist") {
-        state.status = "idle";
-        state.episodes = [];
-        state.matches = [];
-        state.match = null;
-        state.activeSourceId = state.id;
-        state.activeLabel = state.name;
-      }
+      state.status = "idle";
+      state.episodes = [];
+      state.matches = [];
+      state.match = null;
+      state.activeSourceId = state.id;
+      state.activeLabel = state.name;
     });
     renderOptions();
     renderSelectedSource();
@@ -2088,7 +2091,7 @@ function preferredAnimeDetailSource(sources, savedSource = "") {
   if (savedSource && ids.includes(savedSource)) return savedSource;
   const preferred = state.settings.defaultAnimeSource || "animedex";
   if (ids.includes(preferred)) return preferred;
-  return ["animedex", "anizone", "anilist"].find((id) => ids.includes(id)) || ids[0] || "";
+  return ["animedex", "anizone", "hstream"].find((id) => ids.includes(id)) || ids[0] || "";
 }
 
 function extractEpisodeNumberFromText(text) {
@@ -2891,6 +2894,10 @@ async function initSettingsPage() {
 
   const defaultAnimeSource = document.querySelector("[data-default-anime-source]");
   if (defaultAnimeSource) {
+    if (![...defaultAnimeSource.options].some((option) => option.value === state.settings.defaultAnimeSource)) {
+      state.settings.defaultAnimeSource = "animedex";
+      persistSettings();
+    }
     defaultAnimeSource.value = state.settings.defaultAnimeSource || "animedex";
     defaultAnimeSource.addEventListener("change", (e) => {
       state.settings.defaultAnimeSource = e.target.value;
@@ -3796,7 +3803,9 @@ async function playHttpStream(url, tracks = [], options = {}) {
       <div class="spinner"></div>
       <span>Loading video...</span>
     </div>
+    <button class="video-center-skip video-center-skip-back" data-video-skip-back type="button" aria-label="Skip back 10 seconds">↶10</button>
     <button class="video-center-toggle" data-video-center-toggle type="button" aria-label="Play or pause">▶</button>
+    <button class="video-center-skip video-center-skip-forward" data-video-skip-forward type="button" aria-label="Skip forward 10 seconds">10↷</button>
     <div class="custom-video-controls" data-custom-video-controls>
       <button class="video-control-btn" data-video-play type="button" aria-label="Play or pause">▶</button>
       <div class="video-volume-control" data-video-volume-control>
@@ -3967,6 +3976,8 @@ function setupCustomVideoControls(video) {
 
   const play = controls.querySelector("[data-video-play]");
   const centerToggle = player.querySelector("[data-video-center-toggle]");
+  const skipBack = player.querySelector("[data-video-skip-back]");
+  const skipForward = player.querySelector("[data-video-skip-forward]");
   const progress = controls.querySelector("[data-video-progress]");
   const current = controls.querySelector("[data-video-current]");
   const duration = controls.querySelector("[data-video-duration]");
@@ -4038,6 +4049,16 @@ function setupCustomVideoControls(video) {
   centerToggle?.addEventListener("click", (event) => {
     event.stopPropagation();
     togglePlayback();
+  });
+  skipBack?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    video.currentTime = Math.max(0, video.currentTime - 10);
+    showControls();
+  });
+  skipForward?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    video.currentTime = Math.min(Number.isFinite(video.duration) ? video.duration : video.currentTime + 10, video.currentTime + 10);
+    showControls();
   });
 
   video.addEventListener("click", showControls);
