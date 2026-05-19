@@ -2854,15 +2854,51 @@ function normalizeApiBaseUrl(value) {
 }
 
 async function fetchApiJson(path) {
-  const response = await fetch(apiRequestUrl(path));
+  let response;
+  try {
+    response = await fetch(apiRequestUrl(path));
+  } catch (error) {
+    if (!isMangaApiPath(path)) throw error;
+    response = await fetch(path);
+  }
+  if (!response.ok && isMangaApiPath(path) && !isSameOriginApiUrl(response.url)) {
+    response = await fetch(path);
+  }
   if (!response.ok) throw new Error(`API request failed: ${response.status}`);
-  return response.json();
+  const data = await response.json();
+  if (isEmptyMangaApiResult(path, data) && !isSameOriginApiUrl(response.url)) {
+    const fallback = await fetch(path);
+    if (fallback.ok) {
+      const fallbackData = await fallback.json();
+      if (!isEmptyMangaApiResult(path, fallbackData)) return fallbackData;
+    }
+  }
+  return data;
 }
 
 function apiRequestUrl(path) {
   const route = String(path || "");
   if (route.startsWith("/api/anime/")) return route;
   return `${apiBaseUrl()}${route}`;
+}
+
+function isMangaApiPath(path) {
+  return String(path || "").startsWith("/api/manga/");
+}
+
+function isSameOriginApiUrl(url) {
+  try {
+    return new URL(url, window.location.origin).origin === window.location.origin;
+  } catch (error) {
+    return true;
+  }
+}
+
+function isEmptyMangaApiResult(path, data) {
+  if (!isMangaApiPath(path)) return false;
+  if (Array.isArray(data)) return data.length === 0;
+  if (data && Array.isArray(data.pages)) return data.pages.length === 0;
+  return false;
 }
 
 async function initSettingsPage() {
@@ -4872,11 +4908,16 @@ function bestMangaSourceMatches(matches, titles, providers) {
   for (const match of matches || []) {
     if (!match?.provider || !providers.includes(match.provider)) continue;
     const scored = { ...match, score: Math.max(sourceTitleScore(titles, match.title), Number(match.score || 0)) };
-    if (scored.score < 0.15) continue;
+    const requiredScore = isAdultMangaProvider(scored.provider) ? 0.45 : 0.15;
+    if (scored.score < requiredScore) continue;
     const current = byProvider.get(match.provider);
     if (!current || scored.score > current.score) byProvider.set(match.provider, scored);
   }
   return providers.map((provider) => byProvider.get(provider)).filter(Boolean);
+}
+
+function isAdultMangaProvider(provider) {
+  return ["pornhwaz", "hentai20", "pornhwapro", "hentai18"].includes(provider);
 }
 
 function sourceTitleScore(titles, candidate) {
