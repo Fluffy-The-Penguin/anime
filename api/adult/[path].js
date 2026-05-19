@@ -5,6 +5,7 @@ const ANILIST_URL = "https://graphql.anilist.co";
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 const ANIMEDEX_BASE_URL = "https://animedex.pp.ua";
 const ANIZONE_BASE_URL = "https://anizone.to";
+const TOKYOINSIDER_BASE_URL = "https://www.tokyoinsider.com";
 const REQUEST_TIMEOUT_MS = 15000;
 
 module.exports = async function handler(req, res) {
@@ -64,6 +65,22 @@ async function handleAnimeRoute(req, res, backendUrl) {
     }
     if (route === "anizone/proxy") {
       await proxyAniZoneMedia(req, res, backendUrl);
+      return;
+    }
+    if (route === "tokyoinsider/search") {
+      res.json(await searchTokyoInsider(cleanQuery(req.query.title)));
+      return;
+    }
+    if (route === "tokyoinsider/episodes") {
+      res.json(await getTokyoInsiderEpisodes(cleanQuery(req.query.animeId)));
+      return;
+    }
+    if (route === "tokyoinsider/streams") {
+      res.json(await getTokyoInsiderStreams(validateTokyoInsiderPageUrl(req.query.episodeUrl || req.query.url)));
+      return;
+    }
+    if (route === "tokyoinsider/proxy") {
+      await proxyTokyoInsiderMedia(req, res);
       return;
     }
   } catch (error) {
@@ -443,6 +460,177 @@ function isAllowedAniZoneMediaUrl(url) {
   }
 }
 
+async function searchTokyoInsider(title) {
+  if (!title) return [];
+  const results = new Map();
+  try {
+    const script = await fetchText(`${TOKYOINSIDER_BASE_URL}/upload/autocomplete.js`);
+    const entryRegex = /\["([^"]+)","([^"]+)"\]/g;
+    let match;
+    while ((match = entryRegex.exec(script))) {
+      const titleText = cleanHtml(match[1]);
+      const path = decodeXml(match[2]).replace(/\\\//g, "/");
+      addTokyoInsiderSearchResult(results, title, titleText, path);
+    }
+  } catch (error) {
+    // Fall through to the public search page, which often includes newer entries.
+  }
+
+  try {
+    const html = await fetchText(`${TOKYOINSIDER_BASE_URL}/anime/search?k=${encodeURIComponent(title).replace(/%20/g, "+")}`);
+    const linkRegex = /<a\b[^>]*href="([^"]*\/anime\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+    let match;
+    while ((match = linkRegex.exec(html))) {
+      const href = decodeXml(match[1]);
+      const text = cleanHtml(match[2]);
+      const seriesPath = tokyoInsiderSeriesPath(href);
+      if (seriesPath) addTokyoInsiderSearchResult(results, title, text || tokyoInsiderTitleFromPath(seriesPath), seriesPath);
+    }
+  } catch (error) {
+    // Search page is a secondary source only.
+  }
+
+  return [...results.values()].filter((item) => item.score >= 0.2).sort((a, b) => b.score - a.score).slice(0, 20);
+}
+
+function addTokyoInsiderSearchResult(results, query, titleText, path) {
+  const seriesPath = tokyoInsiderSeriesPath(path);
+  if (!seriesPath || !titleText) return;
+  const score = titleScore(query, titleText);
+  const existing = results.get(seriesPath);
+  if (!existing || score > existing.score) {
+    results.set(seriesPath, {
+      provider: "tokyoinsider",
+      id: seriesPath.replace(/^\//, ""),
+      title: titleText,
+      url: `${TOKYOINSIDER_BASE_URL}${seriesPath}`,
+      image: "",
+      score,
+    });
+  }
+}
+
+function tokyoInsiderSeriesPath(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  let path = raw;
+  try { path = new URL(raw, TOKYOINSIDER_BASE_URL).pathname; } catch (error) {}
+  const match = /^\/anime\/[^/]+\/[^/?#]+/i.exec(path);
+  return match ? match[0] : "";
+}
+
+function tokyoInsiderTitleFromPath(path) {
+  const slug = String(path || "").split("/").filter(Boolean).pop() || "";
+  return decodeURIComponent(slug).replace(/_/g, " ").replace(/\s+/g, " ").trim();
+}
+
+async function getTokyoInsiderEpisodes(animeId) {
+  const seriesPath = tokyoInsiderSeriesPath(`/${String(animeId || "").replace(/^\/+/, "")}`);
+  if (!seriesPath) return [];
+  const html = await fetchText(`${TOKYOINSIDER_BASE_URL}${seriesPath}`);
+  const episodes = [];
+  const seen = new Set();
+  const linkRegex = /<a\b[^>]*href="([^"]*\/anime\/[^"]+\/(episode|movie|special)\/(\d+))"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = linkRegex.exec(html))) {
+    const url = new URL(decodeXml(match[1]), TOKYOINSIDER_BASE_URL).toString();
+    if (!url.includes(seriesPath) || seen.has(url)) continue;
+    seen.add(url);
+    const type = match[2].toLowerCase();
+    const number = Number(match[3]);
+    episodes.push({
+      id: url,
+      provider: "tokyoinsider",
+      number,
+      type,
+      title: cleanHtml(match[4]) || `${type === "episode" ? "Episode" : type} ${number}`,
+      date: "TokyoInsider MP4",
+      url,
+      description: "TokyoInsider MP4 download source. MKV files are ignored because browsers usually cannot play them natively.",
+    });
+  }
+  const episodeOnly = episodes.filter((episode) => episode.type === "episode");
+  return (episodeOnly.length ? episodeOnly : episodes).sort((a, b) => a.number - b.number);
+}
+
+async function getTokyoInsiderStreams(episodeUrl) {
+  if (!episodeUrl) return { provider: "tokyoinsider", sources: [], tracks: [] };
+  const html = await fetchText(episodeUrl, { headers: { Referer: TOKYOINSIDER_BASE_URL } });
+  const seen = new Set();
+  const sources = [];
+  const linkRegex = /href="(https:\/\/media\.tokyoinsider\.com:8080\/dl\/[^"]+\.mp4(?:\?[^"]*)?)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = linkRegex.exec(html))) {
+    const mediaUrl = decodeXml(match[1]);
+    if (seen.has(mediaUrl)) continue;
+    seen.add(mediaUrl);
+    const fileName = cleanHtml(match[2]) || decodeURIComponent(new URL(mediaUrl).pathname.split("/").pop() || "TokyoInsider MP4");
+    const quality = firstMatch(fileName, /\b(2160p|1440p|1080p|720p|480p|360p)\b/i) || "MP4";
+    sources.push({
+      name: fileName,
+      quality,
+      type: "video/mp4",
+      url: proxyTokyoInsiderUrl(mediaUrl),
+      isHLS: false,
+      tracks: [],
+    });
+  }
+  sources.sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality));
+  return { provider: "tokyoinsider", sources, tracks: [] };
+}
+
+async function proxyTokyoInsiderMedia(req, res) {
+  const target = validateHttpUrl(req.query.url);
+  if (!target || !isAllowedTokyoInsiderMediaUrl(target)) {
+    res.status(400).json({ error: "valid TokyoInsider MP4 url is required" });
+    return;
+  }
+  const response = await fetchWithTimeout(target, { headers: tokyoInsiderMediaHeaders(req) });
+  if (!response.ok) {
+    res.status(response.status).send(await response.text().catch(() => response.statusText));
+    return;
+  }
+  res.status(response.status);
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Content-Type", "video/mp4");
+  ["content-length", "content-range", "accept-ranges", "cache-control", "last-modified"].forEach((header) => {
+    const value = response.headers.get(header);
+    if (value) res.setHeader(header, value);
+  });
+  if (!response.body) {
+    res.end();
+    return;
+  }
+  Readable.fromWeb(response.body).pipe(res);
+}
+
+function tokyoInsiderMediaHeaders(req) {
+  return {
+    Accept: "video/mp4,application/octet-stream,*/*",
+    Referer: `${TOKYOINSIDER_BASE_URL}/`,
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 AniTrack/1.0",
+    ...(req.headers.range ? { Range: req.headers.range } : {}),
+  };
+}
+
+function proxyTokyoInsiderUrl(url) {
+  return `/api/anime/tokyoinsider/proxy?url=${encodeURIComponent(url)}`;
+}
+
+function isAllowedTokyoInsiderMediaUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === "media.tokyoinsider.com" && parsed.port === "8080" && parsed.pathname.toLowerCase().endsWith(".mp4");
+  } catch (error) {
+    return false;
+  }
+}
+
+function qualityRank(value) {
+  const number = Number(firstMatch(value, /(\d+)/));
+  return Number.isFinite(number) ? number : 0;
+}
+
 async function proxyJson(res, target) {
   try {
     const response = await fetch(target, { headers: { Accept: "application/json" } });
@@ -569,6 +757,15 @@ function validateHttpUrl(value) {
   }
 }
 
+function validateTokyoInsiderPageUrl(value) {
+  try {
+    const url = new URL(firstQueryValue(value), TOKYOINSIDER_BASE_URL);
+    return url.protocol === "https:" && url.hostname === "www.tokyoinsider.com" && url.pathname.startsWith("/anime/") ? url.toString() : "";
+  } catch (error) {
+    return "";
+  }
+}
+
 function normalizeTrackList(tracks) {
   return asArray(tracks).filter((track) => track?.url || track?.file).map((track, index) => ({
     kind: track.kind || "subtitles",
@@ -580,6 +777,7 @@ function normalizeTrackList(tracks) {
 
 function contentTypeForUrl(url) {
   const path = new URL(url).pathname.toLowerCase();
+  if (path.endsWith(".mp4")) return "video/mp4";
   if (path.endsWith(".m3u8")) return "application/vnd.apple.mpegurl";
   if (path.endsWith(".ts")) return "video/mp2t";
   if (path.endsWith(".m4s")) return "video/iso.segment";

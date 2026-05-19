@@ -14,6 +14,7 @@ const DEFAULT_SUBTITLE_STYLE = { size: 28, color: "#ffffff", backgroundColor: "#
 const ANIME_SOURCES = [
   { id: "animedex", name: "AnimeDex", description: "Real anime episode lists with direct HLS streams from public AnimeDex APIs.", badge: "HLS" },
   { id: "anizone", name: "AniZone", description: "Anime episode lists with proxied direct HLS playback when available.", badge: "HLS" },
+  { id: "tokyoinsider", name: "TokyoInsider", description: "Fallback source for public MP4 download links. MKV files are ignored for browser playback.", badge: "MP4" },
   { id: "aniwaves", name: "Aniwaves", description: "Searches provider matches when raw streams are not available.", badge: "Provider" },
   { id: "hstream", name: "hstream.moe", description: "Adult-only direct playback source shown only when 18+ content is enabled.", badge: "+18", adult: true },
 ];
@@ -1787,6 +1788,7 @@ async function initAnimeDetailSources(root, anime) {
   const sources = [];
   if (animeSourceEnabled("animedex")) sources.push({ id: "animedex", name: "AnimeDex" });
   if (animeSourceEnabled("anizone")) sources.push({ id: "anizone", name: "AniZone" });
+  if (animeSourceEnabled("tokyoinsider")) sources.push({ id: "tokyoinsider", name: "TokyoInsider" });
   if (animeSourceEnabled("hstream") && state.settings.allowAdult) sources.push({ id: "hstream", name: "hstream.moe" });
 
   const savedSource = localStorage.getItem(animeSourceKey(anime)) || "";
@@ -1866,7 +1868,7 @@ async function initAnimeDetailSources(root, anime) {
         state.matches = await searchAdultAnime({ ...anime, sourceQuery: sourceQuery?.value.trim() || "" });
         state.episodes = hstreamMatchesToEpisodes(state.matches);
         state.activeLabel = "hstream";
-      } else if (source.id === "animedex" || source.id === "anizone") {
+      } else if (["animedex", "anizone", "tokyoinsider"].includes(source.id)) {
         let activeSourceId = source.id;
         let match = await searchAnimeProviderMatch(anime, source.id, sourceQuery?.value.trim() || "");
         if (!match && source.id === "animedex" && animeSourceEnabled("anizone")) {
@@ -1937,7 +1939,7 @@ function hstreamMatchesToEpisodes(matches) {
 
 async function searchAnimeProviderMatch(anime, provider, customTitle = "") {
   const titles = customTitle ? uniqueStrings([customTitle, ...animeTitleCandidates(anime)]) : animeTitleCandidates(anime);
-  const endpoint = provider === "animedex" ? "animedex" : "anizone";
+  const endpoint = provider === "animedex" ? "animedex" : provider === "tokyoinsider" ? "tokyoinsider" : "anizone";
   const results = await Promise.allSettled(titles.map((title, searchIndex) =>
     fetchApiJson(`/api/anime/${endpoint}/search?title=${encodeURIComponent(title)}`)
       .then((matches) => matches.map((match) => ({ ...match, searchTitle: title, searchIndex })))
@@ -2002,6 +2004,10 @@ async function fetchAnimeProviderEpisodes(match) {
   }
   if (match.provider === "anizone") {
     const episodes = await fetchApiJson(`/api/anime/anizone/episodes?animeId=${encodeURIComponent(match.id)}`);
+    return episodes.map((episode) => animeProviderEpisodeRow(episode, match));
+  }
+  if (match.provider === "tokyoinsider") {
+    const episodes = await fetchApiJson(`/api/anime/tokyoinsider/episodes?animeId=${encodeURIComponent(match.id)}`);
     return episodes.map((episode) => animeProviderEpisodeRow(episode, match));
   }
   return [];
@@ -2143,7 +2149,7 @@ function preferredAnimeDetailSource(sources, savedSource = "") {
   if (savedSource && ids.includes(savedSource)) return savedSource;
   const preferred = state.settings.defaultAnimeSource || "animedex";
   if (ids.includes(preferred)) return preferred;
-  return ["animedex", "anizone", "hstream"].find((id) => ids.includes(id)) || ids[0] || "";
+  return ["animedex", "anizone", "tokyoinsider", "hstream"].find((id) => ids.includes(id)) || ids[0] || "";
 }
 
 function extractEpisodeNumberFromText(text) {
@@ -3350,7 +3356,7 @@ async function initPlayerPage() {
   if (sourceMatches.length && startData?.sourceId === "hstream") {
     episodes = hstreamMatchesToEpisodes(sourceMatches);
     playerRuntime.currentSourceMatches = sourceMatches;
-  } else if (sourceMatches.length && ["animedex", "anizone"].includes(startData?.sourceId)) {
+  } else if (sourceMatches.length && ["animedex", "anizone", "tokyoinsider"].includes(startData?.sourceId)) {
     episodes = sourceMatches;
     playerRuntime.allSourceEpisodes = sourceMatches;
     if (startData.sourceId === "animedex") {
@@ -3496,11 +3502,13 @@ async function loadEpisode(anime, episode, episodeNumber) {
     return;
   }
 
-  if (episode.source === "animedex" || episode.source === "anizone") {
+  if (["animedex", "anizone", "tokyoinsider"].includes(episode.source)) {
     try {
       const data = episode.source === "animedex"
         ? await fetchApiJson(`/api/anime/animedex/streams?episodeId=${encodeURIComponent(episode.episodeId || episode.id || "")}`)
-        : await fetchApiJson(`/api/anime/anizone/streams?episodeUrl=${encodeURIComponent(episode.episodeUrl || episode.id || "")}`);
+        : episode.source === "tokyoinsider"
+          ? await fetchApiJson(`/api/anime/tokyoinsider/streams?episodeUrl=${encodeURIComponent(episode.episodeUrl || episode.id || "")}`)
+          : await fetchApiJson(`/api/anime/anizone/streams?episodeUrl=${encodeURIComponent(episode.episodeUrl || episode.id || "")}`);
       renderDirectAnimeStreams(sources, data, episode.source, playerAutoPlayEnabled());
     } catch (error) {
       sources.innerHTML = `<div class="empty">Could not load ${escapeHtml(animeSourceLabel(episode.source))} streams for this episode.</div>`;
@@ -4959,11 +4967,11 @@ function mangaSourceCustomQueryKey(manga) {
 }
 
 function providerLabel(provider) {
-  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone" }[provider] || provider || "Source");
+  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone", tokyoinsider: "TokyoInsider" }[provider] || provider || "Source");
 }
 
 function animeSourceLabel(source) {
-  return ({ animedex: "AnimeDex", anizone: "AniZone", aniwaves: "Aniwaves", hstream: "hstream.moe" }[source] || source || "Anime source");
+  return ({ animedex: "AnimeDex", anizone: "AniZone", tokyoinsider: "TokyoInsider", aniwaves: "Aniwaves", hstream: "hstream.moe" }[source] || source || "Anime source");
 }
 
 function mangaSourceOptionLabel(source, count = null) {
