@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Customize your AniTrack experience." />
     <title>AniTrack | Settings</title>
-    <link rel="stylesheet" href="styles.css?v=theme-icons-update-1" />
-    <script src="app.js?v=theme-icons-update-1" defer></script>
+    <link rel="stylesheet" href="styles.css?v=settings-checkbox-update-1" />
+    <script src="app.js?v=settings-checkbox-update-1" defer></script>
   </head>
   <body data-page="settings">
     <header class="topbar shell">
@@ -542,29 +542,33 @@
         align-items: center;
         justify-content: flex-start;
         flex-direction: row;
-        gap: 10px;
+        gap: 12px;
         width: max-content;
         max-width: 100%;
-        min-height: 44px;
-        padding: 9px 12px;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--soft) 78%, var(--solid));
+        min-height: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
         cursor: pointer;
         transition: all 150ms ease;
       }
 
       .form-group:has(> .checkbox-label) {
         grid-template-columns: 1fr;
+        width: max-content;
+        max-width: 100%;
+        padding: 14px 18px;
       }
 
       .checkbox-label:hover {
-        background: color-mix(in srgb, var(--soft) 86%, var(--solid));
+        color: var(--text);
       }
 
       .checkbox-label input {
-        width: 18px;
-        height: 18px;
+        width: 22px;
+        height: 22px;
+        min-height: 0;
         accent-color: var(--blue);
         cursor: pointer;
       }
