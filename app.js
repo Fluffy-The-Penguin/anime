@@ -705,7 +705,7 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
       <div class="doujin-preview-grid" data-doujin-preview-grid>
         ${loading ? Array.from({ length: 10 }, () => '<div class="skeleton-card"></div>').join("") : visiblePages.map((url, index) => `
           <button class="doujin-page-thumb" data-doujin-read-page="${index}" type="button" aria-label="Read from page ${index + 1}">
-            <img src="${escapeAttr(url)}" alt="${escapeAttr(manga.title)} page ${index + 1}" loading="lazy">
+            <img data-doujin-preview-image data-src="${escapeAttr(url)}" alt="${escapeAttr(manga.title)} page ${index + 1}" loading="lazy">
             <span>${index + 1}</span>
           </button>
         `).join("")}
@@ -731,6 +731,17 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
   root.querySelectorAll("[data-doujin-read-page]").forEach((button) => {
     button.addEventListener("click", () => openDoujinReaderFromPreview(manga, chapter, Number(button.dataset.doujinReadPage || 0)));
   });
+  if (!loading) loadDoujinPreviewImagesSequential(root);
+}
+
+async function loadDoujinPreviewImagesSequential(root) {
+  const token = String(Date.now());
+  root.dataset.previewImageToken = token;
+  const images = [...root.querySelectorAll("[data-doujin-preview-image]")];
+  for (const image of images) {
+    if (root.dataset.previewImageToken !== token || !document.body.contains(image)) return;
+    await loadImageWithFallback(image, image.dataset.src || "");
+  }
 }
 
 function doujinPreviewInitialCount(root) {
@@ -6034,9 +6045,7 @@ function renderChapterPages(display, pages, chapter, startPageIndex = 0, keepPag
     while (nextIndex < images.length && images.filter((image) => image.dataset.loading === "true").length < limit) {
       const image = images[nextIndex];
       image.dataset.loading = "true";
-      image.addEventListener("load", () => { delete image.dataset.loading; loadWindow(); }, { once: true });
-      image.addEventListener("error", () => { delete image.dataset.loading; loadWindow(); }, { once: true });
-      image.src = image.dataset.src;
+      loadImageWithFallback(image, image.dataset.src).finally(() => { delete image.dataset.loading; loadWindow(); });
       nextIndex += 1;
     }
   };
@@ -6063,8 +6072,7 @@ function renderPagedChapterPages(display, pages, chapter, pageIndex, mode) {
     image.alt = `${chapter.title} page ${current + offset + 1}`;
     image.decoding = "async";
     image.loading = "eager";
-    image.src = url;
-    image.addEventListener("load", () => preloadReaderPages(pages, current + step, step + 1), { once: true });
+    loadImageWithFallback(image, url).then(() => preloadReaderPages(pages, current + step, step + 1));
     wrapper.appendChild(image);
   });
 
@@ -6106,8 +6114,35 @@ function preloadReaderPages(pages, start, count) {
   for (let index = start; index < Math.min(pages.length, start + count); index += 1) {
     const image = new Image();
     image.decoding = "async";
-    image.src = pages[index];
+    loadImageWithFallback(image, pages[index]);
   }
+}
+
+function loadImageWithFallback(image, url) {
+  const candidates = imageFallbackCandidates(url);
+  if (!candidates.length) return Promise.resolve();
+  return new Promise((resolve) => {
+    let index = 0;
+    image.onload = () => resolve();
+    image.onerror = () => {
+      index += 1;
+      if (index < candidates.length) {
+        image.src = candidates[index];
+        return;
+      }
+      resolve();
+    };
+    image.src = candidates[0];
+  });
+}
+
+function imageFallbackCandidates(url) {
+  const value = String(url || "");
+  if (!value) return [];
+  const match = value.match(/^(https:\/\/(?:i\d*\.hentaifox\.com|m\d+\.hentaiera\.com)\/.*?\/\d+)\.(webp|jpg|jpeg|png)(\?[^?#]*)?$/i);
+  if (!match) return [value];
+  const [, base, extension, query = ""] = match;
+  return uniqueStrings([extension, "webp", "jpg", "png", "jpeg"].map((ext) => `${base}.${ext}${query}`));
 }
 
 async function fetchMangaPagesCached(chapterId) {
