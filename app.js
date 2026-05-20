@@ -897,8 +897,10 @@ function initLibraryPage() {
       if (!row) return;
       const item = state.library[row.dataset.id];
       if (isDoujinLibraryItem(item)) {
+        event.preventDefault();
+        event.stopPropagation();
         sessionStorage.setItem("doujin-preview-manga", JSON.stringify(item));
-        window.location.href = `doujin-preview.html?id=${encodeURIComponent(item.apiId || item.providerId)}`;
+        window.location.href = `doujin-preview.html?id=${encodeURIComponent(doujinLibraryApiId(item))}`;
         return;
       }
       goToDetails(item);
@@ -2020,6 +2022,12 @@ function isDoujinLibraryItem(item) {
     || DOUJIN_SOURCES.some((source) => String(item?.apiId || item?.providerId || "").startsWith(`${source.id}:`));
 }
 
+function doujinLibraryApiId(item) {
+  const id = String(item?.apiId || item?.providerId || "");
+  if (DOUJIN_SOURCES.some((source) => id.startsWith(`${source.id}:`))) return id;
+  return String(item?.id || "").replace(/^doujin-/, "");
+}
+
 function renderLibraryGroup(container, items, emptyMessage) {
   container.innerHTML = "";
   if (!items.length) return renderEmpty(container, emptyMessage);
@@ -2035,6 +2043,7 @@ function renderLibraryItem(item) {
   const progressText = `${item.progress || 0}${total ? ` / ${total}` : ""} ${item.unit}`;
   const row = create("a", `library-item ${isAdultLibraryItem(item) ? "adult" : "normal"}`);
   setMediaDataset(row, item);
+  if (isDoujinLibraryItem(item)) row.href = `doujin-preview.html?id=${encodeURIComponent(doujinLibraryApiId(item))}`;
   row.innerHTML = `
     <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
     <div>
