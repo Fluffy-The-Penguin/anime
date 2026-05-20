@@ -35,11 +35,19 @@ const MANGA_SOURCES = [
   { id: "toonily", name: "Toonily", description: "Large manhwa catalog; availability may depend on upstream anti-bot checks." },
 ];
 const DOUJIN_SOURCES = [
+  { id: "hentaizap", name: "HentaiZap", description: "English doujin gallery source. Can be blocked by upstream on production.", defaultEnabled: false },
   { id: "hentaifox", name: "HentaiFox" },
   { id: "3hentai", name: "3Hentai" },
   { id: "hentaiera", name: "HentaiEra" },
 ];
-const DOUJIN_TAGS = ["cheating", "ntr", "milf", "netorare", "teacher", "mind break", "vanilla", "big breasts", "cosplay", "incest", "schoolgirl", "ahegao"];
+const DOUJIN_TAGS = [
+  "cheating", "ntr", "netorare", "milf", "big breasts", "netori", "wife", "married woman", "mother", "teacher", "schoolgirl", "ahegao",
+  "vanilla", "romance", "full color", "uncensored", "anal", "creampie", "paizuri", "blowjob", "nakadashi", "threesome", "group", "mind break",
+  "hypnosis", "corruption", "cosplay", "maid", "nurse", "office lady", "gyaru", "tomboy", "futanari", "yuri", "stockings", "swimsuit",
+  "pregnant", "lactation", "dark skin", "elf", "monster girl", "succubus", "tentacles", "bondage", "femdom", "exhibitionism", "voyeurism", "incest",
+  "sister", "daughter", "childhood friend", "idol", "game cg", "artist cg", "western", "doujinshi", "manga", "english"
+];
+const DOUJIN_PAGE_SIZE = 42;
 const fallbackImage = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80";
 
 applyStoredTheme();
@@ -68,6 +76,10 @@ const state = {
   doujinQuery: "",
   doujinTags: [],
   doujinToken: 0,
+  doujinPage: 1,
+  doujinItems: [],
+  doujinLoadingMore: false,
+  doujinHasMore: true,
   libraryAdultFilter: "all",
   readerSession: null,
   browseSpotlightItems: [],
@@ -240,6 +252,10 @@ function initBrowsePage() {
   });
 
   search.addEventListener("input", () => {
+    state.doujinQuery = search.value.trim();
+  });
+
+  search.addEventListener("input", () => {
     window.clearTimeout(searchTimer);
     searchTimer = window.setTimeout(() => {
       state.browseQuery = search.value.trim();
@@ -352,7 +368,12 @@ function initDoujinPage() {
 
   if (!form || !search || !tags || !grid) return;
 
-  tags.innerHTML = DOUJIN_TAGS.map((tag) => `<button class="chip" data-doujin-tag="${escapeAttr(tag)}" type="button">${escapeHtml(tag)}</button>`).join("");
+  tags.innerHTML = `
+    <button class="btn secondary doujin-tag-toggle" data-doujin-tag-toggle type="button" aria-expanded="false">Tags: Any</button>
+    <div class="doujin-tag-menu" data-doujin-tag-menu hidden>
+      ${DOUJIN_TAGS.map((tag) => `<label class="doujin-tag-option"><input type="checkbox" data-doujin-tag="${escapeAttr(tag)}"> ${escapeHtml(tag)}</label>`).join("")}
+    </div>
+  `;
   applyDoujinUrlParams(search);
   syncDoujinTags();
 
@@ -372,9 +393,20 @@ function initDoujinPage() {
   });
 
   tags.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-doujin-tag]");
-    if (!button) return;
-    const tag = button.dataset.doujinTag;
+    const toggle = event.target.closest("[data-doujin-tag-toggle]");
+    if (toggle) {
+      const menu = tags.querySelector("[data-doujin-tag-menu]");
+      const isOpen = menu?.hidden;
+      if (menu) menu.hidden = !isOpen;
+      toggle.setAttribute("aria-expanded", String(Boolean(isOpen)));
+      return;
+    }
+  });
+
+  tags.addEventListener("change", (event) => {
+    const input = event.target.closest("[data-doujin-tag]");
+    if (!input) return;
+    const tag = input.dataset.doujinTag;
     state.doujinTags = state.doujinTags.includes(tag) ? state.doujinTags.filter((item) => item !== tag) : [...state.doujinTags, tag];
     syncDoujinTags();
     updateDoujinUrl();
@@ -392,6 +424,7 @@ function initDoujinPage() {
   });
 
   grid.addEventListener("click", openDoujinPreview);
+  window.addEventListener("scroll", maybeLoadMoreDoujin);
   loadDoujinSearch();
 }
 
@@ -411,12 +444,15 @@ function updateDoujinUrl() {
 }
 
 function syncDoujinTags() {
-  document.querySelectorAll("[data-doujin-tag]").forEach((button) => {
-    button.classList.toggle("active", state.doujinTags.includes(button.dataset.doujinTag));
+  document.querySelectorAll("[data-doujin-tag]").forEach((input) => {
+    input.checked = state.doujinTags.includes(input.dataset.doujinTag);
   });
+  const toggle = document.querySelector("[data-doujin-tag-toggle]");
+  if (toggle) toggle.textContent = state.doujinTags.length ? `Tags: ${state.doujinTags.length} selected` : "Tags: Any";
 }
 
-async function loadDoujinSearch() {
+async function loadDoujinSearch(options = {}) {
+  const append = Boolean(options.append);
   const grid = document.querySelector("[data-doujin-grid]");
   const heading = document.querySelector("[data-heading]");
   const status = document.querySelector("[data-doujin-status]");
@@ -430,6 +466,12 @@ async function loadDoujinSearch() {
   }
 
   const query = doujinSearchQuery();
+  if (!append) {
+    state.doujinPage = 1;
+    state.doujinItems = [];
+    state.doujinHasMore = true;
+  }
+  if (append && (!state.doujinHasMore || state.doujinLoadingMore)) return;
   if (!query) {
     if (heading) heading.textContent = "English Doujinshi";
     if (status) status.textContent = "Loading latest English doujinshi...";
@@ -438,21 +480,36 @@ async function loadDoujinSearch() {
   const token = ++state.doujinToken;
   if (query && heading) heading.textContent = `English doujinshi for "${query}"`;
   if (query && status) status.textContent = "Searching English-only sources...";
-  setLoading(grid, 12);
+  if (!append) setLoading(grid, 12);
+  state.doujinLoadingMore = true;
 
   try {
     const providers = doujinProviderIds();
     const queryParam = query ? `title=${encodeURIComponent(query)}&` : "latest=1&";
-    const results = await fetchApiJson(`/api/manga/search?${queryParam}providers=${encodeURIComponent(providers.join(","))}`);
+    const pageParam = `page=${encodeURIComponent(state.doujinPage)}&limit=${DOUJIN_PAGE_SIZE}&`;
+    const results = await fetchApiJson(`/api/manga/search?${queryParam}${pageParam}providers=${encodeURIComponent(providers.join(","))}`);
     if (token !== state.doujinToken) return;
-    const items = bestDoujinResults(results, providers);
-    if (status) status.textContent = `${items.length} ${query ? "English result" : "latest English doujinshi"}${items.length === 1 ? "" : "s"} from ${providers.length} sources`;
-    renderDoujinCards(grid, items);
+    const rawPageItems = bestDoujinResults(results, providers);
+    const pageItems = rawPageItems.slice(0, DOUJIN_PAGE_SIZE);
+    const previousCount = state.doujinItems.length;
+    state.doujinItems = bestDoujinResults([...state.doujinItems, ...pageItems], providers);
+    state.doujinHasMore = rawPageItems.length > 0 && state.doujinItems.length > previousCount;
+    if (state.doujinHasMore) state.doujinPage += 1;
+    if (status) status.textContent = `${state.doujinItems.length} ${query ? "English result" : "latest English doujinshi"}${state.doujinItems.length === 1 ? "" : "s"} from ${providers.length} enabled sources`;
+    renderDoujinCards(grid, state.doujinItems, state.doujinHasMore);
   } catch (error) {
     if (token !== state.doujinToken) return;
     if (status) status.textContent = "Search failed";
-    renderEmpty(grid, "Could not load doujinshi results right now.");
+    if (!append) renderEmpty(grid, "Could not load doujinshi results right now.");
+  } finally {
+    state.doujinLoadingMore = false;
   }
+}
+
+function maybeLoadMoreDoujin() {
+  if (page !== "doujin" || state.doujinLoadingMore || !state.doujinHasMore) return;
+  const distance = document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
+  if (distance < 900) loadDoujinSearch({ append: true });
 }
 
 function doujinSearchQuery() {
@@ -460,7 +517,7 @@ function doujinSearchQuery() {
 }
 
 function doujinProviderIds() {
-  return DOUJIN_SOURCES.map((source) => source.id);
+  return enabledDoujinProviderIds();
 }
 
 function bestDoujinResults(results, providers) {
@@ -475,7 +532,7 @@ function bestDoujinResults(results, providers) {
   return [...byId.values()].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
 }
 
-function renderDoujinCards(container, items) {
+function renderDoujinCards(container, items, hasMore = false) {
   container.innerHTML = "";
   if (!items.length) return renderEmpty(container, "No English doujinshi found for this search.");
 
@@ -492,6 +549,11 @@ function renderDoujinCards(container, items) {
     fragment.append(card);
   });
   container.append(fragment);
+  if (hasMore) {
+    const loading = create("div", "doujin-load-more");
+    loading.textContent = "Scroll for more doujinshi...";
+    container.append(loading);
+  }
 }
 
 function openDoujinPreview(event) {
@@ -618,8 +680,21 @@ function saveDoujinToLibrary(manga) {
   state.current = saved;
   persistLibrary();
   showToast("Saved to your library.");
+  showLibraryOverlay(`${saved.title} added to Library`);
   const button = document.querySelector("[data-doujin-save]");
   if (button) button.textContent = "Saved";
+}
+
+function showLibraryOverlay(message) {
+  document.querySelector(".library-overlay-toast")?.remove();
+  const overlay = create("div", "library-overlay-toast");
+  overlay.innerHTML = `<strong>Saved</strong><span>${escapeHtml(message)}</span>`;
+  document.body.appendChild(overlay);
+  window.setTimeout(() => overlay.classList.add("show"), 20);
+  window.setTimeout(() => {
+    overlay.classList.remove("show");
+    window.setTimeout(() => overlay.remove(), 180);
+  }, 1600);
 }
 
 function openDoujinReaderFromPreview(manga, chapter, pageIndex) {
@@ -2392,7 +2467,7 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
   const audioOptions = animeEpisodeAudioOptions(episodes);
   const selectedAudio = sourceId === "animedex" && audioOptions.length > 1 ? selectedAnimeEpisodeAudio(anime, episodes) : "";
   const visibleEpisodes = (selectedAudio ? episodes.filter((episode) => episodeAudioKey(episode) === selectedAudio) : [...episodes]).sort(compareEpisodesDesc);
-  const pageSize = 40;
+  const pageSize = detailListPageSize();
   const totalPages = Math.max(1, Math.ceil(visibleEpisodes.length / pageSize));
   const currentPage = Math.min(Math.max(1, pageNumber), totalPages);
   const pageEpisodes = visibleEpisodes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -2574,7 +2649,7 @@ function renderMangaDetailChapterList(container, manga, source, pageNumber = 1) 
   }
 
   const chapters = [...source.chapters].sort(compareChaptersDesc);
-  const pageSize = 40;
+  const pageSize = detailListPageSize();
   const totalPages = Math.max(1, Math.ceil(chapters.length / pageSize));
   const currentPage = Math.min(Math.max(1, pageNumber), totalPages);
   const pageChapters = chapters.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -2767,6 +2842,7 @@ function setAdultContentEnabled(enabled, options = {}) {
   if (page === "settings") {
     loadAnimeSourcesNew();
     loadMangaExtensionsNew();
+    loadDoujinSourcesNew();
   }
   if (toast) showToast(state.settings.allowAdult ? "18+ content enabled." : "18+ content disabled.");
   if (!reload) return;
@@ -2878,6 +2954,7 @@ function loadSettings() {
       ...saved,
       animeSources: { ...defaults.animeSources, ...(saved.animeSources || {}) },
       mangaSources: { ...defaults.mangaSources, ...(saved.mangaSources || {}) },
+      doujinSources: { ...defaults.doujinSources, ...(saved.doujinSources || {}) },
       subtitleStyle: { ...defaults.subtitleStyle, ...(saved.subtitleStyle || {}) },
     };
     settings.apiBaseUrl = normalizeApiBaseUrl(settings.apiBaseUrl || localStorage.getItem(API_BASE_KEY) || DEFAULT_API_BASE_URL);
@@ -2892,6 +2969,7 @@ function defaultSettings() {
     allowAdult: false,
     animeSources: defaultAnimeSources(),
     mangaSources: defaultMangaSources(),
+    doujinSources: defaultDoujinSources(),
     preferredQuality: "auto",
     subtitleLanguage: "english",
     autoPlay: true,
@@ -2919,9 +2997,18 @@ function defaultMangaSources() {
   return Object.fromEntries(MANGA_SOURCES.map((source) => [source.id, true]));
 }
 
+function defaultDoujinSources() {
+  return Object.fromEntries(DOUJIN_SOURCES.map((source) => [source.id, source.defaultEnabled !== false]));
+}
+
 function enabledMangaProviderIds() {
   const enabled = { ...defaultMangaSources(), ...(state.settings.mangaSources || {}) };
   return MANGA_SOURCES.filter((source) => enabled[source.id] && (!source.adult || state.settings.allowAdult)).map((source) => source.id);
+}
+
+function enabledDoujinProviderIds() {
+  const enabled = { ...defaultDoujinSources(), ...(state.settings.doujinSources || {}) };
+  return DOUJIN_SOURCES.filter((source) => enabled[source.id] && state.settings.allowAdult).map((source) => source.id);
 }
 
 function persistSettings() {
@@ -3032,7 +3119,7 @@ function buildChapterRows(item) {
   }
 
   const total = Number(item.total || 0);
-  const count = total ? Math.min(total, 24) : 12;
+  const count = total ? Math.min(total, window.matchMedia?.("(max-width: 720px)").matches ? 8 : 24) : window.matchMedia?.("(max-width: 720px)").matches ? 6 : 12;
   return Array.from({ length: count }, (_, index) => {
     const number = total ? total - index : count - index;
     return {
@@ -3041,6 +3128,10 @@ function buildChapterRows(item) {
       image: item.type === "manga" ? item.image || item.banner || fallbackImage : item.banner || item.image || fallbackImage,
     };
   });
+}
+
+function detailListPageSize() {
+  return window.matchMedia?.("(max-width: 720px)").matches ? 12 : 40;
 }
 
 function colorFromString(value) {
@@ -3287,6 +3378,7 @@ async function initSettingsPage() {
 
     if (sectionName === "anime-sources") loadAnimeSourcesNew();
     if (sectionName === "extensions-manga") loadMangaExtensionsNew();
+    if (sectionName === "doujin-sources") loadDoujinSourcesNew();
   };
 
   nav?.addEventListener("click", (event) => {
@@ -3438,6 +3530,7 @@ async function initSettingsPage() {
   });
 
   loadAnimeSourcesNew();
+  loadDoujinSourcesNew();
 }
 
 function initSubtitleStyleSettings() {
@@ -3550,6 +3643,37 @@ async function loadMangaExtensionsNew() {
       state.settings.mangaSources[toggle.dataset.mangaProviderToggle] = toggle.checked;
       persistSettings();
       showToast(`${toggle.checked ? "Enabled" : "Disabled"} ${providerLabel(toggle.dataset.mangaProviderToggle)}`);
+    });
+  });
+}
+
+async function loadDoujinSourcesNew() {
+  const container = document.querySelector("[data-doujin-sources]");
+  if (!container) return;
+  if (!state.settings.allowAdult) {
+    container.innerHTML = '<div class="empty">Enable 18+ content in Content settings to manage Doujin sources.</div>';
+    return;
+  }
+
+  const enabled = { ...defaultDoujinSources(), ...(state.settings.doujinSources || {}) };
+  container.innerHTML = DOUJIN_SOURCES.map((source) => `
+    <div class="extension-card adult-source-card">
+      <h4>${escapeHtml(source.name)} <span class="extension-nsfw">+18</span></h4>
+      <p>${escapeHtml(source.description || "English doujin gallery source with direct page images when available.")}</p>
+      <div class="extension-footer">
+        <span class="extension-version">Doujin source</span>
+        ${source.defaultEnabled === false ? '<span class="source-note">Off by default: upstream may block production</span>' : ""}
+        <input type="checkbox" class="extension-toggle" data-doujin-source-toggle="${escapeAttr(source.id)}" aria-label="Enable ${escapeAttr(source.name)}" ${enabled[source.id] ? "checked" : ""}>
+      </div>
+    </div>
+  `).join("");
+
+  container.querySelectorAll("[data-doujin-source-toggle]").forEach((toggle) => {
+    toggle.addEventListener("change", () => {
+      state.settings.doujinSources = { ...defaultDoujinSources(), ...(state.settings.doujinSources || {}) };
+      state.settings.doujinSources[toggle.dataset.doujinSourceToggle] = toggle.checked;
+      persistSettings();
+      showToast(`${toggle.checked ? "Enabled" : "Disabled"} ${providerLabel(toggle.dataset.doujinSourceToggle)}`);
     });
   });
 }
@@ -5743,6 +5867,7 @@ function changeReaderPage(delta) {
   const next = Math.max(0, Math.min(session.pageIndex + delta, session.pages.length - 1));
   if (next === session.pageIndex) return;
   renderChapterPages(session.display, session.pages, session.chapter, next);
+  window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 function preloadReaderPages(pages, start, count) {

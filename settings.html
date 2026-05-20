@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Customize your AniTrack experience." />
     <title>AniTrack | Settings</title>
-    <link rel="stylesheet" href="styles.css?v=doujin-reader-update-1" />
-    <script src="app.js?v=doujin-reader-update-1" defer></script>
+    <link rel="stylesheet" href="styles.css?v=doujin-filter-update-1" />
+    <script src="app.js?v=doujin-filter-update-1" defer></script>
   </head>
   <body data-page="settings">
     <header class="topbar shell">
@@ -39,6 +39,9 @@
             </button>
             <button class="settings-nav-btn" data-section="extensions-manga" type="button">
               <span>MG</span> Manga Sources
+            </button>
+            <button class="settings-nav-btn" data-section="doujin-sources" type="button">
+              <span>DJ</span> Doujin Sources
             </button>
             <button class="settings-nav-btn" data-section="data" type="button">
               <span>DB</span> Data
@@ -212,6 +215,17 @@
 
             <div class="extensions-grid" data-manga-extensions>
               <div class="loading-state">Loading manga sources...</div>
+            </div>
+          </section>
+
+          <section class="settings-section" data-section-content="doujin-sources">
+            <div class="section-header">
+              <h2>Doujin Sources</h2>
+              <p class="muted">Choose which English adult gallery providers appear on the Doujin page</p>
+            </div>
+
+            <div class="extensions-grid" data-doujin-sources>
+              <div class="loading-state">Loading doujin sources...</div>
             </div>
           </section>
 

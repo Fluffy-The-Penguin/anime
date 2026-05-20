@@ -14,9 +14,10 @@ module.exports = async function handler(req, res) {
   const results = Array.isArray(backendResults) ? backendResults.filter((item) => !providers.length || providers.includes(item.provider)) : [];
   const title = String(req.query.title || "").trim();
   const latest = !title && String(req.query.latest || "") === "1";
+  const page = Math.max(1, Number.parseInt(req.query.page || "1", 10) || 1);
   if (latest) {
     const latestProviders = ADULT_MANGA_PROVIDERS.filter((provider) => (!providers.length || providers.includes(provider)) && !results.some((item) => item.provider === provider));
-    const latestResults = await Promise.allSettled(latestProviders.map((provider) => latestAdultMangaSource(provider)));
+    const latestResults = await Promise.allSettled(latestProviders.map((provider) => latestAdultMangaSource(provider, { page })));
     latestResults.forEach((result) => {
       if (result.status === "fulfilled") results.push(...result.value);
     });
@@ -27,12 +28,13 @@ module.exports = async function handler(req, res) {
   const shouldTryProjectSuki = req.query.title && (!providers.length || providers.includes("projectsuki")) && !results.some((item) => item.provider === "projectsuki");
   const shouldTryManhwaZ = req.query.title && (!providers.length || providers.includes("manhwaz")) && !results.some((item) => item.provider === "manhwaz");
   const adultProviders = ADULT_MANGA_PROVIDERS.filter((provider) => req.query.title && (!providers.length || providers.includes(provider)) && !hasStrongAdultMatch(results, provider));
+  const adultQueries = doujinQueries(title, providers, adultProviders);
 
   const [weebCentralResults, projectSukiResults, manhwaZResults, ...adultResults] = await Promise.allSettled([
     shouldTryWeebCentral ? searchWeebCentralManga(title) : [],
     shouldTryProjectSuki ? searchProjectSukiManga(title) : [],
     shouldTryManhwaZ ? searchManhwaZManga(title) : [],
-    ...adultProviders.map((provider) => searchAdultMangaSource(provider, title)),
+    ...adultProviders.flatMap((provider) => adultQueries.map((query) => searchAdultMangaSource(provider, query, { page }))),
   ]);
   if (weebCentralResults.status === "fulfilled") results.push(...weebCentralResults.value);
   if (projectSukiResults.status === "fulfilled") results.push(...projectSukiResults.value);
@@ -43,6 +45,14 @@ module.exports = async function handler(req, res) {
 
   res.status(200).json(results);
 };
+
+function doujinQueries(title, providers, adultProviders) {
+  const galleryProviders = ["hentaizap", "hentaifox", "3hentai", "hentaiera", "hentaicity"];
+  if (!adultProviders.some((provider) => galleryProviders.includes(provider))) return [title];
+  const terms = String(title || "").split(/[\s,]+/).map((term) => term.trim()).filter((term) => term.length > 1);
+  if (terms.length < 2) return [title];
+  return [...new Set([title, ...terms])];
+}
 
 async function fetchBackendJson(target) {
   try {
