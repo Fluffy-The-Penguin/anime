@@ -703,12 +703,7 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
         </div>
       </div>
       <div class="doujin-preview-grid" data-doujin-preview-grid>
-        ${loading ? Array.from({ length: 10 }, () => '<div class="skeleton-card"></div>').join("") : visiblePages.map((url, index) => `
-          <button class="doujin-page-thumb" data-doujin-read-page="${index}" type="button" aria-label="Read from page ${index + 1}">
-            <img data-doujin-preview-image data-src="${escapeAttr(url)}" alt="${escapeAttr(manga.title)} page ${index + 1}" loading="lazy">
-            <span>${index + 1}</span>
-          </button>
-        `).join("")}
+        ${loading ? Array.from({ length: 10 }, () => '<div class="skeleton-card"></div>').join("") : visiblePages.map((url, index) => doujinPreviewThumbHtml(manga, url, index)).join("")}
       </div>
       ${!loading && pages.length > visibleCount ? `
         <div class="doujin-preview-more">
@@ -721,26 +716,53 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
 
   root.querySelector("[data-doujin-save]")?.addEventListener("click", () => toggleDoujinLibrary(root, manga, pages, chapter));
   root.querySelector("[data-doujin-preview-more]")?.addEventListener("click", () => {
-    root.dataset.previewVisible = String(Math.min(pages.length, visibleCount + doujinPreviewInitialCount(root)));
-    renderDoujinPreview(root, manga, pages, false, chapter);
+    appendDoujinPreviewPages(root, manga, pages, chapter, Math.min(pages.length, visibleCount + doujinPreviewInitialCount(root)));
   });
   root.querySelector("[data-doujin-preview-all]")?.addEventListener("click", () => {
-    root.dataset.previewVisible = String(pages.length);
-    renderDoujinPreview(root, manga, pages, false, chapter);
+    appendDoujinPreviewPages(root, manga, pages, chapter, pages.length);
   });
-  root.querySelectorAll("[data-doujin-read-page]").forEach((button) => {
-    button.addEventListener("click", () => openDoujinReaderFromPreview(manga, chapter, Number(button.dataset.doujinReadPage || 0)));
-  });
+  bindDoujinPreviewReadButtons(root, manga, chapter);
   if (!loading) loadDoujinPreviewImagesInBatches(root);
 }
 
-async function loadDoujinPreviewImagesInBatches(root) {
-  const token = String(Date.now());
+function doujinPreviewThumbHtml(manga, url, index) {
+  return `
+    <button class="doujin-page-thumb" data-doujin-read-page="${index}" type="button" aria-label="Read from page ${index + 1}">
+      <img data-doujin-preview-image data-src="${escapeAttr(url)}" alt="${escapeAttr(manga.title)} page ${index + 1}" loading="lazy">
+      <span>${index + 1}</span>
+    </button>
+  `;
+}
+
+function appendDoujinPreviewPages(root, manga, pages, chapter, targetVisible) {
+  const grid = root.querySelector("[data-doujin-preview-grid]");
+  if (!grid) return;
+  const currentVisible = Number(root.dataset.previewVisible || grid.querySelectorAll("[data-doujin-read-page]").length || 0);
+  const nextVisible = Math.min(pages.length, Math.max(currentVisible, targetVisible));
+  if (nextVisible <= currentVisible) return;
+
+  grid.insertAdjacentHTML("beforeend", pages.slice(currentVisible, nextVisible).map((url, offset) => doujinPreviewThumbHtml(manga, url, currentVisible + offset)).join(""));
+  root.dataset.previewVisible = String(nextVisible);
+  bindDoujinPreviewReadButtons(root, manga, chapter);
+  loadDoujinPreviewImagesInBatches(root, [...grid.querySelectorAll("[data-doujin-preview-image]:not([src])")]);
+
+  if (nextVisible >= pages.length) root.querySelector(".doujin-preview-more")?.remove();
+}
+
+function bindDoujinPreviewReadButtons(root, manga, chapter) {
+  root.querySelectorAll("[data-doujin-read-page]:not([data-bound])").forEach((button) => {
+    button.dataset.bound = "true";
+    button.addEventListener("click", () => openDoujinReaderFromPreview(manga, chapter, Number(button.dataset.doujinReadPage || 0)));
+  });
+}
+
+async function loadDoujinPreviewImagesInBatches(root, images = null) {
+  const token = root.dataset.previewImageToken || String(Date.now());
   root.dataset.previewImageToken = token;
-  const images = [...root.querySelectorAll("[data-doujin-preview-image]")];
-  for (let index = 0; index < images.length; index += 5) {
+  const pendingImages = images || [...root.querySelectorAll("[data-doujin-preview-image]")];
+  for (let index = 0; index < pendingImages.length; index += 5) {
     if (root.dataset.previewImageToken !== token || !document.body.contains(root)) return;
-    await Promise.all(images.slice(index, index + 5).map((image) => loadImageWithFallback(image, image.dataset.src || "")));
+    await Promise.all(pendingImages.slice(index, index + 5).map((image) => loadImageWithFallback(image, image.dataset.src || "")));
   }
 }
 
