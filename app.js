@@ -6139,6 +6139,23 @@ function renderPagedChapterPages(display, pages, chapter, pageIndex, mode) {
 
   display.appendChild(wrapper);
   preloadReaderPages(pages, current + step, step + 1);
+  setupReaderKeyboardNavigation(step);
+}
+
+function setupReaderKeyboardNavigation(step) {
+  if (playerRuntime.readerKeyboardHandler) document.removeEventListener("keydown", playerRuntime.readerKeyboardHandler);
+  playerRuntime.readerKeyboardHandler = (event) => {
+    if (event.target?.closest?.("input, textarea, select, button")) return;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      changeReaderPage(-step);
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      changeReaderPage(step);
+    }
+  };
+  document.addEventListener("keydown", playerRuntime.readerKeyboardHandler);
 }
 
 function changeReaderPage(delta) {
