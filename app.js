@@ -2043,9 +2043,10 @@ function renderLibraryItem(item) {
   const total = item.total || 0;
   const percent = total ? Math.min(100, Math.round(((item.progress || 0) / total) * 100)) : 0;
   const progressText = `${item.progress || 0}${total ? ` / ${total}` : ""} ${item.unit}`;
-  const row = create("a", `library-item ${isAdultLibraryItem(item) ? "adult" : "normal"}`);
+  const row = create("div", `library-item ${isAdultLibraryItem(item) ? "adult" : "normal"}`);
   setMediaDataset(row, item);
-  if (isDoujinLibraryItem(item)) row.href = `doujin-preview.html?id=${encodeURIComponent(doujinLibraryApiId(item))}`;
+  row.setAttribute("role", "link");
+  row.tabIndex = 0;
   row.innerHTML = `
     <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
     <div>
@@ -2053,9 +2054,44 @@ function renderLibraryItem(item) {
       <div class="meta">${metaHtml([statusLabel(item.status), mediaLabel(item), isAdultLibraryItem(item) ? "18+" : "Normal", progressText, item.rating !== "" ? `Rated ${item.rating}/10` : "Unrated"])}</div>
       <div class="progress-bar"><span style="width:${percent}%"></span></div>
     </div>
-    <div class="library-side"><strong>${percent}%</strong><div class="muted">${escapeHtml(statusLabel(item.status))}</div></div>
+    <div class="library-side">
+      <strong>${percent}%</strong>
+      <label class="library-status-control">Status
+        <select data-library-status aria-label="Library status for ${escapeAttr(item.title)}">${statusOptions(item.type)}</select>
+      </label>
+    </div>
   `;
+  const statusSelect = row.querySelector("[data-library-status]");
+  if (statusSelect) {
+    statusSelect.value = item.status || (item.type === "manga" ? "reading" : "watching");
+    statusSelect.addEventListener("click", (event) => event.stopPropagation());
+    statusSelect.addEventListener("keydown", (event) => event.stopPropagation());
+    statusSelect.addEventListener("change", () => updateLibraryItemStatus(item.id, statusSelect.value));
+  }
+  const openItem = () => {
+    if (isDoujinLibraryItem(item)) window.location.href = `doujin-preview.html?id=${encodeURIComponent(doujinLibraryApiId(item))}`;
+    else goToDetails(item);
+  };
+  row.addEventListener("click", (event) => {
+    if (event.target.closest("select, button, input, textarea, label")) return;
+    openItem();
+  });
+  row.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.target.closest("select, button, input, textarea")) return;
+    event.preventDefault();
+    openItem();
+  });
   return row;
+}
+
+function updateLibraryItemStatus(id, status) {
+  const item = state.library[id];
+  if (!item || !status) return;
+  item.status = status;
+  item.updatedAt = Date.now();
+  persistLibrary();
+  renderLibrary();
 }
 
 function renderDetails(root, item, isTemporary = false) {

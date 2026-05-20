@@ -5037,6 +5037,29 @@ body[data-page="reader"] .reader-top-button {
   text-align: left;
 }
 
+.library-status-control {
+  display: grid;
+  gap: 4px;
+  min-width: 118px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.library-status-control select {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--solid);
+  color: var(--text);
+  font: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 @media (max-width: 980px) {
   .detail-anime-episode-list .detail-scroll-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
