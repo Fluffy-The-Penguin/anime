@@ -3320,6 +3320,55 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   transform: none !important;
 }
 
+/* Header icon normalization: keep menu/theme/profile visually centered across themes and breakpoints. */
+.top-actions .icon-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  text-align: center !important;
+}
+
+.top-actions .icon-btn svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  fill: currentColor;
+}
+
+.top-actions .profile-btn {
+  color: var(--theme-on-primary) !important;
+  border-color: color-mix(in srgb, var(--theme-primary) 42%, var(--line));
+  background: linear-gradient(135deg, var(--blue), var(--pink)) !important;
+}
+
+:root[data-theme="light"] .top-actions .icon-btn:not(.profile-btn) {
+  color: #172033;
+  background: rgba(255, 255, 255, 0.86) !important;
+}
+
+@media (max-width: 720px) {
+  .top-actions .icon-btn {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    font-size: 12px !important;
+  }
+
+  .top-actions .icon-btn svg {
+    width: 19px;
+    height: 19px;
+  }
+}
+
 .settings-row.compact { padding: 9px 10px; text-align: center; }
 
 .settings-toggle {
