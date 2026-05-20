@@ -161,32 +161,16 @@ function injectChrome() {
         </button>` : ""}
         <button class="icon-btn theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">${themeIcon()}</button>
         <div class="profile-menu">
-        <button class="icon-btn profile-btn" data-profile-toggle type="button" aria-label="Open profile settings">${profileInitials()}</button>
+          <button class="icon-btn profile-btn" data-profile-toggle type="button" aria-label="Open profile settings">${profileInitials()}</button>
           <div class="profile-popover" data-profile-popover>
             <strong>Profile</strong>
-            <div class="account-block" data-account-panel>
-              <div class="account-status"><strong data-account-title>${state.account?.username ? `@${escapeHtml(state.account.username)}` : "Sync Account"}</strong><span data-account-status>${state.account?.username ? "Library and settings sync enabled" : "Register or log in to sync across devices"}</span></div>
-              <form class="account-form" data-account-form ${state.account?.token ? "hidden" : ""}>
-                <input data-account-username type="text" autocomplete="username" placeholder="Username" minlength="3" maxlength="32">
-                <input data-account-password type="password" autocomplete="current-password" placeholder="Password" minlength="6">
-                <div class="account-buttons">
-                  <button class="settings-row" data-account-action="login" type="submit">Log in</button>
-                  <button class="settings-row" data-account-action="register" type="submit">Register</button>
-                </div>
-              </form>
-              <div class="account-actions" data-account-actions ${state.account?.token ? "" : "hidden"}>
-                <button class="settings-row" data-account-sync type="button">Sync now</button>
-                <button class="settings-row" data-account-logout type="button">Log out</button>
-              </div>
+            <div class="profile-account-card" data-account-panel>
+              <div class="account-status"><strong data-account-title>${state.account?.username ? `@${escapeHtml(state.account.username)}` : "Guest"}</strong><span data-account-status>${state.account?.username ? "Sync enabled" : "Local library only"}</span></div>
+              <button class="settings-row compact" data-account-open type="button">${state.account?.token ? "Manage Account" : "Log in / Register"}</button>
             </div>
             <button class="settings-row" data-library-button type="button">Library</button>
             <button class="settings-row" data-settings-button type="button">Settings</button>
             <label class="settings-toggle"><span>Show 18+ content</span><input data-adult-toggle type="checkbox" ${state.settings.allowAdult ? "checked" : ""}></label>
-            <div class="personalize-block">
-              <span>Personalize</span>
-              <label class="color-field">Theme color <input data-theme-color type="color" value="${escapeAttr(state.settings.themeColor || "#48dbfb")}"></label>
-              <button class="settings-row" data-reset-color type="button">Use poster colors</button>
-            </div>
           </div>
         </div>
       </div>`
@@ -203,6 +187,10 @@ function injectChrome() {
     `<div class="toast" data-toast role="status" aria-live="polite"></div>`
   );
 
+  if (!document.querySelector("[data-account-modal]")) {
+    document.body.insertAdjacentHTML("beforeend", accountModalHtml());
+  }
+
   if (!document.querySelector(".site-footer")) {
     document.body.insertAdjacentHTML(
       "beforeend",
@@ -218,8 +206,8 @@ function injectChrome() {
     window.location.href = "settings.html";
   });
   document.querySelector("[data-adult-toggle]").addEventListener("change", updateAdultSetting);
-  document.querySelector("[data-theme-color]").addEventListener("input", updateThemeColor);
-  document.querySelector("[data-reset-color]").addEventListener("click", resetThemeColor);
+  document.querySelector("[data-theme-color]")?.addEventListener("input", updateThemeColor);
+  document.querySelector("[data-reset-color]")?.addEventListener("click", resetThemeColor);
   document.querySelector("[data-theme-toggle]").addEventListener("click", toggleTheme);
   document.querySelector("[data-menu-toggle]").addEventListener("click", toggleMobileMenu);
   document.querySelector("[data-browse-filter-toggle]")?.addEventListener("click", toggleBrowseFilters);
@@ -227,6 +215,7 @@ function injectChrome() {
   syncAdultControls();
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeMobileMenu();
+    if (event.key === "Escape") closeAccountModal();
   });
 
   document.addEventListener("click", (event) => {
@@ -3139,6 +3128,33 @@ function defaultDoujinSources() {
   return Object.fromEntries(DOUJIN_SOURCES.map((source) => [source.id, source.defaultEnabled !== false]));
 }
 
+function accountModalHtml() {
+  return `
+    <div class="account-modal" data-account-modal hidden>
+      <div class="account-modal-backdrop" data-account-close></div>
+      <section class="account-modal-card" role="dialog" aria-modal="true" aria-labelledby="account-modal-title">
+        <button class="account-modal-close" data-account-close type="button" aria-label="Close account dialog">×</button>
+        <span class="eyebrow">AniTrack Sync</span>
+        <h2 id="account-modal-title">Keep your library everywhere</h2>
+        <p class="muted">Register or log in with a username and password to sync library, preferences, sources, theme, and reader mode across devices.</p>
+        <div class="account-status modal-status"><strong data-account-title>${state.account?.username ? `@${escapeHtml(state.account.username)}` : "Guest"}</strong><span data-account-status>${state.account?.username ? "Sync enabled" : "Local library only"}</span></div>
+        <form class="account-form" data-account-form ${state.account?.token ? "hidden" : ""}>
+          <label>Username<input data-account-username type="text" autocomplete="username" placeholder="fluffy" minlength="3" maxlength="32"></label>
+          <label>Password<input data-account-password type="password" autocomplete="current-password" placeholder="At least 6 characters" minlength="6"></label>
+          <div class="account-buttons">
+            <button class="btn" data-account-action="login" type="submit">Log in</button>
+            <button class="btn secondary" data-account-action="register" type="submit">Register</button>
+          </div>
+        </form>
+        <div class="account-actions" data-account-actions ${state.account?.token ? "" : "hidden"}>
+          <button class="btn" data-account-sync type="button">Sync now</button>
+          <button class="btn secondary" data-account-logout type="button">Log out</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 function enabledMangaProviderIds() {
   const enabled = { ...defaultMangaSources(), ...(state.settings.mangaSources || {}) };
   return MANGA_SOURCES.filter((source) => enabled[source.id] && (!source.adult || state.settings.allowAdult)).map((source) => source.id);
@@ -3161,6 +3177,11 @@ function profileInitials() {
 
 function initAccountControls() {
   const form = document.querySelector("[data-account-form]");
+  document.querySelector("[data-account-open]")?.addEventListener("click", () => {
+    closeProfileMenu();
+    openAccountModal();
+  });
+  document.querySelectorAll("[data-account-close]").forEach((button) => button.addEventListener("click", closeAccountModal));
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const action = event.submitter?.dataset.accountAction || "login";
@@ -3173,6 +3194,21 @@ function initAccountControls() {
     renderAccountState("Logged out. Local library is still on this device.");
   });
   if (state.account?.token) syncAccountNow(false);
+}
+
+function openAccountModal() {
+  const modal = document.querySelector("[data-account-modal]");
+  if (!modal) return;
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  window.setTimeout(() => modal.querySelector("[data-account-username]")?.focus(), 0);
+}
+
+function closeAccountModal() {
+  const modal = document.querySelector("[data-account-modal]");
+  if (!modal || modal.hidden) return;
+  modal.hidden = true;
+  document.body.classList.remove("modal-open");
 }
 
 async function handleAccountSubmit(action) {
@@ -3281,9 +3317,11 @@ function renderAccountState(message) {
   const signedIn = Boolean(state.account?.token);
   document.querySelector("[data-account-form]")?.toggleAttribute("hidden", signedIn);
   document.querySelector("[data-account-actions]")?.toggleAttribute("hidden", !signedIn);
-  setText("[data-account-title]", signedIn ? `@${state.account.username}` : "Sync Account");
+  setText("[data-account-title]", signedIn ? `@${state.account.username}` : "Guest");
   document.querySelector("[data-profile-toggle]").textContent = profileInitials();
-  setAccountStatus(message || (signedIn ? "Library and settings sync enabled" : "Register or log in to sync across devices"));
+  const accountOpen = document.querySelector("[data-account-open]");
+  if (accountOpen) accountOpen.textContent = signedIn ? "Manage Account" : "Log in / Register";
+  setAccountStatus(message || (signedIn ? "Sync enabled" : "Local library only"));
 }
 
 function setAccountStatus(message) {

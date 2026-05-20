@@ -3227,7 +3227,7 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   gap: 10px;
 }
 
-.account-block {
+.profile-account-card {
   display: grid;
   gap: 9px;
   border: 1px solid var(--line);
@@ -3253,6 +3253,16 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   gap: 8px;
 }
 
+.account-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .account-form input {
   min-height: 38px;
   border: 1px solid var(--line);
@@ -3268,6 +3278,15 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   gap: 8px;
 }
 
+.account-modal[hidden] { display: none; }
+.account-modal { position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; padding: 18px; }
+.account-modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(12px); }
+.account-modal-card { position: relative; z-index: 1; display: grid; gap: 14px; width: min(520px, 100%); border: 1px solid color-mix(in srgb, var(--theme-primary) 34%, var(--line)); border-radius: 26px; padding: clamp(20px, 4vw, 30px); background: linear-gradient(145deg, color-mix(in srgb, var(--solid) 94%, transparent), color-mix(in srgb, var(--panel) 82%, transparent)); box-shadow: 0 28px 90px rgba(0, 0, 0, 0.52); }
+.account-modal-card h2 { margin: 0; font-size: clamp(28px, 6vw, 46px); line-height: 0.98; }
+.account-modal-close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: var(--soft); font-size: 22px; cursor: pointer; }
+.modal-status { border: 1px solid var(--line); border-radius: 16px; padding: 12px; background: var(--soft); }
+.modal-open { overflow: hidden; }
+
 .settings-row,
 .settings-toggle {
   border: 1px solid var(--line);
@@ -3278,6 +3297,8 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   text-align: left;
   font-weight: 800;
 }
+
+.settings-row.compact { padding: 9px 10px; text-align: center; }
 
 .settings-toggle {
   display: flex;

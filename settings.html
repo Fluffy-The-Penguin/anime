@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Customize your AniTrack experience." />
     <title>AniTrack | Settings</title>
-    <link rel="stylesheet" href="styles.css?v=library-doujin-fix-1" />
-    <script src="app.js?v=library-doujin-fix-1" defer></script>
+    <link rel="stylesheet" href="styles.css?v=profile-modal-update-1" />
+    <script src="app.js?v=profile-modal-update-1" defer></script>
   </head>
   <body data-page="settings">
     <header class="topbar shell">
@@ -26,22 +26,22 @@
           <h2>Settings</h2>
           <nav class="settings-nav">
             <button class="settings-nav-btn active" data-section="appearance" type="button">
-              <span>UI</span> Appearance
+              <span>UI</span> Looks
             </button>
             <button class="settings-nav-btn" data-section="content" type="button">
               <span>CT</span> Content
             </button>
             <button class="settings-nav-btn" data-section="streaming" type="button">
-              <span>ST</span> Streaming
+              <span>ST</span> Stream
             </button>
             <button class="settings-nav-btn" data-section="anime-sources" type="button">
-              <span>AN</span> Anime Sources
+              <span>AN</span> Anime
             </button>
             <button class="settings-nav-btn" data-section="extensions-manga" type="button">
-              <span>MG</span> Manga Sources
+              <span>MG</span> Manga
             </button>
             <button class="settings-nav-btn" data-section="doujin-sources" type="button">
-              <span>DJ</span> Doujin Sources
+              <span>DJ</span> Doujin
             </button>
             <button class="settings-nav-btn" data-section="data" type="button">
               <span>DB</span> Data
@@ -822,18 +822,17 @@
         }
 
         .settings-sidebar {
-          position: sticky;
-          top: 0;
+          position: static;
           z-index: 20;
           max-height: none;
-          overflow-x: auto;
-          overflow-y: hidden;
-          margin: 0 -18px;
-          padding: 10px 18px;
-          border-width: 0 0 1px;
+          overflow: visible;
+          margin: 0;
+          padding: 0;
+          border: 0;
           border-radius: 0;
-          background: color-mix(in srgb, var(--bg) 88%, transparent);
-          backdrop-filter: blur(16px);
+          background: transparent;
+          box-shadow: none;
+          backdrop-filter: none;
         }
 
         .settings-sidebar h2 {
@@ -841,25 +840,36 @@
         }
 
         .settings-nav {
-          display: flex;
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 8px;
-          min-width: max-content;
+          min-width: 0;
         }
 
         .settings-nav-btn {
-          flex: 0 0 auto;
-          font-size: 12px;
-          padding: 9px 11px;
-          flex-direction: row;
+          justify-content: center;
+          gap: 6px;
+          width: auto;
+          min-height: 52px;
+          font-size: 11px;
+          padding: 8px 6px;
+          flex-direction: column;
           text-align: center;
-          white-space: nowrap;
+          white-space: normal;
           background: color-mix(in srgb, var(--soft) 35%, transparent);
+        }
+
+        .settings-nav-btn span {
+          width: 24px;
+          height: 24px;
+          border-radius: 8px;
+          font-size: 9px;
         }
 
         .settings-nav-btn.active {
           border-left: none;
-          padding-left: 8px;
-          border-bottom: 3px solid var(--blue);
+          padding-left: 6px;
+          border-bottom: 2px solid var(--blue);
         }
 
         .settings-section {
