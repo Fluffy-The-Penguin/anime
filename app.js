@@ -731,16 +731,16 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
   root.querySelectorAll("[data-doujin-read-page]").forEach((button) => {
     button.addEventListener("click", () => openDoujinReaderFromPreview(manga, chapter, Number(button.dataset.doujinReadPage || 0)));
   });
-  if (!loading) loadDoujinPreviewImagesSequential(root);
+  if (!loading) loadDoujinPreviewImagesInBatches(root);
 }
 
-async function loadDoujinPreviewImagesSequential(root) {
+async function loadDoujinPreviewImagesInBatches(root) {
   const token = String(Date.now());
   root.dataset.previewImageToken = token;
   const images = [...root.querySelectorAll("[data-doujin-preview-image]")];
-  for (const image of images) {
-    if (root.dataset.previewImageToken !== token || !document.body.contains(image)) return;
-    await loadImageWithFallback(image, image.dataset.src || "");
+  for (let index = 0; index < images.length; index += 5) {
+    if (root.dataset.previewImageToken !== token || !document.body.contains(root)) return;
+    await Promise.all(images.slice(index, index + 5).map((image) => loadImageWithFallback(image, image.dataset.src || "")));
   }
 }
 
