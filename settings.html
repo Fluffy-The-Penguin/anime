@@ -453,10 +453,10 @@
         grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
         gap: 14px;
         align-items: center;
-        padding: 14px;
+        padding: 14px 16px;
         border: 1px solid color-mix(in srgb, var(--theme-primary) 14%, var(--line));
         border-radius: 16px;
-        background: color-mix(in srgb, var(--soft) 76%, var(--solid));
+        background: linear-gradient(135deg, color-mix(in srgb, var(--soft) 58%, transparent), color-mix(in srgb, var(--solid) 42%, transparent));
       }
 
       .form-group label {
@@ -469,39 +469,49 @@
       }
 
       .theme-buttons {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
+        display: inline-grid;
+        grid-template-columns: repeat(3, minmax(76px, 1fr));
+        gap: 4px;
+        width: min(330px, 100%);
+        padding: 4px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--solid) 70%, transparent);
       }
 
       .theme-btn {
-        padding: 8px 12px;
-        border: 1px solid var(--line);
-        border-radius: 11px;
-        background: color-mix(in srgb, var(--soft) 78%, var(--solid));
+        min-height: 34px;
+        padding: 7px 12px;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
         color: var(--muted);
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 900;
         cursor: pointer;
         transition: all 150ms ease;
       }
 
       .theme-btn:hover {
-        border-color: color-mix(in srgb, var(--blue) 50%, var(--line));
-        background: color-mix(in srgb, var(--soft) 60%, transparent);
+        background: color-mix(in srgb, var(--soft) 72%, transparent);
       }
 
       .theme-btn.active {
-        border-color: var(--blue);
         background: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.32), rgba(var(--theme-secondary-rgb), 0.14));
         color: var(--text);
-        box-shadow: 0 0 12px rgba(var(--theme-primary-rgb), 0.2);
+        box-shadow: 0 8px 22px rgba(var(--theme-primary-rgb), 0.18);
       }
 
       .color-input-row {
-        display: flex;
+        display: inline-flex;
         gap: 10px;
         align-items: center;
+        width: max-content;
+        max-width: 100%;
+        padding: 6px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--solid) 58%, transparent);
       }
 
       .color-input-row input {
@@ -515,7 +525,7 @@
 
       .form-group select,
       .form-group input[type="url"] {
-        width: 100%;
+        width: min(100%, 390px);
         min-width: 0;
         min-height: 44px;
         padding: 8px 12px;
@@ -528,11 +538,12 @@
       }
 
       .checkbox-label {
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: space-between;
         flex-direction: row-reverse;
         gap: 10px;
+        width: min(100%, 360px);
         min-height: 44px;
         padding: 10px 12px;
         border: 1px solid var(--line);
@@ -560,8 +571,8 @@
       }
 
       .button-group {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        display: flex;
+        flex-wrap: wrap;
         gap: 10px;
       }
 
@@ -894,9 +905,13 @@
           font-size: 18px;
         }
 
-        .theme-buttons,
+        .theme-buttons {
+          width: 100%;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
         .button-group {
-          grid-template-columns: 1fr;
+          display: flex;
         }
 
         .extensions-pagination,
