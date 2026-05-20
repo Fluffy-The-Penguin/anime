@@ -3254,6 +3254,11 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   gap: 8px;
 }
 
+.account-form[hidden],
+.account-actions[hidden] {
+  display: none !important;
+}
+
 .account-form label {
   display: grid;
   gap: 7px;
@@ -3297,6 +3302,22 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   background: var(--soft);
   text-align: left;
   font-weight: 800;
+}
+
+/* Disable card zoom/lift hover effects site-wide. */
+.card:hover,
+.library-item:hover,
+.browse-card:hover,
+.detail-manga-chapter-card:hover,
+.doujin-page-thumb:hover {
+  transform: none !important;
+}
+
+.card:hover img,
+.browse-card:hover img,
+.detail-manga-chapter-card:hover img,
+.doujin-page-thumb:hover img {
+  transform: none !important;
 }
 
 .settings-row.compact { padding: 9px 10px; text-align: center; }
