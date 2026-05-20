@@ -4002,9 +4002,9 @@ async function loadDoujinSourcesNew() {
       <p>${escapeHtml(source.description || "English doujin gallery source with direct page images when available.")}</p>
       <div class="extension-footer">
         <span class="extension-version">Doujin source</span>
-        ${source.defaultEnabled === false ? '<span class="source-note">Off by default: upstream may block production</span>' : ""}
         <input type="checkbox" class="extension-toggle" data-doujin-source-toggle="${escapeAttr(source.id)}" aria-label="Enable ${escapeAttr(source.name)}" ${enabled[source.id] ? "checked" : ""}>
       </div>
+      ${source.defaultEnabled === false ? '<span class="source-note">Off by default: upstream may block production</span>' : ""}
     </div>
   `).join("");
 
