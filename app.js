@@ -2145,9 +2145,7 @@ function renderDetails(root, item, isTemporary = false) {
             <h2>Chapters</h2>
           <label class="detail-source-picker">Source <select data-detail-manga-source><option>Loading sources...</option></select></label>
           <span data-detail-manga-source-count>Loading chapters...</span>
-          <button type="button">Hide Watched Chapters</button>
           <span>${chapters.length ? "1" : "0"} / 1</span>
-          <label>⌕ <input type="search" placeholder="Manually search for manga..." aria-label="Filter chapters"></label>
         </div>
         <form class="detail-source-search" data-detail-source-search>
           <label>Find source as <input data-detail-source-query type="search" placeholder="Custom site title, e.g. Reveries of the Moonlight" autocomplete="off"></label>
