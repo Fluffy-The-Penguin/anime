@@ -216,11 +216,12 @@ input:focus, select:focus, textarea:focus { border-color: color-mix(in srgb, var
 .doujin-preview-meta span { border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; background: var(--soft); color: var(--muted); font-size: 12px; font-weight: 800; }
 .doujin-preview-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .doujin-preview-panel { padding: clamp(14px, 3vw, 22px); }
-.doujin-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.doujin-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
 .doujin-page-thumb { position: relative; display: block; border: 1px solid var(--line); border-radius: 14px; padding: 0; overflow: hidden; background: var(--soft); cursor: pointer; }
 .doujin-page-thumb img { display: block; width: 100%; aspect-ratio: 2 / 2.8; object-fit: cover; object-position: top center; transition: transform 0.2s ease; }
 .doujin-page-thumb:hover img { transform: scale(1.035); }
 .doujin-page-thumb span { position: absolute; left: 8px; bottom: 8px; border-radius: 999px; padding: 4px 8px; background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 12px; font-weight: 900; }
+.doujin-preview-more { display: flex; justify-content: center; gap: 10px; margin-top: 14px; }
 .doujin-tag-picker { position: relative; z-index: 30; }
 .doujin-tag-toggle { white-space: nowrap; }
 .doujin-tag-menu { position: absolute; top: calc(100% + 8px); right: 0; display: grid; grid-template-columns: repeat(3, minmax(130px, 1fr)); gap: 6px; width: min(680px, calc(100vw - 32px)); max-height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: 18px; padding: 12px; background: var(--solid); box-shadow: var(--shadow); }

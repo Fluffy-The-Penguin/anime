@@ -631,6 +631,11 @@ async function initDoujinPreviewPage() {
 
 function renderDoujinPreview(root, manga, pages, loading = false, chapter = null) {
   const tracked = state.library[manga.id];
+  const initialVisible = doujinPreviewInitialCount();
+  const requestedVisible = Number(root.dataset.previewVisible || initialVisible);
+  const visibleCount = loading ? 0 : Math.min(pages.length, Math.max(initialVisible, requestedVisible));
+  const visiblePages = pages.slice(0, visibleCount);
+  root.dataset.previewVisible = String(visibleCount || initialVisible);
   root.innerHTML = `
     <section class="doujin-preview-hero panel">
       <img class="doujin-preview-cover" src="${escapeAttr(manga.image || fallbackImage)}" alt="${escapeAttr(manga.title)} cover">
@@ -645,7 +650,7 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
         </div>
         <div class="doujin-preview-actions">
           <button class="btn" data-doujin-read-page="0" type="button">Read online</button>
-          <button class="btn secondary" data-doujin-save type="button">${tracked ? "Saved" : "Add to Library"}</button>
+          <button class="btn secondary" data-doujin-save type="button">${tracked ? "Remove from Library" : "Add to Library"}</button>
           <a class="btn secondary" href="doujin.html">Back to Doujin</a>
         </div>
       </div>
@@ -658,20 +663,50 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
         </div>
       </div>
       <div class="doujin-preview-grid" data-doujin-preview-grid>
-        ${loading ? Array.from({ length: 12 }, () => '<div class="skeleton-card"></div>').join("") : pages.map((url, index) => `
+        ${loading ? Array.from({ length: 10 }, () => '<div class="skeleton-card"></div>').join("") : visiblePages.map((url, index) => `
           <button class="doujin-page-thumb" data-doujin-read-page="${index}" type="button" aria-label="Read from page ${index + 1}">
             <img src="${escapeAttr(url)}" alt="${escapeAttr(manga.title)} page ${index + 1}" loading="lazy">
             <span>${index + 1}</span>
           </button>
         `).join("")}
       </div>
+      ${!loading && pages.length > visibleCount ? `
+        <div class="doujin-preview-more">
+          <button class="btn secondary" data-doujin-preview-more type="button">View more</button>
+          <button class="btn secondary" data-doujin-preview-all type="button">View all</button>
+        </div>
+      ` : ""}
     </section>
   `;
 
-  root.querySelector("[data-doujin-save]")?.addEventListener("click", () => saveDoujinToLibrary(manga));
+  root.querySelector("[data-doujin-save]")?.addEventListener("click", () => toggleDoujinLibrary(root, manga, pages, chapter));
+  root.querySelector("[data-doujin-preview-more]")?.addEventListener("click", () => {
+    root.dataset.previewVisible = String(Math.min(pages.length, visibleCount + doujinPreviewInitialCount()));
+    renderDoujinPreview(root, manga, pages, false, chapter);
+  });
+  root.querySelector("[data-doujin-preview-all]")?.addEventListener("click", () => {
+    root.dataset.previewVisible = String(pages.length);
+    renderDoujinPreview(root, manga, pages, false, chapter);
+  });
   root.querySelectorAll("[data-doujin-read-page]").forEach((button) => {
     button.addEventListener("click", () => openDoujinReaderFromPreview(manga, chapter, Number(button.dataset.doujinReadPage || 0)));
   });
+}
+
+function doujinPreviewInitialCount() {
+  return window.matchMedia?.("(max-width: 720px)").matches ? 6 : 10;
+}
+
+function toggleDoujinLibrary(root, manga, pages, chapter) {
+  if (state.library[manga.id]) {
+    delete state.library[manga.id];
+    persistLibrary();
+    showLibraryOverlay(`${manga.title} removed from Library`, "Removed");
+    renderDoujinPreview(root, manga, pages, false, chapter);
+    return;
+  }
+  saveDoujinToLibrary(manga);
+  renderDoujinPreview(root, manga, pages, false, chapter);
 }
 
 function saveDoujinToLibrary(manga) {
@@ -680,15 +715,15 @@ function saveDoujinToLibrary(manga) {
   state.current = saved;
   persistLibrary();
   showToast("Saved to your library.");
-  showLibraryOverlay(`${saved.title} added to Library`);
+  showLibraryOverlay(`${saved.title} added to Library`, "Saved");
   const button = document.querySelector("[data-doujin-save]");
   if (button) button.textContent = "Saved";
 }
 
-function showLibraryOverlay(message) {
+function showLibraryOverlay(message, title = "Saved") {
   document.querySelector(".library-overlay-toast")?.remove();
   const overlay = create("div", "library-overlay-toast");
-  overlay.innerHTML = `<strong>Saved</strong><span>${escapeHtml(message)}</span>`;
+  overlay.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(message)}</span>`;
   document.body.appendChild(overlay);
   window.setTimeout(() => overlay.classList.add("show"), 20);
   window.setTimeout(() => {
