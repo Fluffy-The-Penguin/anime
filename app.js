@@ -200,7 +200,7 @@ function injectChrome() {
 
   document.querySelector("[data-profile-toggle]").addEventListener("click", toggleProfileMenu);
   document.querySelector("[data-library-button]").addEventListener("click", () => {
-    window.location.href = "library.html";
+    window.location.href = "anime-library.html";
   });
   document.querySelector("[data-settings-button]").addEventListener("click", () => {
     window.location.href = "settings.html";
@@ -851,32 +851,28 @@ function initHomePage() {
 
 function initLibraryPage() {
   const filters = document.querySelector("[data-library-filters]");
-  const typeFilters = document.querySelector("[data-library-type-filters]");
   const adultFilter = document.querySelector("[data-library-adult-filter]");
   const lists = document.querySelectorAll("[data-library-list]");
   const params = new URLSearchParams(window.location.search);
-  state.libraryType = ["anime", "manga"].includes(params.get("type")) ? params.get("type") : "all";
+  state.libraryType = document.body.dataset.libraryKind || "anime";
+  state.filter = ["all", "watching", "reading", "planning", "completed", "dropped"].includes(params.get("status")) ? params.get("status") : "all";
   state.libraryAdultFilter = ["all", "adult", "normal"].includes(params.get("adult")) ? params.get("adult") : "all";
   if (adultFilter) adultFilter.value = state.libraryAdultFilter;
+  filters?.querySelectorAll("[data-filter]").forEach((button) => button.classList.toggle("active", button.dataset.filter === state.filter));
+  syncLibraryPageLinks();
 
-  filters.addEventListener("click", (event) => {
+  filters?.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-filter]");
     if (!button) return;
     setActive(filters, button);
     state.filter = button.dataset.filter;
-    renderLibrary();
-  });
-
-  typeFilters?.addEventListener("click", (event) => {
-    const link = event.target.closest("[data-library-type]");
-    if (!link) return;
-    event.preventDefault();
-    state.libraryType = link.dataset.libraryType;
+    updateLibraryUrl();
     renderLibrary();
   });
 
   adultFilter?.addEventListener("change", () => {
     state.libraryAdultFilter = adultFilter.value;
+    updateLibraryUrl();
     renderLibrary();
   });
 
@@ -897,6 +893,27 @@ function initLibraryPage() {
   });
 
   renderLibrary();
+}
+
+function updateLibraryUrl() {
+  const params = new URLSearchParams();
+  if (state.filter && state.filter !== "all") params.set("status", state.filter);
+  if (state.libraryAdultFilter && state.libraryAdultFilter !== "all") params.set("adult", state.libraryAdultFilter);
+  const query = params.toString();
+  history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}`);
+  syncLibraryPageLinks();
+}
+
+function syncLibraryPageLinks() {
+  const params = new URLSearchParams();
+  if (state.filter && state.filter !== "all") params.set("status", state.filter);
+  if (state.libraryAdultFilter && state.libraryAdultFilter !== "all") params.set("adult", state.libraryAdultFilter);
+  const query = params.toString();
+  document.querySelectorAll("[data-library-page]").forEach((link) => {
+    const target = link.dataset.libraryPage === "manga" ? "manga-library.html" : "anime-library.html";
+    link.href = `${target}${query ? `?${query}` : ""}`;
+    link.classList.toggle("active", link.dataset.libraryPage === state.libraryType);
+  });
 }
 
 function syncHomePanelHeights() {
@@ -1969,9 +1986,7 @@ function renderEditorPick(container, item) {
 function renderLibrary() {
   const animeList = document.querySelector('[data-library-list="anime"]');
   const mangaList = document.querySelector('[data-library-list="manga"]');
-  const animeGroup = document.querySelector('[data-library-group="anime"]');
-  const mangaGroup = document.querySelector('[data-library-group="manga"]');
-  if (!animeList || !mangaList) return;
+  if (!animeList && !mangaList) return;
 
   const allItems = Object.values(state.library).sort((a, b) => b.updatedAt - a.updatedAt);
   const statusItems = state.filter === "all" ? allItems : allItems.filter((item) => item.status === state.filter);
@@ -1983,18 +1998,16 @@ function renderLibrary() {
   const animeItems = items.filter((item) => item.type === "anime");
   const mangaItems = items.filter((item) => item.type === "manga");
 
-  document.querySelectorAll("[data-library-type]").forEach((item) => item.classList.toggle("active", item.dataset.libraryType === state.libraryType));
-  animeGroup.hidden = state.libraryType === "manga";
-  mangaGroup.hidden = state.libraryType === "anime";
-
-  renderLibraryGroup(animeList, animeItems, allItems.length ? "No anime match this filter." : "No anime tracked yet. Add titles from the Anime page.");
-  renderLibraryGroup(mangaList, mangaItems, allItems.length ? "No manga match this filter." : "No manga tracked yet. Add titles from the Manga page.");
+  if (animeList) renderLibraryGroup(animeList, animeItems, allItems.length ? "No anime match this filter." : "No anime tracked yet. Add titles from the Anime page.");
+  if (mangaList) renderLibraryGroup(mangaList, mangaItems, allItems.length ? "No manga match this filter." : "No manga tracked yet. Add titles from the Manga page.");
   setText("[data-anime-count]", `${animeItems.length} ${animeItems.length === 1 ? "title" : "titles"}`);
   setText("[data-manga-count]", `${mangaItems.length} ${mangaItems.length === 1 ? "title" : "titles"}`);
-  setText("[data-library-summary]", `${allItems.filter((item) => item.type === "anime").length} anime / ${allItems.filter((item) => item.type === "manga").length} manga saved locally`);
-  setText("[data-library-total-count]", String(allItems.length));
-  setText("[data-library-adult-count]", String(allItems.filter(isAdultLibraryItem).length));
-  setText("[data-library-normal-count]", String(allItems.filter((item) => !isAdultLibraryItem(item)).length));
+  const pageItems = state.libraryType === "manga" ? mangaItems : animeItems;
+  const allPageItems = allItems.filter((item) => item.type === state.libraryType);
+  setText("[data-library-summary]", state.libraryType === "manga" ? `${allPageItems.length} manga saved locally` : `${allPageItems.length} anime saved locally`);
+  setText("[data-library-total-count]", String(pageItems.length));
+  setText("[data-library-adult-count]", String(pageItems.filter(isAdultLibraryItem).length));
+  setText("[data-library-normal-count]", String(pageItems.filter((item) => !isAdultLibraryItem(item)).length));
 
   updateStats();
 }

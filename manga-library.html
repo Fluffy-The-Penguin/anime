@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Your saved anime tracking library." />
-    <title>AniTrack | Anime Library</title>
+    <meta name="description" content="Your saved manga and doujin tracking library." />
+    <title>AniTrack | Manga Library</title>
     <link rel="stylesheet" href="styles.css?v=library-split-update-1" />
     <script src="app.js?v=library-split-update-1" defer></script>
   </head>
-  <body data-page="library" data-library-kind="anime">
+  <body data-page="library" data-library-kind="manga">
     <header class="topbar shell">
       <a class="brand" href="index.html"><span>AT</span>AniTrack</a>
       <nav class="nav" aria-label="Primary navigation">
@@ -24,13 +24,13 @@
         <div class="section-head library-head">
           <div>
             <span class="eyebrow">Saved locally</span>
-              <h2>Anime Library</h2>
-              <p class="muted" data-library-summary>0 anime saved locally</p>
-            </div>
+            <h2>Manga Library</h2>
+            <p class="muted" data-library-summary>0 manga saved locally</p>
+          </div>
           <div class="library-toolbar">
             <div class="chips library-type-tabs">
-              <a class="chip active" data-library-page="anime" href="anime-library.html">Anime</a>
-              <a class="chip" data-library-page="manga" href="manga-library.html">Manga</a>
+              <a class="chip" data-library-page="anime" href="anime-library.html">Anime</a>
+              <a class="chip active" data-library-page="manga" href="manga-library.html">Manga</a>
             </div>
             <label class="library-filter-select">Adult filter
               <select data-library-adult-filter>
@@ -41,7 +41,6 @@
             </label>
             <div class="chips" data-library-filters>
               <button class="chip active" data-filter="all">All statuses</button>
-              <button class="chip" data-filter="watching">Watching</button>
               <button class="chip" data-filter="reading">Reading</button>
               <button class="chip" data-filter="planning">Planning</button>
               <button class="chip" data-filter="completed">Completed</button>
@@ -55,15 +54,15 @@
           <div><strong data-library-normal-count>0</strong><span>Normal</span></div>
         </div>
         <div class="library-columns single">
-          <section class="library-group" data-library-group="anime">
+          <section class="library-group" data-library-group="manga">
             <div class="library-group-head">
               <div>
-                <span class="eyebrow">Anime</span>
-                <h3>Anime Library</h3>
+                <span class="eyebrow">Manga</span>
+                <h3>Manga Library</h3>
               </div>
-              <span class="library-count" data-anime-count>0 titles</span>
+              <span class="library-count" data-manga-count>0 titles</span>
             </div>
-            <div class="library-list" data-library-list="anime" aria-live="polite"></div>
+            <div class="library-list" data-library-list="manga" aria-live="polite"></div>
           </section>
         </div>
       </section>
