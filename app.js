@@ -531,12 +531,14 @@ async function loadDoujinSearch(options = {}) {
     if (token !== state.doujinToken) return;
     const rawPageItems = bestDoujinResults(results, providers);
     const pageItems = rawPageItems.slice(0, DOUJIN_PAGE_SIZE);
+    const newItems = pageItems.filter((item) => !state.doujinItems.some((existing) => existing.id === item.id));
     const previousCount = state.doujinItems.length;
-    state.doujinItems = bestDoujinResults([...state.doujinItems, ...pageItems], providers);
+    state.doujinItems = append ? [...state.doujinItems, ...newItems] : pageItems;
     state.doujinHasMore = rawPageItems.length > 0 && state.doujinItems.length > previousCount;
     if (state.doujinHasMore) state.doujinPage += 1;
     if (status) status.textContent = `${state.doujinItems.length} ${query ? "English result" : "latest English doujinshi"}${state.doujinItems.length === 1 ? "" : "s"} from ${providers.length} enabled sources`;
-    renderDoujinCards(grid, state.doujinItems, state.doujinHasMore);
+    if (append) appendDoujinCards(grid, newItems, state.doujinHasMore);
+    else renderDoujinCards(grid, state.doujinItems, state.doujinHasMore);
   } catch (error) {
     if (token !== state.doujinToken) return;
     if (status) status.textContent = "Search failed";
@@ -577,18 +579,34 @@ function renderDoujinCards(container, items, hasMore = false) {
   if (!items.length) return renderEmpty(container, "No English doujinshi found for this search.");
 
   const fragment = document.createDocumentFragment();
-  items.forEach((item) => {
-    const card = create("button", "browse-card doujin-card");
-    card.type = "button";
-    card.dataset.doujin = JSON.stringify(item);
-    card.innerHTML = `
-      <img src="${escapeAttr(item.cover || fallbackImage)}" alt="${escapeAttr(item.title)} cover" loading="lazy">
-      <h3>${escapeHtml(item.title)}</h3>
-      <div class="browse-meta"><span>${escapeHtml(providerLabel(item.provider))}</span><i></i><span>English</span></div>
-    `;
-    fragment.append(card);
-  });
+  items.forEach((item) => fragment.append(renderDoujinCard(item)));
   container.append(fragment);
+  renderDoujinLoadMoreMarker(container, hasMore);
+}
+
+function appendDoujinCards(container, items, hasMore = false) {
+  container.querySelector(".doujin-load-more")?.remove();
+  const empty = container.querySelector(".empty");
+  if (empty && items.length) empty.remove();
+  const fragment = document.createDocumentFragment();
+  items.forEach((item) => fragment.append(renderDoujinCard(item)));
+  container.append(fragment);
+  renderDoujinLoadMoreMarker(container, hasMore);
+}
+
+function renderDoujinCard(item) {
+  const card = create("button", "browse-card doujin-card");
+  card.type = "button";
+  card.dataset.doujin = JSON.stringify(item);
+  card.innerHTML = `
+    <img src="${escapeAttr(item.cover || fallbackImage)}" alt="${escapeAttr(item.title)} cover" loading="lazy">
+    <h3>${escapeHtml(item.title)}</h3>
+    <div class="browse-meta"><span>${escapeHtml(providerLabel(item.provider))}</span><i></i><span>English</span></div>
+  `;
+  return card;
+}
+
+function renderDoujinLoadMoreMarker(container, hasMore) {
   if (hasMore) {
     const loading = create("div", "doujin-load-more");
     loading.textContent = "Scroll for more doujinshi...";
