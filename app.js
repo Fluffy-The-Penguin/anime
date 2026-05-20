@@ -2229,6 +2229,8 @@ async function initMangaDetailSources(root, manga) {
       chapters: null,
       chapterCount: 0,
       searched: false,
+      searching: false,
+      searchPromise: null,
     }));
     const savedSource = localStorage.getItem(mangaSourceKey(manga));
     if (sourceSearchInput) sourceSearchInput.value = localStorage.getItem(mangaSourceCustomQueryKey(manga)) || "";
@@ -2242,27 +2244,58 @@ async function initMangaDetailSources(root, manga) {
       sourceSelect.disabled = false;
       sourceSelect.innerHTML = sourceResults.map((item) => {
         const count = Array.isArray(item.chapters) ? item.chapters.length : item.chapterCount || null;
-        const label = item.id ? mangaSourceOptionLabel(item, count) : `${providerLabel(item.provider)}: ${item.searched ? "No match" : "Search on select"}`;
+        const status = item.searching ? "Searching..." : item.searched ? "No match" : "Queued";
+        const label = item.id ? mangaSourceOptionLabel(item, count) : `${providerLabel(item.provider)}: ${status}`;
         return `<option value="${escapeAttr(item.optionId)}">${escapeHtml(label)}</option>`;
       }).join("");
     };
 
-    const resolveSource = async (source, customTitle = "") => {
+    const resolveSource = async (source, customTitle = "", force = false) => {
+      if (!source) return null;
       if (source.id && !customTitle) return source;
-      if (customTitle) {
+      if (source.searchPromise && !force) return source.searchPromise;
+      if (customTitle && force) {
         source.id = "";
         source.chapters = null;
         source.chapterCount = 0;
+        source.searched = false;
+        source.searchPromise = null;
       }
-      const match = await searchMangaProviderMatch(manga, source.provider, customTitle);
-      source.searched = true;
-      if (!match) {
-        source.chapters = [];
-        source.chapterCount = 0;
-        return source;
-      }
-      Object.assign(source, sourceResultWithCache(match, manga), { optionId: source.provider, searched: true });
-      return source;
+      source.searching = true;
+      renderOptions();
+      source.searchPromise = (async () => {
+        try {
+          const match = await searchMangaProviderMatch(manga, source.provider, customTitle);
+          if (!match) {
+            source.chapters = [];
+            source.chapterCount = 0;
+            return source;
+          }
+          Object.assign(source, sourceResultWithCache(match, manga), { optionId: source.provider });
+          return source;
+        } catch (error) {
+          source.chapters = [];
+          source.chapterCount = 0;
+          return source;
+        } finally {
+          source.searched = true;
+          source.searching = false;
+          source.searchPromise = null;
+          renderOptions();
+        }
+      })();
+      return source.searchPromise;
+    };
+
+    const prefetchSources = () => {
+      const query = sourceSearchInput?.value.trim() || "";
+      sourceResults.forEach((source) => {
+        if (source.id || source.searched || source.searching) return;
+        resolveSource(source, query).then(() => {
+          renderOptions();
+          if (sourceSelect.value === source.optionId && !Array.isArray(source.chapters)) renderSource();
+        });
+      });
     };
 
     const renderSource = async () => {
@@ -2320,7 +2353,7 @@ async function initMangaDetailSources(root, manga) {
       try {
         const source = sourceResults.find((item) => item.optionId === sourceSelect.value) || sourceResults[0];
         if (!source) return;
-        await resolveSource(source, query);
+        await resolveSource(source, query, true);
         renderOptions();
         sourceSelect.value = source.optionId;
         if (sourceSearchStatus) sourceSearchStatus.textContent = source.id ? `Found on ${providerLabel(source.provider)}` : "No match found";
@@ -2332,6 +2365,7 @@ async function initMangaDetailSources(root, manga) {
     renderOptions();
     const savedProvider = localStorage.getItem(`${mangaSourceKey(manga)}:provider`) || firstProviderFromSourceId(savedSource);
     if (savedProvider && sourceResults.some((source) => source.optionId === savedProvider)) sourceSelect.value = savedProvider;
+    prefetchSources();
     await renderSource();
   } catch (error) {
     sourceSelect.innerHTML = '<option value="">Source unavailable</option>';
