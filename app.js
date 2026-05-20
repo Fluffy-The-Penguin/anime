@@ -3,6 +3,7 @@ const STORAGE_KEY = "anitrack-library-v1";
 const LEGACY_STORAGE_KEYS = ["anitrack-library-v2"];
 const THEME_KEY = "anitrack-theme";
 const SETTINGS_KEY = "anitrack-settings-v1";
+const ACCOUNT_KEY = "anitrack-account-v1";
 const DETAIL_CACHE_KEY = "anitrack-last-detail";
 const MANGA_CHAPTER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const MANGA_PAGE_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -89,6 +90,7 @@ const state = {
   libraryType: "all",
   settings: loadSettings(),
   library: loadLibrary(),
+  account: loadAccount(),
   current: null,
   currentItems: [],
 };
@@ -159,9 +161,24 @@ function injectChrome() {
         </button>` : ""}
         <button class="icon-btn theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">${themeIcon()}</button>
         <div class="profile-menu">
-          <button class="icon-btn profile-btn" data-profile-toggle type="button" aria-label="Open profile settings">AT</button>
+        <button class="icon-btn profile-btn" data-profile-toggle type="button" aria-label="Open profile settings">${profileInitials()}</button>
           <div class="profile-popover" data-profile-popover>
             <strong>Profile</strong>
+            <div class="account-block" data-account-panel>
+              <div class="account-status"><strong data-account-title>${state.account?.username ? `@${escapeHtml(state.account.username)}` : "Sync Account"}</strong><span data-account-status>${state.account?.username ? "Library and settings sync enabled" : "Register or log in to sync across devices"}</span></div>
+              <form class="account-form" data-account-form ${state.account?.token ? "hidden" : ""}>
+                <input data-account-username type="text" autocomplete="username" placeholder="Username" minlength="3" maxlength="32">
+                <input data-account-password type="password" autocomplete="current-password" placeholder="Password" minlength="6">
+                <div class="account-buttons">
+                  <button class="settings-row" data-account-action="login" type="submit">Log in</button>
+                  <button class="settings-row" data-account-action="register" type="submit">Register</button>
+                </div>
+              </form>
+              <div class="account-actions" data-account-actions ${state.account?.token ? "" : "hidden"}>
+                <button class="settings-row" data-account-sync type="button">Sync now</button>
+                <button class="settings-row" data-account-logout type="button">Log out</button>
+              </div>
+            </div>
             <button class="settings-row" data-library-button type="button">Library</button>
             <button class="settings-row" data-settings-button type="button">Settings</button>
             <label class="settings-toggle"><span>Show 18+ content</span><input data-adult-toggle type="checkbox" ${state.settings.allowAdult ? "checked" : ""}></label>
@@ -206,6 +223,7 @@ function injectChrome() {
   document.querySelector("[data-theme-toggle]").addEventListener("click", toggleTheme);
   document.querySelector("[data-menu-toggle]").addEventListener("click", toggleMobileMenu);
   document.querySelector("[data-browse-filter-toggle]")?.addEventListener("click", toggleBrowseFilters);
+  initAccountControls();
   syncAdultControls();
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeMobileMenu();
@@ -369,9 +387,13 @@ function initDoujinPage() {
   if (!form || !search || !tags || !grid) return;
 
   tags.innerHTML = `
-    <button class="btn secondary doujin-tag-toggle" data-doujin-tag-toggle type="button" aria-expanded="false">Tags: Any</button>
-    <div class="doujin-tag-menu" data-doujin-tag-menu hidden>
-      ${DOUJIN_TAGS.map((tag) => `<label class="doujin-tag-option"><input type="checkbox" data-doujin-tag="${escapeAttr(tag)}"> ${escapeHtml(tag)}</label>`).join("")}
+    <div class="genre-filter doujin-tag-filter" data-doujin-tag-filter>
+      <span>Tags</span>
+      <button class="genre-toggle" data-doujin-tag-toggle type="button" aria-expanded="false">Any</button>
+      <div class="genre-menu doujin-tag-menu" data-doujin-tag-menu>
+        <div class="doujin-tag-search"><input data-doujin-tag-search type="search" placeholder="Filter tags" autocomplete="off"></div>
+        ${DOUJIN_TAGS.map((tag) => `<label><input type="checkbox" data-doujin-tag="${escapeAttr(tag)}"> ${escapeHtml(tag)}</label>`).join("")}
+      </div>
     </div>
   `;
   applyDoujinUrlParams(search);
@@ -395,13 +417,16 @@ function initDoujinPage() {
   tags.addEventListener("click", (event) => {
     const toggle = event.target.closest("[data-doujin-tag-toggle]");
     if (toggle) {
-      const menu = tags.querySelector("[data-doujin-tag-menu]");
-      const isOpen = menu?.hidden;
-      if (menu) menu.hidden = !isOpen;
+      const filter = tags.querySelector("[data-doujin-tag-filter]");
+      const isOpen = !filter?.classList.contains("open");
+      filter?.classList.toggle("open", isOpen);
       toggle.setAttribute("aria-expanded", String(Boolean(isOpen)));
+      if (isOpen) window.setTimeout(() => tags.querySelector("[data-doujin-tag-search]")?.focus(), 0);
       return;
     }
   });
+
+  tags.querySelector("[data-doujin-tag-search]")?.addEventListener("input", (event) => filterDoujinTagOptions(event.target.value));
 
   tags.addEventListener("change", (event) => {
     const input = event.target.closest("[data-doujin-tag]");
@@ -421,6 +446,13 @@ function initDoujinPage() {
     updateDoujinUrl();
     loadDoujinSearch();
     search.focus();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-doujin-tag-filter]")) {
+      tags.querySelector("[data-doujin-tag-filter]")?.classList.remove("open");
+      tags.querySelector("[data-doujin-tag-toggle]")?.setAttribute("aria-expanded", "false");
+    }
   });
 
   grid.addEventListener("click", openDoujinPreview);
@@ -448,7 +480,15 @@ function syncDoujinTags() {
     input.checked = state.doujinTags.includes(input.dataset.doujinTag);
   });
   const toggle = document.querySelector("[data-doujin-tag-toggle]");
-  if (toggle) toggle.textContent = state.doujinTags.length ? `Tags: ${state.doujinTags.length} selected` : "Tags: Any";
+  if (toggle) toggle.textContent = state.doujinTags.length ? `${state.doujinTags.length} selected` : "Any";
+}
+
+function filterDoujinTagOptions(query) {
+  const normalized = normalizeSearchText(query);
+  document.querySelectorAll("[data-doujin-tag]").forEach((input) => {
+    const label = input.closest("label");
+    if (label) label.hidden = normalized ? !normalizeSearchText(input.dataset.doujinTag).includes(normalized) : false;
+  });
 }
 
 async function loadDoujinSearch(options = {}) {
@@ -631,7 +671,7 @@ async function initDoujinPreviewPage() {
 
 function renderDoujinPreview(root, manga, pages, loading = false, chapter = null) {
   const tracked = state.library[manga.id];
-  const initialVisible = doujinPreviewInitialCount();
+  const initialVisible = doujinPreviewInitialCount(root);
   const requestedVisible = Number(root.dataset.previewVisible || initialVisible);
   const visibleCount = loading ? 0 : Math.min(pages.length, Math.max(initialVisible, requestedVisible));
   const visiblePages = pages.slice(0, visibleCount);
@@ -681,7 +721,7 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
 
   root.querySelector("[data-doujin-save]")?.addEventListener("click", () => toggleDoujinLibrary(root, manga, pages, chapter));
   root.querySelector("[data-doujin-preview-more]")?.addEventListener("click", () => {
-    root.dataset.previewVisible = String(Math.min(pages.length, visibleCount + doujinPreviewInitialCount()));
+    root.dataset.previewVisible = String(Math.min(pages.length, visibleCount + doujinPreviewInitialCount(root)));
     renderDoujinPreview(root, manga, pages, false, chapter);
   });
   root.querySelector("[data-doujin-preview-all]")?.addEventListener("click", () => {
@@ -693,8 +733,10 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
   });
 }
 
-function doujinPreviewInitialCount() {
-  return window.matchMedia?.("(max-width: 720px)").matches ? 6 : 10;
+function doujinPreviewInitialCount(root) {
+  const width = Math.max(280, (root?.querySelector?.("[data-doujin-preview-grid]")?.clientWidth || root?.clientWidth || window.innerWidth || 720) - 32);
+  const minColumn = window.matchMedia?.("(max-width: 720px)").matches ? 148 : 202;
+  return Math.max(2, Math.floor(width / minColumn)) * 2;
 }
 
 function toggleDoujinLibrary(root, manga, pages, chapter) {
@@ -2950,6 +2992,7 @@ function toggleTheme() {
   document.documentElement.dataset.theme = next;
   localStorage.setItem(THEME_KEY, next);
   document.querySelector("[data-theme-toggle]").innerHTML = themeIcon();
+  scheduleAccountSync();
 }
 
 function applyStoredTheme() {
@@ -3046,8 +3089,145 @@ function enabledDoujinProviderIds() {
   return DOUJIN_SOURCES.filter((source) => enabled[source.id] && state.settings.allowAdult).map((source) => source.id);
 }
 
-function persistSettings() {
+function persistSettings(sync = true) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+  if (sync) scheduleAccountSync();
+}
+
+function profileInitials() {
+  const username = state.account?.username || "";
+  return username ? escapeHtml(username.slice(0, 2).toUpperCase()) : "AT";
+}
+
+function initAccountControls() {
+  const form = document.querySelector("[data-account-form]");
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const action = event.submitter?.dataset.accountAction || "login";
+    await handleAccountSubmit(action);
+  });
+  document.querySelector("[data-account-sync]")?.addEventListener("click", () => syncAccountNow(true));
+  document.querySelector("[data-account-logout]")?.addEventListener("click", () => {
+    state.account = null;
+    persistAccount();
+    renderAccountState("Logged out. Local library is still on this device.");
+  });
+  if (state.account?.token) syncAccountNow(false);
+}
+
+async function handleAccountSubmit(action) {
+  const username = document.querySelector("[data-account-username]")?.value || "";
+  const password = document.querySelector("[data-account-password]")?.value || "";
+  setAccountStatus(action === "register" ? "Creating account..." : "Logging in...");
+  try {
+    const body = { username, password };
+    if (action === "register") body.data = accountSyncPayload();
+    const result = await accountApi(`/api/account/${action}`, "POST", body, false);
+    state.account = { username: result.username, token: result.token };
+    persistAccount();
+    applyAccountData(result.data || {});
+    renderAccountState(action === "register" ? "Account created and synced." : "Logged in and synced.");
+    await syncAccountNow(false);
+  } catch (error) {
+    setAccountStatus(error.message || "Account request failed.");
+  }
+}
+
+async function syncAccountNow(showStatus = false) {
+  if (!state.account?.token) return;
+  if (showStatus) setAccountStatus("Syncing...");
+  try {
+    const remote = await accountApi("/api/account/sync", "GET");
+    applyAccountData(remote.data || {});
+    await accountApi("/api/account/sync", "PUT", { data: accountSyncPayload() });
+    if (showStatus) setAccountStatus("Synced library, preferences, and sources.");
+  } catch (error) {
+    if (showStatus) setAccountStatus(error.message || "Sync failed.");
+  }
+}
+
+function scheduleAccountSync() {
+  if (!state.account?.token) return;
+  clearTimeout(scheduleAccountSync.timer);
+  scheduleAccountSync.timer = setTimeout(() => accountApi("/api/account/sync", "PUT", { data: accountSyncPayload() }).catch(() => null), 800);
+}
+
+async function accountApi(path, method = "GET", body = null, requireToken = true) {
+  const response = await fetch(`${apiBaseUrl()}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(requireToken && state.account?.token ? { Authorization: `Bearer ${state.account.token}` } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `Account request failed: ${response.status}`);
+  return data;
+}
+
+function accountSyncPayload() {
+  return {
+    library: state.library,
+    settings: state.settings,
+    theme: localStorage.getItem(THEME_KEY) || document.documentElement.dataset.theme || "",
+    readerMode: localStorage.getItem("reader-mode") || "",
+    updatedAt: Date.now(),
+  };
+}
+
+function applyAccountData(data) {
+  if (!data || typeof data !== "object") return;
+  state.library = mergeLibraryData(state.library, data.library || {});
+  state.settings = mergeSettingsData(state.settings, data.settings || {});
+  if (data.theme) {
+    localStorage.setItem(THEME_KEY, data.theme);
+    document.documentElement.dataset.theme = data.theme;
+    document.querySelector("[data-theme-toggle]")?.replaceChildren();
+    const themeButton = document.querySelector("[data-theme-toggle]");
+    if (themeButton) themeButton.innerHTML = themeIcon();
+  }
+  if (data.readerMode) localStorage.setItem("reader-mode", data.readerMode);
+  persistLibrary(false);
+  persistSettings(false);
+  applyThemeColor();
+  syncAdultControls();
+  updateStats();
+  if (page === "library") renderLibrary();
+}
+
+function mergeLibraryData(local, remote) {
+  const merged = { ...(local || {}) };
+  Object.entries(remote || {}).forEach(([id, item]) => {
+    if (!merged[id] || Number(item?.updatedAt || 0) >= Number(merged[id]?.updatedAt || 0)) merged[id] = item;
+  });
+  return merged;
+}
+
+function mergeSettingsData(local, remote) {
+  const defaults = defaultSettings();
+  return {
+    ...defaults,
+    ...(local || {}),
+    ...(remote || {}),
+    animeSources: { ...defaults.animeSources, ...((local || {}).animeSources || {}), ...((remote || {}).animeSources || {}) },
+    mangaSources: { ...defaults.mangaSources, ...((local || {}).mangaSources || {}), ...((remote || {}).mangaSources || {}) },
+    doujinSources: { ...defaults.doujinSources, ...((local || {}).doujinSources || {}), ...((remote || {}).doujinSources || {}) },
+    subtitleStyle: { ...defaults.subtitleStyle, ...((local || {}).subtitleStyle || {}), ...((remote || {}).subtitleStyle || {}) },
+  };
+}
+
+function renderAccountState(message) {
+  const signedIn = Boolean(state.account?.token);
+  document.querySelector("[data-account-form]")?.toggleAttribute("hidden", signedIn);
+  document.querySelector("[data-account-actions]")?.toggleAttribute("hidden", !signedIn);
+  setText("[data-account-title]", signedIn ? `@${state.account.username}` : "Sync Account");
+  document.querySelector("[data-profile-toggle]").textContent = profileInitials();
+  setAccountStatus(message || (signedIn ? "Library and settings sync enabled" : "Register or log in to sync across devices"));
+}
+
+function setAccountStatus(message) {
+  setText("[data-account-status]", message);
 }
 
 function themeIcon() {
@@ -3265,14 +3445,28 @@ function loadLibrary() {
   return merged;
 }
 
-function persistLibrary() {
+function persistLibrary(sync = true) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.library));
     LEGACY_STORAGE_KEYS.forEach((key) => localStorage.setItem(key, JSON.stringify(state.library)));
+    if (sync) scheduleAccountSync();
     return true;
   } catch (error) {
     return false;
   }
+}
+
+function loadAccount() {
+  try {
+    return JSON.parse(localStorage.getItem(ACCOUNT_KEY)) || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function persistAccount() {
+  if (state.account?.token) localStorage.setItem(ACCOUNT_KEY, JSON.stringify(state.account));
+  else localStorage.removeItem(ACCOUNT_KEY);
 }
 
 function loadDetailCache() {
@@ -5618,11 +5812,13 @@ function applyAdultReaderDefaultMode() {
   const mode = localStorage.getItem(adultKey) || "single";
   select.value = mode;
   localStorage.setItem("reader-mode", mode);
+  scheduleAccountSync();
   applyReadingMode(mode);
   select.onchange = null;
   select.addEventListener("change", () => {
     localStorage.setItem(adultKey, select.value);
     localStorage.setItem("reader-mode", select.value);
+    scheduleAccountSync();
     applyReadingMode(select.value);
   }, { once: false });
 }
@@ -5635,6 +5831,7 @@ function setupReadingMode() {
   applyReadingMode(saved);
   select.addEventListener("change", () => {
     localStorage.setItem("reader-mode", select.value);
+    scheduleAccountSync();
     applyReadingMode(select.value);
   });
 }
