@@ -9,14 +9,14 @@ const ADULT_MANGA_PROVIDERS = ["pornhwaz", "hentai20", "pornhwapro", "hentai18",
 module.exports = async function handler(req, res) {
   const backendUrl = (process.env.ANITRACK_BACKEND_URL || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
   const query = new URLSearchParams(req.query);
-  const backendResults = await fetchBackendJson(`${backendUrl}/api/manga/search${query.toString() ? `?${query}` : ""}`);
   const providers = String(req.query.providers || "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
-  const results = Array.isArray(backendResults) ? backendResults.filter((item) => !providers.length || providers.includes(item.provider)) : [];
   const title = String(req.query.title || "").trim();
   const tag = String(req.query.tag || "").trim();
   const category = String(req.query.category || "").trim();
   const latest = !title && (String(req.query.latest || "") === "1" || tag);
   const page = Math.max(1, Number.parseInt(req.query.page || "1", 10) || 1);
+  const backendResults = tag ? [] : await fetchBackendJson(`${backendUrl}/api/manga/search${query.toString() ? `?${query}` : ""}`);
+  const results = Array.isArray(backendResults) ? backendResults.filter((item) => !providers.length || providers.includes(item.provider)) : [];
   if (latest) {
     const latestProviders = ADULT_MANGA_PROVIDERS.filter((provider) => (!providers.length || providers.includes(provider)) && !results.some((item) => item.provider === provider));
     const latestResults = await Promise.allSettled(latestProviders.map((provider) => latestAdultMangaSource(provider, { page, tag, category })));
