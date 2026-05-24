@@ -5336,6 +5336,9 @@ body[data-page="library"] .notification-btn.has-unread span {
   z-index: 1250;
   display: none;
   width: min(320px, calc(100vw - 28px));
+  max-height: min(520px, calc(100vh - 110px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid rgba(140, 165, 194, 0.18);
   border-radius: 14px;
   padding: 12px;
@@ -5345,6 +5348,7 @@ body[data-page="library"] .notification-btn.has-unread span {
 
 .notification-popover.show {
   display: grid;
+  align-content: start;
   gap: 10px;
 }
 
@@ -7102,4 +7106,195 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
     font-size: 13px;
     text-align: center;
   }
+}
+
+/* Light mode for the AniTrack shell */
+:root[data-theme="light"] body[data-page="home"],
+:root[data-theme="light"] body[data-page="profile"],
+:root[data-theme="light"] body[data-page="library"],
+:root[data-theme="light"] body[data-page="anime"],
+:root[data-theme="light"] body[data-page="manga"],
+:root[data-theme="light"] body[data-page="doujin"],
+:root[data-theme="light"] body[data-page="doujin-preview"],
+:root[data-theme="light"] body[data-page="details"],
+:root[data-theme="light"] body[data-page="settings"],
+:root[data-theme="light"] body[data-page="player"] {
+  --al-bg: #f4f7fb;
+  --al-bg-2: #e9f0f8;
+  --al-surface: #ffffff;
+  --al-surface-2: #f7faff;
+  --al-surface-3: #edf3fa;
+  --al-nav: #ffffff;
+  --al-text: #172234;
+  --al-muted: #5e7189;
+  --al-blue: #416889;
+  color: var(--al-text);
+  background: linear-gradient(145deg, #eef4ff 0%, #fff3f7 54%, #f8fbff 100%);
+}
+
+:root[data-theme="light"] .anilist-topbar.topbar {
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 28px rgba(36, 54, 82, 0.08);
+}
+
+:root[data-theme="light"] .anilist-brand.brand,
+:root[data-theme="light"] .anilist-nav.nav,
+:root[data-theme="light"] .anilist-topbar .icon-btn:not(.profile-btn) {
+  border-color: transparent;
+  color: #26364c;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-theme="light"] .anilist-brand span {
+  color: #16263a;
+}
+
+:root[data-theme="light"] .anilist-brand b {
+  color: #24415f;
+}
+
+:root[data-theme="light"] .anilist-nav.nav a {
+  color: #5c7088;
+}
+
+:root[data-theme="light"] .anilist-nav.nav a:hover,
+:root[data-theme="light"] .anilist-nav.nav a.active {
+  color: #0f2238;
+}
+
+:root[data-theme="light"] .anilist-topbar .notification-btn span {
+  color: #36506a;
+  background: #e7eef7;
+}
+
+:root[data-theme="light"] .notification-popover {
+  border-color: rgba(80, 105, 135, 0.18);
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(31, 48, 75, 0.18);
+}
+
+:root[data-theme="light"] .notification-popover > strong {
+  color: #182a40;
+}
+
+:root[data-theme="light"] .notification-row {
+  color: #1c2d42;
+  background: #f2f6fb;
+}
+
+:root[data-theme="light"] .notification-row small,
+:root[data-theme="light"] .notification-empty {
+  color: #647993;
+}
+
+:root[data-theme="light"] .home-status-input,
+:root[data-theme="light"] .home-activity-card,
+:root[data-theme="light"] .home-progress-column,
+:root[data-theme="light"] .profile-section,
+:root[data-theme="light"] .profile-sidebar,
+:root[data-theme="light"] .profile-placeholder,
+:root[data-theme="light"] .profile-card-grid .library-item,
+:root[data-theme="light"] body[data-page="library"] .library-item,
+:root[data-theme="light"] .browse-toolbar,
+:root[data-theme="light"] .browse-card,
+:root[data-theme="light"] .browse-spotlight,
+:root[data-theme="light"] .details-panel,
+:root[data-theme="light"] .detail-pro,
+:root[data-theme="light"] .detail-chapter-row,
+:root[data-theme="light"] .detail-list-filter,
+:root[data-theme="light"] .detail-source-search,
+:root[data-theme="light"] .detail-manga-chapter-card,
+:root[data-theme="light"] body[data-page="settings"] .settings-sidebar,
+:root[data-theme="light"] body[data-page="settings"] .settings-section,
+:root[data-theme="light"] body[data-page="settings"] .form-group,
+:root[data-theme="light"] body[data-page="settings"] .theme-buttons,
+:root[data-theme="light"] body[data-page="settings"] .color-input-row,
+:root[data-theme="light"] body[data-page="settings"] .btn-compact,
+:root[data-theme="light"] body[data-page="settings"] .about-item,
+:root[data-theme="light"] body[data-page="settings"] .extension-card,
+:root[data-theme="light"] body[data-page="doujin-preview"] .panel {
+  border-color: rgba(80, 105, 135, 0.16) !important;
+  color: #1c2d42;
+  background: #ffffff !important;
+  box-shadow: 0 14px 34px rgba(38, 59, 88, 0.1);
+}
+
+:root[data-theme="light"] .home-feed-tabs,
+:root[data-theme="light"] .home-feed-tabs button.active,
+:root[data-theme="light"] body[data-page="settings"] .settings-nav-btn,
+:root[data-theme="light"] .btn.secondary,
+:root[data-theme="light"] .pager-btn,
+:root[data-theme="light"] .page-number,
+:root[data-theme="light"] .genre-toggle,
+:root[data-theme="light"] .search-clear,
+:root[data-theme="light"] .browse-toolbar input,
+:root[data-theme="light"] .browse-toolbar select,
+:root[data-theme="light"] .detail-source-search input,
+:root[data-theme="light"] .detail-source-picker select,
+:root[data-theme="light"] .detail-list-search input,
+:root[data-theme="light"] body[data-page="settings"] input,
+:root[data-theme="light"] body[data-page="settings"] select,
+:root[data-theme="light"] body[data-page="settings"] textarea {
+  border-color: rgba(80, 105, 135, 0.18) !important;
+  color: #1c2d42;
+  background: #f2f6fb !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme="light"] .home-section-head h1,
+:root[data-theme="light"] .home-progress-column h2,
+:root[data-theme="light"] .browse-title h1,
+:root[data-theme="light"] .detail-title-block h1,
+:root[data-theme="light"] body[data-page="settings"] h1,
+:root[data-theme="light"] body[data-page="settings"] h2,
+:root[data-theme="light"] body[data-page="settings"] h3,
+:root[data-theme="light"] .profile-library-head h2,
+:root[data-theme="light"] .section-header h2,
+:root[data-theme="light"] .settings-sidebar h2,
+:root[data-theme="light"] .checkbox-label span {
+  color: #172234;
+}
+
+:root[data-theme="light"] .home-activity-card,
+:root[data-theme="light"] .home-activity-copy strong,
+:root[data-theme="light"] .profile-sidebar-block button.active,
+:root[data-theme="light"] .profile-sidebar-block button:hover,
+:root[data-theme="light"] .profile-sidebar-block select {
+  color: #1c2d42;
+}
+
+:root[data-theme="light"] .home-section-head h1,
+:root[data-theme="light"] .home-progress-column h2,
+:root[data-theme="light"] .home-feed-tabs button,
+:root[data-theme="light"] .profile-sidebar-block > span,
+:root[data-theme="light"] .profile-sidebar-block label,
+:root[data-theme="light"] .profile-library-head p,
+:root[data-theme="light"] .browse-title span,
+:root[data-theme="light"] .browse-meta,
+:root[data-theme="light"] .detail-native,
+:root[data-theme="light"] .detail-description p,
+:root[data-theme="light"] .detail-list-filter,
+:root[data-theme="light"] body[data-page="settings"] p,
+:root[data-theme="light"] body[data-page="settings"] .muted,
+:root[data-theme="light"] .section-header p,
+:root[data-theme="light"] .form-group label {
+  color: #60758e;
+}
+
+:root[data-theme="light"] .home-progress-card span,
+:root[data-theme="light"] .library-card-overlay {
+  color: #fff;
+}
+
+:root[data-theme="light"] body[data-page="settings"] .settings-nav-btn:hover,
+:root[data-theme="light"] body[data-page="settings"] .settings-nav-btn.active {
+  color: #11243b;
+  background: linear-gradient(135deg, rgba(22, 168, 255, 0.18), rgba(185, 92, 255, 0.12)) !important;
+}
+
+:root[data-theme="light"] body[data-page="settings"] .settings-nav-btn span {
+  border-color: rgba(80, 105, 135, 0.16);
+  color: #7c3fb1;
+  background: #eef3fa;
 }

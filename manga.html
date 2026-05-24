@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Discover manga and add titles to your AniTrack library." />
-    <title>AniTrack | Manga</title>
-    <link rel="stylesheet" href="styles.css?v=site-match-1" />
-    <script src="app.js?v=site-match-1" defer></script>
+    <meta name="description" content="Discover manga, manhwa, and manhua, then add titles to your AniTrack library." />
+    <title>AniTrack | Manga / Manhwa</title>
+    <link rel="stylesheet" href="styles.css?v=site-fix-1" />
+    <script src="app.js?v=site-fix-1" defer></script>
   </head>
   <body data-page="manga">
     <header class="topbar shell anilist-topbar">
@@ -14,9 +14,11 @@
       <nav class="nav anilist-nav" aria-label="Primary navigation">
         <a href="index.html">Home</a>
         <a href="profile.html">Profile</a>
+        <a href="anime.html">Anime</a>
+        <a class="active" href="manga.html">Manga / Manhwa</a>
+        <a href="doujin.html" data-adult-nav hidden>Doujin</a>
         <a href="anime-library.html">Anime Library</a>
         <a href="manga-library.html">Manga Library</a>
-        <a class="active" href="manga.html">Discover</a>
         <a href="settings.html">Settings</a>
       </nav>
     </header>
@@ -24,7 +26,7 @@
     <main class="shell">
       <section class="browse-page">
         <form class="browse-toolbar" data-browse-form>
-          <label class="browse-search"><span>⌕</span><input data-browse-search type="search" placeholder="Search manga" autocomplete="off"><button class="search-clear" data-clear-search type="button" aria-label="Clear search">×</button></label>
+          <label class="browse-search"><span>⌕</span><input data-browse-search type="search" placeholder="Search manga, manhwa, or manhua" autocomplete="off"><button class="search-clear" data-clear-search type="button" aria-label="Clear search">×</button></label>
           <button class="btn browse-submit" type="submit">Search</button>
           <div class="genre-filter" data-genre-filter>
             <span>Genre</span>
@@ -35,10 +37,10 @@
           </div>
           <label>Year <input data-year-filter type="number" min="1940" max="2035" placeholder="Year"></label>
           <label>Status <select data-status-filter><option value="">Any</option><option value="RELEASING">Publishing</option><option value="FINISHED">Completed</option><option value="NOT_YET_RELEASED">Upcoming</option><option value="HIATUS">Hiatus</option><option value="CANCELLED">Cancelled</option></select></label>
-          <label>Sort <select data-sort-filter><option value="top">Top Manga</option><option value="popular">Popular</option><option value="publishing">Publishing</option></select></label>
+          <label>Sort <select data-sort-filter><option value="top">Top Manga / Manhwa</option><option value="popular">Popular</option><option value="publishing">Publishing</option></select></label>
           <button class="btn secondary" data-reset-filters type="button">Reset</button>
         </form>
-        <div class="browse-title"><h1 data-heading>Top Manga</h1><span data-page-label>Page 1</span></div>
+        <div class="browse-title"><h1 data-heading>Top Manga / Manhwa</h1><span data-page-label>Page 1</span></div>
         <div class="browse-grid" data-grid aria-live="polite"></div>
         <div class="pager" data-pager>
           <button class="pager-btn" data-page-prev type="button">‹</button>

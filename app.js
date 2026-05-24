@@ -3789,7 +3789,7 @@ function updateStats() {
 function headingText() {
   if (state.browseQuery) return `Results for "${state.browseQuery}"`;
   if (page === "anime") return { trending: "Trending Anime", top: "Top Rated Anime", popular: "Popular Anime" }[state.feed];
-  return { top: "Top Manga", popular: "Popular Manga", publishing: "Publishing Manga" }[state.feed];
+  return { top: "Top Manga / Manhwa", popular: "Popular Manga / Manhwa", publishing: "Publishing Manga / Manhwa" }[state.feed];
 }
 
 function updateBrowsePager() {
