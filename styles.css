@@ -8785,6 +8785,197 @@ body[data-page="profile"] .profile-hero h1 {
   }
 }
 
+/* Compact profile overview cards on phones. */
+@media (max-width: 720px) {
+  body[data-page="profile"] .profile-overview-grid {
+    gap: 14px !important;
+    padding-top: 14px;
+  }
+
+  body[data-page="profile"] .profile-overview-left,
+  body[data-page="profile"] .profile-overview-main {
+    gap: 16px;
+  }
+
+  body[data-page="profile"] .profile-panel,
+  body[data-page="profile"] .profile-feed {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  body[data-page="profile"] .profile-panel {
+    padding: 12px;
+  }
+
+  body[data-page="profile"] .profile-panel h2,
+  body[data-page="profile"] .profile-feed h2 {
+    margin-bottom: 10px;
+    font-size: 15px;
+  }
+
+  body[data-page="profile"] .profile-heatmap {
+    grid-template-columns: repeat(14, 10px) !important;
+    gap: 6px;
+    justify-content: center;
+    padding: 14px 8px !important;
+  }
+
+  body[data-page="profile"] .profile-heatmap span {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  body[data-page="profile"] .profile-genre-chips {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px;
+    padding: 12px !important;
+  }
+
+  body[data-page="profile"] .profile-genre-chips strong {
+    min-width: 0;
+    width: 100%;
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  body[data-page="profile"] .profile-genre-chips span {
+    margin-top: 6px;
+    font-size: 12px;
+  }
+
+  body[data-page="profile"] .profile-read-data-grid,
+  body[data-page="profile"] .profile-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+  }
+
+  body[data-page="profile"] .profile-read-data-grid div,
+  body[data-page="profile"] .profile-stats-grid div {
+    min-height: 78px;
+    border-radius: 12px;
+    padding: 10px;
+  }
+
+  body[data-page="profile"] .profile-read-data-grid strong,
+  body[data-page="profile"] .profile-stats-grid strong {
+    font-size: 17px;
+  }
+
+  body[data-page="profile"] .profile-read-data-grid span,
+  body[data-page="profile"] .profile-stats-grid span {
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  body[data-page="profile"] .profile-panel-head {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  body[data-page="profile"] .profile-panel-head select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body[data-page="profile"] .profile-favorites-list,
+  body[data-page="profile"] .profile-favorite-group {
+    gap: 10px;
+  }
+
+  body[data-page="profile"] .profile-favorite-group h3 {
+    border-radius: 12px 12px 0 0;
+    padding: 9px 10px;
+    font-size: 11px;
+  }
+
+  body[data-page="profile"] .profile-favorite-group .profile-mini-library {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  body[data-page="profile"] .profile-mini-card {
+    gap: 6px;
+    min-width: 0;
+  }
+
+  body[data-page="profile"] .profile-mini-card span {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  body[data-page="profile"] .profile-artist-card {
+    min-height: 0;
+    padding: 8px;
+  }
+
+  body[data-page="profile"] .profile-artist-avatar {
+    font-size: 20px;
+  }
+
+  body[data-page="profile"] .profile-stat-card {
+    min-height: 76px;
+  }
+
+  body[data-page="profile"] .profile-stat-card strong {
+    font-size: 15px;
+  }
+
+  body[data-page="profile"] .profile-stat-card span,
+  body[data-page="profile"] .profile-adult-stat-scale span {
+    font-size: 10px;
+  }
+
+  body[data-page="profile"] .profile-feed-head button {
+    font-size: 13px;
+  }
+
+  body[data-page="profile"] .profile-status-box {
+    min-height: 38px;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  body[data-page="profile"] .profile-feed-item {
+    min-height: 0;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 10px;
+    padding-right: 10px;
+    font-size: 13px;
+  }
+
+  body[data-page="profile"] .profile-feed-item > img {
+    width: 42px;
+    height: 56px;
+  }
+
+  body[data-page="profile"] .profile-feed-item time {
+    grid-column: 2;
+    font-size: 11px;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 420px) {
+  body[data-page="profile"] .profile-heatmap {
+    grid-template-columns: repeat(14, 9px) !important;
+    gap: 5px;
+    padding-right: 6px !important;
+    padding-left: 6px !important;
+  }
+
+  body[data-page="profile"] .profile-heatmap span {
+    width: 9px;
+    height: 9px;
+  }
+
+  body[data-page="profile"] .profile-favorite-group .profile-mini-library {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
 /* Final mobile navigation and profile-library filter drawer. */
 .library-filter-fab,
 .library-filter-overlay,
