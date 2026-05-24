@@ -212,8 +212,8 @@ input:focus, select:focus, textarea:focus { border-color: color-mix(in srgb, var
 .library-item:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--blue) 40%, var(--line)); background: color-mix(in srgb, var(--soft) 82%, var(--blue) 8%); }
 .library-item.adult { border-color: color-mix(in srgb, var(--gold) 34%, var(--line)); }
 
-.doujin-preview-hero { display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: 18px; align-items: start; margin-bottom: 16px; }
-.doujin-preview-cover { width: 100%; border-radius: 18px; object-fit: cover; background: var(--soft); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28); }
+.doujin-preview-hero { display: grid; grid-template-columns: minmax(180px, 250px) minmax(0, 1fr); gap: clamp(18px, 2.4vw, 28px); align-items: start; margin-bottom: 22px; }
+.doujin-preview-cover { width: 100%; max-height: 420px; border-radius: 18px; object-fit: cover; object-position: top center; background: var(--soft); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28); }
 .doujin-preview-copy { min-width: 0; }
 .doujin-preview-copy h1 { max-width: 100%; margin: 8px 0 10px; font-size: clamp(26px, 4.2vw, 50px); line-height: 1.02; overflow-wrap: anywhere; hyphens: auto; }
 .doujin-preview-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
@@ -225,9 +225,14 @@ input:focus, select:focus, textarea:focus { border-color: color-mix(in srgb, var
 .doujin-tag-chip, .doujin-card-tags span { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--soft) 82%, var(--blue) 8%); color: var(--text); font-size: 12px; font-weight: 800; text-decoration: none; }
 .doujin-tag-chip { padding: 7px 10px; }
 .doujin-tag-chip:hover { border-color: color-mix(in srgb, var(--blue) 50%, var(--line)); color: #fff; background: linear-gradient(135deg, var(--blue), var(--pink)); }
+.doujin-artist-chip { display: inline-flex; align-items: center; gap: 4px; }
+.doujin-artist-chip .doujin-tag-chip { margin: 0; }
+.doujin-artist-favorite { display: inline-grid; width: 30px; min-height: 30px; place-items: center; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: color-mix(in srgb, var(--soft) 82%, transparent); font-weight: 900; cursor: pointer; }
+.doujin-artist-favorite.active,
+.doujin-artist-favorite:hover { border-color: color-mix(in srgb, var(--pink) 55%, var(--line)); color: #fff; background: linear-gradient(135deg, var(--pink), var(--blue)); }
 .doujin-preview-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
-.doujin-preview-panel { padding: clamp(14px, 3vw, 22px); }
-.doujin-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.doujin-preview-panel { padding: clamp(20px, 2.6vw, 30px); }
+.doujin-preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: clamp(12px, 1.4vw, 18px); }
 .doujin-page-thumb { position: relative; display: block; border: 1px solid var(--line); border-radius: 14px; padding: 0; overflow: hidden; background: var(--soft); cursor: pointer; }
 .doujin-page-thumb img { display: block; width: 100%; aspect-ratio: 2 / 2.8; object-fit: cover; object-position: top center; transition: transform 0.2s ease; }
 .doujin-page-thumb:hover img { transform: scale(1.035); }
@@ -245,7 +250,7 @@ input:focus, select:focus, textarea:focus { border-color: color-mix(in srgb, var
 .library-overlay-toast span { color: var(--text); font-size: 14px; }
 .reader-loading { display: grid; gap: 14px; place-items: center; min-height: 220px; color: var(--muted); }
 .spinner { width: 42px; height: 42px; border: 4px solid color-mix(in srgb, var(--blue) 18%, transparent); border-top-color: var(--blue); border-radius: 50%; animation: spin 1s linear infinite; }
-.skeleton-card { min-height: 220px; border-radius: 14px; background: linear-gradient(90deg, var(--soft), color-mix(in srgb, var(--soft) 70%, var(--blue) 10%), var(--soft)); background-size: 220% 100%; animation: shimmer 1.4s ease-in-out infinite; }
+.skeleton-card { min-height: 220px; aspect-ratio: 2 / 2.2; border-radius: 14px; background: linear-gradient(90deg, var(--soft), color-mix(in srgb, var(--soft) 70%, var(--blue) 10%), var(--soft)); background-size: 220% 100%; animation: shimmer 1.4s ease-in-out infinite; }
 @keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
 .progress-bar { height: 7px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--muted) 16%, transparent); }
 .progress-bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), var(--pink)); }
@@ -4977,6 +4982,19 @@ body[data-page="reader"] .reader-top-button {
   color: #0b1220;
 }
 
+:root[data-theme="light"] .source-direct-list .source-play-direct,
+:root[data-theme="light"] .source-item .source-play-direct {
+  border-color: rgba(80, 105, 135, 0.22) !important;
+  color: #172234 !important;
+  background: #f2f6fb !important;
+}
+
+:root[data-theme="light"] .source-direct-list .source-play-direct:hover,
+:root[data-theme="light"] .source-item .source-play-direct:hover {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #168fff, #b95cff) !important;
+}
+
 :root[data-theme="light"] input,
 :root[data-theme="light"] select,
 :root[data-theme="light"] textarea,
@@ -6379,6 +6397,18 @@ body[data-page="library"] .profile-btn {
   padding-top: 38px;
 }
 
+.profile-subpage {
+  display: grid;
+  gap: 30px;
+  max-width: 1120px;
+  padding-top: 38px;
+  padding-bottom: 70px;
+}
+
+.profile-favorites-page .profile-mini-library {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
 .profile-panel h2,
 .profile-feed h2,
 .profile-library-head h2 {
@@ -6508,6 +6538,29 @@ body[data-page="library"] .profile-btn {
   font-weight: 600;
 }
 
+.profile-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.profile-panel-head h2 {
+  margin: 0;
+}
+
+.profile-panel-head select {
+  min-height: 34px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0 10px;
+  color: #dce9f8;
+  background: var(--al-surface);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .profile-favorites-list {
   display: grid;
   gap: 18px;
@@ -6525,6 +6578,23 @@ body[data-page="library"] .profile-btn {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.profile-artist-card {
+  min-height: 118px;
+  padding: 12px;
+}
+
+.profile-artist-avatar {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 4px;
+  color: #fff;
+  background: linear-gradient(135deg, #b95cff, #168fff);
+  font-size: 28px;
+  font-weight: 900;
 }
 
 .profile-read-data-grid,
@@ -7184,6 +7254,10 @@ body[data-page="home"] .profile-btn {
   }
 
   .home-progress-column {
+    order: -1;
+  }
+
+  .home-progress-column {
     padding-left: 0;
     padding-right: 0;
     background: transparent;
@@ -7244,6 +7318,18 @@ body[data-page="doujin-preview"] .shell,
 body[data-page="details"] .shell,
 body[data-page="settings"] .shell {
   width: min(1300px, calc(100% - 80px));
+}
+
+body[data-page="doujin-preview"] .details-shell {
+  margin: 28px auto 56px;
+}
+
+body[data-page="doujin-preview"] .panel {
+  padding: clamp(22px, 2.4vw, 32px) !important;
+}
+
+body[data-page="doujin-preview"] .doujin-preview-actions {
+  margin-top: 20px;
 }
 
 .anilist-topbar.topbar {
@@ -7743,7 +7829,8 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
 
 :root[data-theme="light"] .profile-library-search input,
 :root[data-theme="light"] .profile-sidebar-block button,
-:root[data-theme="light"] .profile-sidebar-block select {
+:root[data-theme="light"] .profile-sidebar-block select,
+:root[data-theme="light"] .profile-panel-head select {
   color: #1c2d42 !important;
 }
 
@@ -7751,6 +7838,20 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
 :root[data-theme="light"] .profile-sidebar-block button:hover {
   color: #0f2238 !important;
   background: #edf5ff !important;
+}
+
+:root[data-theme="light"] .profile-panel h2,
+:root[data-theme="light"] .profile-feed h2,
+:root[data-theme="light"] .profile-favorite-group h3,
+:root[data-theme="light"] .profile-mini-card,
+:root[data-theme="light"] .profile-mini-card span,
+:root[data-theme="light"] .profile-read-data-grid span,
+:root[data-theme="light"] .profile-stats-grid span {
+  color: #172234 !important;
+}
+
+:root[data-theme="light"] .profile-artist-card {
+  color: #172234 !important;
 }
 
 :root[data-theme="light"] .profile-sidebar-block > span,
@@ -7805,15 +7906,14 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
   }
 
   body[data-page].mobile-nav-floating .mobile-bottom-nav {
-    display: flex !important;
-    grid-template-columns: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(56px, 1fr)) !important;
     align-items: center;
     gap: 6px;
     width: min(520px, calc(100% - 20px)) !important;
-    height: auto !important;
+    height: 54px !important;
     min-height: 52px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: hidden;
     border-radius: 20px !important;
     padding: 6px !important;
     background: rgba(10, 14, 22, 0.94) !important;
@@ -7826,10 +7926,11 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
   }
 
   body[data-page].mobile-nav-floating .mobile-bottom-nav a {
-    flex: 0 0 auto;
-    min-width: max-content;
-    min-height: 36px;
-    padding: 0 13px;
+    min-width: 0;
+    min-height: 40px;
+    padding: 0 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 12px;
   }

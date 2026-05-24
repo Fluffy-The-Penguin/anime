@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Customize your AniTrack experience." />
     <title>AniTrack | Settings</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-10" />
-    <script src="app.js?v=site-fix-10" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-11" />
+    <script src="app.js?v=site-fix-11" defer></script>
   </head>
   <body data-page="settings">
     <header class="topbar shell anilist-topbar">
@@ -174,9 +174,46 @@
                 <select data-default-anime-source aria-label="Default anime source">
                   <option value="animedex">AnimeDex</option>
                   <option value="anizone">AniZone</option>
+                  <option value="anilibria">AniLibria</option>
+                  <option value="tokyoinsider">TokyoInsider</option>
                   <option value="hstream">hstream.moe (+18)</option>
                 </select>
                 <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Used first on anime detail pages when no per-title source is saved.</p>
+              </div>
+
+              <div class="form-group">
+                <label>Default Hentai Source</label>
+                <select data-default-hentai-source aria-label="Default hentai source">
+                  <option value="hstream">hstream.moe</option>
+                </select>
+                <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Used first for adult anime when 18+ content is enabled.</p>
+              </div>
+
+              <div class="form-group">
+                <label>Default Manga / Manhwa Source</label>
+                <select data-default-manga-source aria-label="Default manga source">
+                  <option value="weebcentral">WeebCentral</option>
+                  <option value="mangadex">MangaDex</option>
+                  <option value="asura">Asura Scans</option>
+                  <option value="mangakatana">MangaKatana</option>
+                  <option value="flamecomics">Flame Comics</option>
+                  <option value="rizzcomic">Rizz Comic</option>
+                  <option value="projectsuki">Project Suki</option>
+                  <option value="manhwaz">ManhwaZ</option>
+                  <option value="toonily">Toonily</option>
+                </select>
+                <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Used first on manga/manhwa pages when no per-title source is saved.</p>
+              </div>
+
+              <div class="form-group">
+                <label>Default Pornhwa Source</label>
+                <select data-default-pornhwa-source aria-label="Default pornhwa source">
+                  <option value="pornhwaz">PornhwaZ</option>
+                  <option value="pornhwapro">Pornhwa Pro</option>
+                  <option value="hentai20">Hentai20</option>
+                  <option value="hentai18">Hentai18</option>
+                </select>
+                <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Used first for pornhwa/adult manhwa when 18+ content is enabled.</p>
               </div>
 
               <div class="form-group">

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Detailed AniTrack watch and read statistics." />
+    <title>AniTrack | Stats</title>
+    <link rel="stylesheet" href="styles.css?v=site-fix-11" />
+    <script src="app.js?v=site-fix-11" defer></script>
+  </head>
+  <body data-page="profile">
+    <header class="topbar shell anilist-topbar">
+      <a class="brand anilist-brand" href="index.html" aria-label="AniTrack home"><span>AT</span><b>AniTrack</b></a>
+      <nav class="nav anilist-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="anime.html">Anime</a>
+        <a href="manga.html">Manga / Manhwa</a>
+        <a href="doujin.html" data-adult-nav hidden>Doujin</a>
+        <a class="active" href="profile.html">Profile</a>
+      </nav>
+    </header>
+
+    <main class="profile-page">
+      <section class="profile-hero compact" data-profile-hero>
+        <div class="profile-hero-inner shell">
+          <img class="profile-avatar" data-profile-avatar src="" alt="Profile avatar" />
+          <h1 data-profile-name>fluffy07</h1>
+        </div>
+      </section>
+
+      <nav class="profile-tabs" aria-label="Profile navigation">
+        <div class="shell profile-tabs-inner">
+          <a href="profile.html">Overview</a>
+          <a href="anime-library.html">Anime Library</a>
+          <a href="manga-library.html">Manga Library</a>
+          <a href="adult-library.html" data-adult-nav hidden>Adult Library</a>
+          <a href="profile-favorites.html">Favorites</a>
+          <a class="active" href="profile-stats.html">Stats</a>
+          <a href="profile.html#social">Social</a>
+          <a href="profile.html#reviews">Reviews</a>
+        </div>
+      </nav>
+
+      <section class="shell profile-subpage profile-stats-page">
+        <article class="profile-panel profile-full-stats" id="stats">
+          <h2>Full Stats</h2>
+          <div class="profile-stats-grid" data-profile-full-stats></div>
+        </article>
+        <article class="profile-panel profile-read-data">
+          <h2>Read Data</h2>
+          <div class="profile-read-data-grid" data-profile-read-data></div>
+        </article>
+        <article class="profile-panel profile-genres">
+          <h2>Genre Overview</h2>
+          <div class="profile-genre-chips" data-profile-genres></div>
+          <div class="profile-genre-bar" data-profile-genre-bar></div>
+        </article>
+        <article class="profile-panel profile-activity-history">
+          <h2>Activity History</h2>
+          <div class="profile-heatmap" data-profile-heatmap aria-label="Activity history"></div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

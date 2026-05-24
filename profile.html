@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Your AniTrack profile overview." />
     <title>AniTrack | Profile</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-10" />
-    <script src="app.js?v=site-fix-10" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-11" />
+    <script src="app.js?v=site-fix-11" defer></script>
   </head>
   <body data-page="profile">
     <header class="topbar shell anilist-topbar">
@@ -34,8 +34,8 @@
           <a href="anime-library.html">Anime Library</a>
           <a href="manga-library.html">Manga Library</a>
           <a href="adult-library.html" data-adult-nav hidden>Adult Library</a>
-          <a href="#favorites">Favorites</a>
-          <a href="#stats">Stats</a>
+          <a href="profile-favorites.html">Favorites</a>
+          <a href="profile-stats.html">Stats</a>
           <a href="#social">Social</a>
           <a href="#reviews">Reviews</a>
         </div>
@@ -60,7 +60,7 @@
           </article>
 
           <article class="profile-panel" id="favorites">
-            <h2>Favorites</h2>
+            <div class="profile-panel-head"><h2>Favorites</h2><select data-profile-favorite-filter aria-label="Filter favorites"><option value="all">All favorites</option><option value="anime">Anime</option><option value="manga">Manga / Manhwa</option><option value="doujin">Doujin</option><option value="hentai">Hentai</option><option value="pornhwa">Pornhwa</option><option value="artists">Artists</option></select></div>
             <div class="profile-favorites-list" data-profile-favorites></div>
           </article>
         </aside>

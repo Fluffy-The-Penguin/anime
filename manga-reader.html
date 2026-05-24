@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Read manga with chapter details and tracking." />
     <title>AniTrack | Manga Reader</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-10" />
-    <script src="app.js?v=site-fix-10" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-11" />
+    <script src="app.js?v=site-fix-11" defer></script>
   </head>
   <body data-page="reader">
     <header class="topbar shell anilist-topbar">
@@ -104,7 +104,7 @@
 
       .reader-main {
         display: grid;
-        gap: 8px;
+        gap: 0;
       }
 
       .reader-header {
@@ -124,16 +124,16 @@
 
       .reader-source-bar {
         display: none;
-        grid-template-columns: auto minmax(180px, 300px) minmax(180px, 260px) minmax(0, auto);
+        grid-template-columns: auto minmax(220px, 440px) minmax(180px, 320px) minmax(0, auto);
         gap: 10px;
         align-items: center;
-        padding: 8px 12px;
-        width: max-content;
+        padding: 10px 14px;
+        width: min(980px, calc(100vw - 156px));
         max-width: calc(100vw - 24px);
-        border-radius: 14px;
-        background: rgba(8, 10, 14, 0.94);
+        border-radius: 16px;
+        background: rgba(10, 12, 18, 0.9);
         border: 1px solid rgba(255, 255, 255, 0.22);
-        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.42);
+        box-shadow: 0 18px 54px rgba(0, 0, 0, 0.48);
       }
 
       body.reader-controls-visible .reader-source-bar:not([hidden]) {
@@ -181,12 +181,12 @@
         gap: 10px;
         align-items: center;
         justify-content: start;
-        padding: 8px 12px;
+        padding: 10px 14px;
         max-width: calc(100vw - 24px);
-        border-radius: 14px;
-        background: rgba(8, 10, 14, 0.94);
+        border-radius: 16px;
+        background: rgba(10, 12, 18, 0.9);
         border: 1px solid rgba(255, 255, 255, 0.22);
-        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.42);
+        box-shadow: 0 18px 54px rgba(0, 0, 0, 0.48);
       }
 
       body.reader-controls-visible .reader-control-bar {
@@ -398,18 +398,18 @@
       }
 
       body.reader-images-ready.reader-controls-visible .reader-source-bar:not([hidden]) {
-        top: max(12px, env(safe-area-inset-top));
-        left: max(106px, calc(env(safe-area-inset-left) + 106px));
+        top: max(10px, env(safe-area-inset-top));
+        left: 50%;
         right: auto;
-        grid-template-columns: auto minmax(180px, 360px) minmax(0, auto);
-        justify-content: start;
+        transform: translateX(-50%);
+        justify-content: stretch;
       }
 
       body.reader-images-ready.reader-controls-visible .reader-control-bar {
-        top: calc(max(12px, env(safe-area-inset-top)) + 52px);
-        left: max(106px, calc(env(safe-area-inset-left) + 106px));
+        top: calc(max(10px, env(safe-area-inset-top)) + 66px);
+        left: 50%;
         width: max-content;
-        transform: none;
+        transform: translateX(-50%);
       }
 
       .reader-bottom-back {
@@ -479,6 +479,7 @@
           left: max(12px, env(safe-area-inset-left));
           right: max(12px, env(safe-area-inset-right));
           width: auto;
+          transform: none;
         }
 
         body.reader-images-ready.reader-controls-visible .reader-control-bar {
