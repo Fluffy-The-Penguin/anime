@@ -5,78 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="A professional anime and manga tracker powered by AniList data." />
     <title>AniTrack | Home</title>
-    <link rel="stylesheet" href="styles.css?v=library-status-edit-1" />
-    <script src="app.js?v=library-status-edit-1" defer></script>
+    <link rel="stylesheet" href="styles.css?v=home-profile-links-1" />
+    <script src="app.js?v=home-profile-links-1" defer></script>
   </head>
   <body data-page="home">
-    <header class="topbar shell">
-      <a class="brand" href="index.html"><span>AT</span>AniTrack</a>
-      <nav class="nav" aria-label="Primary navigation">
+    <header class="topbar shell anilist-topbar">
+      <a class="brand anilist-brand" href="index.html" aria-label="AniTrack home"><span>A</span><i>L</i></a>
+      <nav class="nav anilist-nav" aria-label="Primary navigation">
         <a class="active" href="index.html">Home</a>
-        <a href="anime.html">Anime</a>
-        <a href="manga.html">Manga</a>
-        <a href="doujin.html" data-adult-nav hidden>Doujin</a>
+        <a href="profile.html">Profile</a>
+        <a href="anime-library.html">Anime List</a>
+        <a href="manga-library.html">Manga List</a>
+        <a href="anime.html">Browse</a>
+        <a href="settings.html">Forum</a>
       </nav>
     </header>
 
-    <main class="shell">
-      <section class="featured-strip">
-        <div class="poster-rail" data-home-featured aria-live="polite"></div>
+    <main class="home-social-page shell">
+      <section class="home-activity-column">
+        <div class="home-section-head">
+          <h1>Activity</h1>
+          <div class="home-feed-tabs" aria-label="Activity feed scope">
+            <button class="active" type="button">Following</button>
+            <button type="button">Global</button>
+          </div>
+        </div>
+        <div class="home-status-input">Write a status...</div>
+        <div class="home-activity-list" data-home-activity aria-live="polite"></div>
       </section>
 
-      <section class="content-board">
-        <article class="panel section updates-panel">
-          <div class="section-head compact-head">
-            <div>
-              <span class="eyebrow">Fresh queue</span>
-              <h2>Latest Updates</h2>
-            </div>
-          </div>
-          <div class="latest-rail-block">
-            <div class="rail-head"><h3>Anime Updates</h3><div><button class="pager-btn" data-rail-control="home-latest-anime" data-direction="prev" type="button">‹</button><button class="pager-btn" data-rail-control="home-latest-anime" data-direction="next" type="button">›</button></div></div>
-            <div class="static-rail" id="home-latest-anime" data-home-latest-anime aria-live="polite"></div>
-          </div>
-          <div class="latest-rail-block">
-            <div class="rail-head"><h3>Manga Updates</h3><div><button class="pager-btn" data-rail-control="home-latest-manga" data-direction="prev" type="button">‹</button><button class="pager-btn" data-rail-control="home-latest-manga" data-direction="next" type="button">›</button></div></div>
-            <div class="static-rail" id="home-latest-manga" data-home-latest-manga aria-live="polite"></div>
-          </div>
-        </article>
-
-        <aside class="panel section ranking-panel">
-          <div class="section-head compact-head">
-            <div>
-              <span class="eyebrow">Most watched</span>
-              <h2>Popular</h2>
-            </div>
-          </div>
-          <div class="ranking-list ranking-top" data-home-ranking aria-live="polite"></div>
-          <div class="editor-pick" data-home-editor aria-live="polite"></div>
-        </aside>
-      </section>
-
-      <section class="home-split">
-        <article class="panel section">
-          <div class="section-head compact-head">
-            <div>
-              <span class="eyebrow">AniList pulse</span>
-              <h2>Trending Today</h2>
-            </div>
-            <a class="btn secondary" href="anime.html">See all</a>
-          </div>
-          <div class="grid home-grid" data-home-anime aria-live="polite"></div>
-        </article>
-
-        <article class="panel section">
-          <div class="section-head compact-head">
-            <div>
-              <span class="eyebrow">AniList manga shelf</span>
-              <h2>Top Manga</h2>
-            </div>
-            <a class="btn secondary" href="manga.html">See all</a>
-          </div>
-          <div class="grid home-grid" data-home-manga aria-live="polite"></div>
-        </article>
-      </section>
+      <aside class="home-progress-column">
+        <h2>Anime in Progress</h2>
+        <div class="home-progress-grid" data-home-progress aria-live="polite"></div>
+      </aside>
     </main>
   </body>
 </html>

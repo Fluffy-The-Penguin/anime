@@ -83,6 +83,11 @@ const state = {
   doujinHasMore: true,
   libraryAdultFilter: "all",
   librarySearch: "",
+  libraryFormat: "all",
+  libraryStatusText: "all",
+  libraryGenre: "all",
+  libraryYear: "all",
+  librarySort: "updated",
   readerSession: null,
   browseSpotlightItems: [],
   browseSpotlightIndex: 0,
@@ -832,6 +837,16 @@ function openDoujinReaderFromPreview(manga, chapter, pageIndex) {
 }
 
 function initHomePage() {
+  hydrateProfileShell();
+  const activity = document.querySelector("[data-home-activity]");
+  const progress = document.querySelector("[data-home-progress]");
+  if (activity || progress) {
+    activity?.addEventListener("click", handleCardNavigation);
+    progress?.addEventListener("click", handleCardNavigation);
+    loadHomeSections();
+    return;
+  }
+
   const featuredRail = document.querySelector("[data-home-featured]");
   const animeGrid = document.querySelector("[data-home-anime]");
   const mangaGrid = document.querySelector("[data-home-manga]");
@@ -859,14 +874,21 @@ function initLibraryPage() {
   const filters = document.querySelector("[data-library-filters]");
   const adultFilter = document.querySelector("[data-library-adult-filter]");
   const search = document.querySelector("[data-library-search]");
+  const advancedFilters = document.querySelectorAll("[data-library-advanced-filter]");
   const lists = document.querySelectorAll("[data-library-list]");
   const params = new URLSearchParams(window.location.search);
   state.libraryType = document.body.dataset.libraryKind || "anime";
   state.filter = ["all", "watching", "reading", "planning", "completed", "dropped"].includes(params.get("status")) ? params.get("status") : "all";
   state.libraryAdultFilter = ["all", "adult", "normal"].includes(params.get("adult")) ? params.get("adult") : "all";
   state.librarySearch = params.get("q") || "";
+  state.libraryFormat = params.get("format") || "all";
+  state.libraryStatusText = params.get("airing") || "all";
+  state.libraryGenre = params.get("genre") || "all";
+  state.libraryYear = params.get("year") || "all";
+  state.librarySort = params.get("sort") || "updated";
   if (adultFilter) adultFilter.value = state.libraryAdultFilter;
   if (search) search.value = state.librarySearch;
+  populateLibraryAdvancedFilters();
   filters?.querySelectorAll("[data-filter]").forEach((button) => button.classList.toggle("active", button.dataset.filter === state.filter));
   hydrateProfileShell();
   syncLibraryPageLinks();
@@ -890,6 +912,16 @@ function initLibraryPage() {
     state.librarySearch = search.value.trim();
     updateLibraryUrl();
     renderLibrary();
+  });
+
+  advancedFilters.forEach((filter) => {
+    const key = filter.dataset.libraryAdvancedFilter;
+    if (key && state[`library${key}`] != null) filter.value = state[`library${key}`];
+    filter.addEventListener("change", () => {
+      if (key && state[`library${key}`] != null) state[`library${key}`] = filter.value;
+      updateLibraryUrl();
+      renderLibrary();
+    });
   });
 
   lists.forEach((list) => {
@@ -921,6 +953,11 @@ function updateLibraryUrl() {
   if (state.filter && state.filter !== "all") params.set("status", state.filter);
   if (state.libraryAdultFilter && state.libraryAdultFilter !== "all") params.set("adult", state.libraryAdultFilter);
   if (state.librarySearch) params.set("q", state.librarySearch);
+  if (state.libraryFormat !== "all") params.set("format", state.libraryFormat);
+  if (state.libraryStatusText !== "all") params.set("airing", state.libraryStatusText);
+  if (state.libraryGenre !== "all") params.set("genre", state.libraryGenre);
+  if (state.libraryYear !== "all") params.set("year", state.libraryYear);
+  if (state.librarySort !== "updated") params.set("sort", state.librarySort);
   const query = params.toString();
   history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}`);
   syncLibraryPageLinks();
@@ -931,6 +968,11 @@ function syncLibraryPageLinks() {
   if (state.filter && state.filter !== "all") params.set("status", state.filter);
   if (state.libraryAdultFilter && state.libraryAdultFilter !== "all") params.set("adult", state.libraryAdultFilter);
   if (state.librarySearch) params.set("q", state.librarySearch);
+  if (state.libraryFormat !== "all") params.set("format", state.libraryFormat);
+  if (state.libraryStatusText !== "all") params.set("airing", state.libraryStatusText);
+  if (state.libraryGenre !== "all") params.set("genre", state.libraryGenre);
+  if (state.libraryYear !== "all") params.set("year", state.libraryYear);
+  if (state.librarySort !== "updated") params.set("sort", state.librarySort);
   const query = params.toString();
   document.querySelectorAll("[data-library-page]").forEach((link) => {
     const target = link.dataset.libraryPage === "manga" ? "manga-library.html" : "anime-library.html";
@@ -988,8 +1030,14 @@ function renderProfileOverview() {
 
   renderProfileHeatmap(allItems);
   renderProfileGenres(allItems);
-  renderProfilePreview(document.querySelector("[data-profile-anime-preview]"), animeItems.slice(0, 4));
+  renderProfilePreview(document.querySelector("[data-profile-favorites]"), favoriteProfileItems(allItems));
   renderProfileFeed(document.querySelector("[data-profile-feed]"), allItems.slice(0, 6));
+}
+
+function favoriteProfileItems(items) {
+  const rated = items.filter((item) => Number(item.rating || 0) >= 8);
+  const completed = items.filter((item) => item.status === "completed");
+  return mergeItems([...rated, ...completed, ...items]).slice(0, 8);
 }
 
 function renderProfileHeatmap(items) {
@@ -1021,7 +1069,7 @@ function renderProfileGenres(items) {
 
 function renderProfilePreview(container, items) {
   if (!container) return;
-  if (!items.length) return renderEmpty(container, "Add anime to your list to fill this shelf.");
+  if (!items.length) return renderEmpty(container, "Add and rate titles to build your favorites.");
   container.innerHTML = items.map((item) => `
     <button class="profile-mini-card" data-id="${escapeAttr(item.id)}" type="button">
       <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
@@ -1065,6 +1113,8 @@ function syncHomePanelHeights() {
 }
 
 async function loadHomeSections() {
+  const activityFeed = document.querySelector("[data-home-activity]");
+  const progressGrid = document.querySelector("[data-home-progress]");
   const featuredRail = document.querySelector("[data-home-featured]");
   const animeGrid = document.querySelector("[data-home-anime]");
   const mangaGrid = document.querySelector("[data-home-manga]");
@@ -1072,12 +1122,14 @@ async function loadHomeSections() {
   const latestManga = document.querySelector("[data-home-latest-manga]");
   const rankingList = document.querySelector("[data-home-ranking]");
   const editorPick = document.querySelector("[data-home-editor]");
-  setRailLoading(featuredRail, 8);
-  setLoading(animeGrid, 4);
-  setLoading(mangaGrid, 4);
-  setRailLoading(latestAnime, 3);
-  setRailLoading(latestManga, 3);
-  setListLoading(rankingList, 4);
+  if (activityFeed) setListLoading(activityFeed, 4);
+  if (progressGrid) setLoading(progressGrid, 12);
+  if (featuredRail) setRailLoading(featuredRail, 8);
+  if (animeGrid) setLoading(animeGrid, 4);
+  if (mangaGrid) setLoading(mangaGrid, 4);
+  if (latestAnime) setRailLoading(latestAnime, 3);
+  if (latestManga) setRailLoading(latestManga, 3);
+  if (rankingList) setListLoading(rankingList, 4);
 
   const [animeResult, mangaResult, rankingResult] = await Promise.allSettled([
     fetchAnimeFeed("trending"),
@@ -1094,14 +1146,58 @@ async function loadHomeSections() {
   state.latestMangaItems = [];
   state.latestPage = 1;
   state.currentItems = mergeItems([...featuredItems, ...animeItems, ...mangaItems, ...rankingItems]);
-  renderPosterRail(featuredRail, featuredItems.length ? featuredItems : [...animeItems, ...mangaItems]);
-  renderCards(animeGrid, animeItems);
-  renderCards(mangaGrid, mangaItems);
-  renderRankingList(rankingList, rankingItems);
-  renderEditorPick(editorPick, mangaItems[0] || animeItems[0]);
+  if (activityFeed || progressGrid) {
+    const homeItems = mergeItems([...Object.values(state.library), ...featuredItems, ...animeItems, ...mangaItems, ...rankingItems]);
+    renderHomeActivity(activityFeed, homeItems);
+    renderHomeProgress(progressGrid, homeItems.filter((item) => item.type === "anime"));
+  }
+  if (featuredRail) renderPosterRail(featuredRail, featuredItems.length ? featuredItems : [...animeItems, ...mangaItems]);
+  if (animeGrid) renderCards(animeGrid, animeItems);
+  if (mangaGrid) renderCards(mangaGrid, mangaItems);
+  if (rankingList) renderRankingList(rankingList, rankingItems);
+  if (editorPick) renderEditorPick(editorPick, mangaItems[0] || animeItems[0]);
   syncHomePanelHeights();
   window.setTimeout(syncHomePanelHeights, 250);
-  window.setTimeout(loadInitialHomeUpdates, 350);
+  if (!activityFeed && !progressGrid) window.setTimeout(loadInitialHomeUpdates, 350);
+}
+
+function renderHomeActivity(container, items) {
+  if (!container) return;
+  const feedItems = items.length ? items.slice(0, 8) : samples;
+  container.innerHTML = feedItems.map((item, index) => {
+    const isManga = item.type === "manga";
+    const verb = item.status === "completed" ? "Completed" : item.progress ? `Read ${isManga ? "chapter" : "episode"} ${escapeHtml(item.progress)}` : `Plans to ${isManga ? "read" : "watch"}`;
+    return `
+      <button class="home-activity-card" data-id="${escapeAttr(item.id)}" data-type="${escapeAttr(item.type)}" data-api-id="${escapeAttr(item.apiId || item.id)}" data-title="${escapeAttr(item.title)}" data-image="${escapeAttr(item.image)}" type="button">
+        <img class="home-activity-avatar" src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
+        <div class="home-activity-copy">
+          <div><strong>${escapeHtml(profileDisplayName())}</strong><time>${index ? `${index + 2} hours ago` : "3 hours ago"}</time></div>
+          <p>${verb} <span>${escapeHtml(item.title)}</span></p>
+          <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} thumbnail" loading="lazy">
+        </div>
+        <div class="home-activity-actions"><span>☁</span><span>♥</span></div>
+      </button>
+    `;
+  }).join("");
+}
+
+function renderHomeProgress(container, items) {
+  if (!container) return;
+  const progressItems = (items.length ? items : samples.filter((item) => item.type === "anime")).slice(0, 20);
+  if (!progressItems.length) return renderEmpty(container, "Add anime to your list to track progress here.");
+  container.innerHTML = progressItems.map((item, index) => {
+    const total = Number(item.total || 0);
+    const progress = Number(item.progress || 0);
+    const percent = total ? Math.min(100, Math.round((progress / total) * 100)) : index === 0 ? 72 : 0;
+    const label = progress ? `Ep ${progress}` : total ? `0/${total}` : item.year || "TBA";
+    const time = total && progress ? `${Math.max(1, total - progress)}d ${Math.max(1, (total - progress) * 22)}h` : item.format || "Anime";
+    return `
+      <button class="home-progress-card" data-id="${escapeAttr(item.id)}" data-type="${escapeAttr(item.type)}" data-api-id="${escapeAttr(item.apiId || item.id)}" data-title="${escapeAttr(item.title)}" data-image="${escapeAttr(item.image)}" style="--progress:${percent}%" type="button">
+        <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
+        <span>${escapeHtml(label)}<small>${escapeHtml(time)}</small></span>
+      </button>
+    `;
+  }).join("");
 }
 
 async function loadInitialHomeUpdates() {
@@ -2123,11 +2219,19 @@ function renderLibrary() {
   const query = normalizeSearchText(state.librarySearch);
   const searchedItems = query ? allItems.filter((item) => normalizeSearchText(`${item.title} ${item.nativeTitle || ""}`).includes(query)) : allItems;
   const statusItems = state.filter === "all" ? searchedItems : searchedItems.filter((item) => item.status === state.filter);
-  const items = statusItems.filter((item) => {
+  const advancedItems = statusItems.filter((item) => {
+    if (state.libraryFormat !== "all" && normalizedFilterValue(item.format || item.displayType) !== state.libraryFormat) return false;
+    if (state.libraryStatusText !== "all" && normalizedFilterValue(item.statusText) !== state.libraryStatusText) return false;
+    if (state.libraryGenre !== "all" && !(item.genres || []).some((genre) => normalizedFilterValue(genre) === state.libraryGenre)) return false;
+    if (state.libraryYear !== "all" && String(item.year || "") !== state.libraryYear) return false;
+    return true;
+  });
+  const adultItems = advancedItems.filter((item) => {
     if (state.libraryAdultFilter === "adult") return isAdultLibraryItem(item);
     if (state.libraryAdultFilter === "normal") return !isAdultLibraryItem(item);
     return true;
   });
+  const items = sortLibraryItems(adultItems);
   const animeItems = items.filter((item) => item.type === "anime");
   const mangaItems = items.filter((item) => item.type === "manga");
 
@@ -2145,6 +2249,37 @@ function renderLibrary() {
   if (heading) heading.textContent = state.filter === "all" ? (state.libraryType === "manga" ? "Reading" : "Watching") : statusLabel(state.filter);
 
   updateStats();
+}
+
+function populateLibraryAdvancedFilters() {
+  const pageItems = Object.values(state.library).filter((item) => item.type === (document.body.dataset.libraryKind || "anime"));
+  populateLibrarySelect("Format", uniqueStrings(pageItems.map((item) => item.format || item.displayType).filter(Boolean)), "Format");
+  populateLibrarySelect("StatusText", uniqueStrings(pageItems.map((item) => item.statusText).filter(Boolean)), "Status");
+  populateLibrarySelect("Genre", uniqueStrings(pageItems.flatMap((item) => item.genres || [])), "Genres");
+  populateLibrarySelect("Year", uniqueStrings(pageItems.map((item) => String(item.year || "")).filter((value) => value && value !== "TBA")), "Year");
+}
+
+function populateLibrarySelect(key, values, placeholder) {
+  const select = document.querySelector(`[data-library-advanced-filter="${key}"]`);
+  if (!select) return;
+  const stateKey = `library${key}`;
+  const selected = state[stateKey] || "all";
+  select.innerHTML = `<option value="all">${escapeHtml(placeholder)}</option>${values.sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })).map((value) => `<option value="${escapeAttr(normalizedFilterValue(value))}">${escapeHtml(value)}</option>`).join("")}`;
+  select.value = [...select.options].some((option) => option.value === selected) ? selected : "all";
+  state[stateKey] = select.value;
+}
+
+function normalizedFilterValue(value) {
+  return normalizeSearchText(String(value || "all")).replace(/\s+/g, "-") || "all";
+}
+
+function sortLibraryItems(items) {
+  const copy = [...items];
+  if (state.librarySort === "title") return copy.sort((a, b) => String(a.title).localeCompare(String(b.title)));
+  if (state.librarySort === "score") return copy.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0) || Number.parseFloat(b.score || 0) - Number.parseFloat(a.score || 0));
+  if (state.librarySort === "progress") return copy.sort((a, b) => Number(b.progress || 0) - Number(a.progress || 0));
+  if (state.librarySort === "year") return copy.sort((a, b) => Number(b.year || 0) - Number(a.year || 0));
+  return copy.sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0));
 }
 
 function isAdultLibraryItem(item) {
@@ -2785,7 +2920,7 @@ function animeProviderEpisodeRow(episode, match) {
   };
 }
 
-function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches = [], pageNumber = 1) {
+function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches = [], pageNumber = 1, searchQuery = "") {
   if (!episodes.length) {
     container.innerHTML = '<div class="empty">No real episodes returned by this source.</div>';
     return;
@@ -2793,13 +2928,15 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
 
   const audioOptions = animeEpisodeAudioOptions(episodes);
   const selectedAudio = sourceId === "animedex" && audioOptions.length > 1 ? selectedAnimeEpisodeAudio(anime, episodes) : "";
-  const visibleEpisodes = (selectedAudio ? episodes.filter((episode) => episodeAudioKey(episode) === selectedAudio) : [...episodes]).sort(compareEpisodesDesc);
+  const filteredEpisodes = filterDetailRows(selectedAudio ? episodes.filter((episode) => episodeAudioKey(episode) === selectedAudio) : [...episodes], searchQuery, "Episode");
+  const visibleEpisodes = filteredEpisodes.sort(compareEpisodesDesc);
   const pageSize = detailListPageSize();
   const totalPages = Math.max(1, Math.ceil(visibleEpisodes.length / pageSize));
   const currentPage = Math.min(Math.max(1, pageNumber), totalPages);
   const pageEpisodes = visibleEpisodes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   container.innerHTML = `
+    <label class="detail-list-search">Search episodes <input data-detail-episode-search type="search" placeholder="Episode number or title" value="${escapeAttr(searchQuery)}" autocomplete="off"></label>
     ${sourceId === "animedex" && audioOptions.length > 1 ? `
       <div class="detail-list-filter" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
         <span>${visibleEpisodes.length} ${episodeAudioLabel(selectedAudio)} episode${visibleEpisodes.length === 1 ? "" : "s"}</span>
@@ -2821,6 +2958,7 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
           </button>
         `;
       }).join("")}
+      ${!pageEpisodes.length ? `<div class="empty">No episodes match this search.</div>` : ""}
     </div>
     ${totalPages > 1 ? `
       <div class="detail-chapter-pagination">
@@ -2841,12 +2979,24 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
   container.querySelectorAll("[data-detail-anime-audio]").forEach((button) => {
     button.addEventListener("click", () => {
       localStorage.setItem(animeAudioPreferenceKey(anime), button.dataset.detailAnimeAudio || "");
-      renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, 1);
+      renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, 1, searchQuery);
     });
   });
 
-  container.querySelector("[data-detail-anime-prev]")?.addEventListener("click", () => renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, currentPage - 1));
-  container.querySelector("[data-detail-anime-next]")?.addEventListener("click", () => renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, currentPage + 1));
+  container.querySelector("[data-detail-episode-search]")?.addEventListener("input", (event) => renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, 1, event.target.value.trim()));
+  if (searchQuery) window.requestAnimationFrame(() => {
+    const input = container.querySelector("[data-detail-episode-search]");
+    input?.focus();
+    input?.setSelectionRange(input.value.length, input.value.length);
+  });
+  container.querySelector("[data-detail-anime-prev]")?.addEventListener("click", () => renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, currentPage - 1, searchQuery));
+  container.querySelector("[data-detail-anime-next]")?.addEventListener("click", () => renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches, currentPage + 1, searchQuery));
+}
+
+function filterDetailRows(rows, query, prefix) {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) return rows;
+  return rows.filter((row, index) => normalizeSearchText(`${row.number || index + 1} ${row.title || `${prefix} ${row.number || index + 1}`} ${row.date || row.time || ""}`).includes(normalized));
 }
 
 function compareEpisodesDesc(a, b) {
@@ -2969,13 +3119,13 @@ function mangaChapterCacheKey(sourceId) {
   return `manga-chapters-v2:${sourceId}`;
 }
 
-function renderMangaDetailChapterList(container, manga, source, pageNumber = 1) {
+function renderMangaDetailChapterList(container, manga, source, pageNumber = 1, searchQuery = "") {
   if (!source.chapters.length) {
     container.innerHTML = '<div class="empty">No chapters returned by this source.</div>';
     return;
   }
 
-  const chapters = [...source.chapters].sort(compareChaptersDesc);
+  const chapters = filterDetailRows([...source.chapters], searchQuery, "Chapter").sort(compareChaptersDesc);
   const pageSize = detailListPageSize();
   const totalPages = Math.max(1, Math.ceil(chapters.length / pageSize));
   const currentPage = Math.min(Math.max(1, pageNumber), totalPages);
@@ -2983,11 +3133,13 @@ function renderMangaDetailChapterList(container, manga, source, pageNumber = 1) 
 
   container.classList.add("detail-manga-card-grid");
   container.innerHTML = `
+    <label class="detail-list-search detail-manga-search">Search chapters <input data-detail-chapter-search type="search" placeholder="Chapter number or title" value="${escapeAttr(searchQuery)}" autocomplete="off"></label>
     ${pageChapters.map((chapter) => `
     <button type="button" class="detail-manga-chapter-card" data-detail-read-chapter data-chapter-data="${escapeAttr(JSON.stringify(chapter))}">
       ${detailMangaChapterCardInnerHtml(chapter, manga)}
     </button>
     `).join("")}
+    ${!pageChapters.length ? `<div class="empty">No chapters match this search.</div>` : ""}
     ${totalPages > 1 ? `
       <div class="detail-chapter-pagination">
         <button class="btn secondary" data-detail-chapter-prev type="button" ${currentPage <= 1 ? "disabled" : ""}>Previous</button>
@@ -3014,8 +3166,14 @@ function renderMangaDetailChapterList(container, manga, source, pageNumber = 1) 
     });
   });
 
-  container.querySelector("[data-detail-chapter-prev]")?.addEventListener("click", () => renderMangaDetailChapterList(container, manga, source, currentPage - 1));
-  container.querySelector("[data-detail-chapter-next]")?.addEventListener("click", () => renderMangaDetailChapterList(container, manga, source, currentPage + 1));
+  container.querySelector("[data-detail-chapter-search]")?.addEventListener("input", (event) => renderMangaDetailChapterList(container, manga, source, 1, event.target.value.trim()));
+  if (searchQuery) window.requestAnimationFrame(() => {
+    const input = container.querySelector("[data-detail-chapter-search]");
+    input?.focus();
+    input?.setSelectionRange(input.value.length, input.value.length);
+  });
+  container.querySelector("[data-detail-chapter-prev]")?.addEventListener("click", () => renderMangaDetailChapterList(container, manga, source, currentPage - 1, searchQuery));
+  container.querySelector("[data-detail-chapter-next]")?.addEventListener("click", () => renderMangaDetailChapterList(container, manga, source, currentPage + 1, searchQuery));
 }
 
 function detailMangaChapterCardHtml(chapter, manga, index = 0) {

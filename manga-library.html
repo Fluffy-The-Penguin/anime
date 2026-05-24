@@ -61,10 +61,11 @@
           <div class="profile-sidebar-block filters">
             <span>Filters</span>
             <label>Adult filter<select data-library-adult-filter><option value="all">All titles</option><option value="adult">Adult only</option><option value="normal">Normal only</option></select></label>
-            <label>Format<select><option>Format</option></select></label>
-            <label>Status<select><option>Status</option></select></label>
-            <label>Genres<select><option>Genres</option></select></label>
-            <label>Country<select><option>Country</option></select></label>
+            <label>Format<select data-library-advanced-filter="Format"><option value="all">Format</option></select></label>
+            <label>Status<select data-library-advanced-filter="StatusText"><option value="all">Status</option></select></label>
+            <label>Genres<select data-library-advanced-filter="Genre"><option value="all">Genres</option></select></label>
+            <label>Year<select data-library-advanced-filter="Year"><option value="all">Year</option></select></label>
+            <label>Sort<select data-library-advanced-filter="Sort"><option value="updated">Recently Updated</option><option value="title">Title</option><option value="score">Score</option><option value="progress">Progress</option><option value="year">Year</option></select></label>
           </div>
         </aside>
         <section class="profile-library-content">
