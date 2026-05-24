@@ -232,9 +232,9 @@ input:focus, select:focus, textarea:focus { border-color: color-mix(in srgb, var
 .doujin-artist-favorite:hover { border-color: color-mix(in srgb, var(--pink) 55%, var(--line)); color: #fff; background: linear-gradient(135deg, var(--pink), var(--blue)); }
 .doujin-preview-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .doujin-preview-panel { padding: clamp(20px, 2.6vw, 30px); }
-.doujin-preview-grid { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: center; gap: clamp(12px, 1.4vw, 18px); }
-.doujin-page-thumb { position: relative; display: block; width: fit-content; max-width: 100%; border: 1px solid var(--line); border-radius: 14px; padding: 0; overflow: hidden; background: transparent; cursor: pointer; }
-.doujin-page-thumb img { display: block; width: auto; max-width: min(100%, 420px); height: auto; max-height: min(72vh, 640px); object-fit: contain; object-position: top center; transition: transform 0.2s ease; }
+.doujin-preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: clamp(12px, 1.4vw, 18px); }
+.doujin-page-thumb { position: relative; display: block; border: 1px solid var(--line); border-radius: 14px; padding: 0; overflow: hidden; background: var(--soft); cursor: pointer; }
+.doujin-page-thumb img { display: block; width: 100%; aspect-ratio: 2 / 2.8; object-fit: cover; object-position: top center; transition: transform 0.2s ease; }
 .doujin-page-thumb:hover img { transform: scale(1.035); }
 .doujin-page-thumb span { position: absolute; left: 8px; bottom: 8px; border-radius: 999px; padding: 4px 8px; background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 12px; font-weight: 900; }
 .doujin-preview-more { display: flex; justify-content: center; gap: 10px; margin-top: 14px; }
@@ -1837,6 +1837,10 @@ body[data-page="details"] .detail-pro {
   background:
     linear-gradient(180deg, rgba(248, 251, 255, 0.03), rgba(248, 251, 255, 0.12) 38%, rgba(248, 251, 255, 0.84) 100%),
     linear-gradient(90deg, rgba(248, 251, 255, 0.54), rgba(248, 251, 255, 0.1) 46%, rgba(248, 251, 255, 0.5));
+}
+
+:root[data-theme="light"] .detail-backdrop {
+  border-bottom-color: transparent;
 }
 
 :root[data-theme="light"] .detail-title-block h1,
