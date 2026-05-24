@@ -8,6 +8,7 @@ const ACCOUNT_KEY = "anitrack-account-v1";
 const DETAIL_CACHE_KEY = "anitrack-last-detail";
 const LIBRARY_VIEW_KEY = "anitrack-library-view-v1";
 const FAVORITES_KEY = "anitrack-favorites-v1";
+const FAVORITE_REMOVALS_KEY = "anitrack-favorite-removals-v1";
 const NOTIFICATION_READ_KEY = "anitrack-notifications-read-at";
 const NOTIFICATION_STORE_KEY = "anitrack-notifications-v1";
 const CHAPTER_SEEN_KEY = "anitrack-chapter-seen-v1";
@@ -135,6 +136,7 @@ const state = {
   settings: loadSettings(),
   library: loadLibrary(),
   favorites: loadFavorites(),
+  favoriteRemovals: loadFavoriteRemovals(),
   account: loadAccount(),
   current: null,
   currentItems: [],
@@ -4852,6 +4854,8 @@ function accountSyncPayload() {
   return {
     library: state.library,
     activity: loadActivity(),
+    favorites: state.favorites,
+    favoriteRemovals: state.favoriteRemovals,
     settings: state.settings,
     theme: localStorage.getItem(THEME_KEY) || document.documentElement.dataset.theme || "",
     readerMode: localStorage.getItem("reader-mode") || "",
@@ -4863,6 +4867,10 @@ function applyAccountData(data) {
   if (!data || typeof data !== "object") return;
   state.library = mergeLibraryData(state.library, data.library || {});
   saveActivity(mergeActivityData(loadActivity(), data.activity || []), false);
+  const favoriteSync = mergeFavoriteSyncData(state.favorites, data.favorites || [], state.favoriteRemovals, data.favoriteRemovals || []);
+  state.favorites = favoriteSync.favorites;
+  state.favoriteRemovals = favoriteSync.removals;
+  persistFavorites(false);
   state.settings = mergeSettingsData(state.settings, data.settings || {});
   if (data.theme) {
     localStorage.setItem(THEME_KEY, data.theme);
@@ -4901,6 +4909,35 @@ function mergeActivityData(local, remote) {
     if (!current || Number(activity.time || 0) >= Number(current.time || 0)) byKey.set(key, activity);
   });
   return compactActivityTimeline([...byKey.values()].sort((a, b) => Number(b.time || 0) - Number(a.time || 0))).slice(0, ACTIVITY_LIMIT);
+}
+
+function mergeFavoriteSyncData(localFavorites, remoteFavorites, localRemovals, remoteRemovals) {
+  const removals = mergeFavoriteRemovals(localRemovals, remoteRemovals);
+  const removedAt = new Map(removals.map((item) => [favoriteSyncKey(item), Number(item.removedAt || 0)]));
+  const byKey = new Map();
+  [...(localFavorites || []), ...(remoteFavorites || [])].forEach((favorite) => {
+    if (!favorite?.id) return;
+    const key = favoriteSyncKey(favorite);
+    const favoriteAt = Number(favorite.favoriteAt || favorite.updatedAt || 0);
+    if (Number(removedAt.get(key) || 0) > favoriteAt) return;
+    const current = byKey.get(key);
+    if (!current || favoriteAt >= Number(current.favoriteAt || current.updatedAt || 0)) byKey.set(key, favorite);
+  });
+  return {
+    favorites: [...byKey.values()].sort((a, b) => Number(b.favoriteAt || b.updatedAt || 0) - Number(a.favoriteAt || a.updatedAt || 0)).slice(0, ACTIVITY_LIMIT),
+    removals,
+  };
+}
+
+function mergeFavoriteRemovals(localRemovals, remoteRemovals) {
+  const byKey = new Map();
+  [...(localRemovals || []), ...(remoteRemovals || [])].forEach((item) => {
+    if (!item?.id) return;
+    const key = favoriteSyncKey(item);
+    const current = byKey.get(key);
+    if (!current || Number(item.removedAt || 0) >= Number(current.removedAt || 0)) byKey.set(key, item);
+  });
+  return [...byKey.values()].sort((a, b) => Number(b.removedAt || 0) - Number(a.removedAt || 0)).slice(0, ACTIVITY_LIMIT);
 }
 
 function mergeSettingsData(local, remote) {
@@ -5265,8 +5302,29 @@ function loadFavorites() {
   return readStoredArray(FAVORITES_KEY);
 }
 
-function persistFavorites() {
+function loadFavoriteRemovals() {
+  return readStoredArray(FAVORITE_REMOVALS_KEY).slice(0, ACTIVITY_LIMIT);
+}
+
+function persistFavorites(sync = true) {
   writeStoredArray(FAVORITES_KEY, state.favorites);
+  writeStoredArray(FAVORITE_REMOVALS_KEY, state.favoriteRemovals || []);
+  if (sync) scheduleAccountSync();
+}
+
+function favoriteSyncKey(item) {
+  return `${item?.favoriteType || "title"}:${item?.id || ""}`;
+}
+
+function recordFavoriteRemoval(item) {
+  if (!item?.id) return;
+  const removal = { id: item.id, favoriteType: item.favoriteType || "title", removedAt: Date.now() };
+  state.favoriteRemovals = mergeFavoriteRemovals(state.favoriteRemovals, [removal]);
+}
+
+function clearFavoriteRemoval(item) {
+  const key = favoriteSyncKey(item);
+  state.favoriteRemovals = (state.favoriteRemovals || []).filter((removal) => favoriteSyncKey(removal) !== key);
 }
 
 function favoriteItems() {
@@ -5313,12 +5371,15 @@ function toggleFavoriteDoujinCreator(category, nameValue) {
   const id = doujinCreatorFavoriteId(categoryKey, name);
   const index = state.favorites.findIndex((favorite) => favorite.favoriteType === "doujin-artist" && favorite.id === id);
   if (index >= 0) {
+    recordFavoriteRemoval(state.favorites[index]);
     state.favorites.splice(index, 1);
     persistFavorites();
     showToast(`Removed favorite ${label}.`);
     return false;
   }
-  state.favorites = [{ id, favoriteType: "doujin-artist", type: "artist", title: name, category: categoryKey, tag: name, isAdult: true, favoriteAt: Date.now() }, ...state.favorites].slice(0, ACTIVITY_LIMIT);
+  const favorite = { id, favoriteType: "doujin-artist", type: "artist", title: name, category: categoryKey, tag: name, isAdult: true, favoriteAt: Date.now() };
+  clearFavoriteRemoval(favorite);
+  state.favorites = [favorite, ...state.favorites].slice(0, ACTIVITY_LIMIT);
   persistFavorites();
   showToast(`Added favorite ${label}.`);
   return true;
@@ -5328,12 +5389,15 @@ function toggleFavoriteItem(item = state.current) {
   if (!item?.id) return false;
   const index = state.favorites.findIndex((favorite) => favorite.id === item.id);
   if (index >= 0) {
+    recordFavoriteRemoval(state.favorites[index]);
     state.favorites.splice(index, 1);
     persistFavorites();
     showToast("Removed from favorites.");
     return false;
   }
-  state.favorites = [compactFavoriteItem({ ...item, ...(state.library[item.id] || {}) }), ...state.favorites].slice(0, ACTIVITY_LIMIT);
+  const favorite = compactFavoriteItem({ ...item, ...(state.library[item.id] || {}) });
+  clearFavoriteRemoval(favorite);
+  state.favorites = [favorite, ...state.favorites].slice(0, ACTIVITY_LIMIT);
   persistFavorites();
   showToast("Added to favorites.");
   return true;
