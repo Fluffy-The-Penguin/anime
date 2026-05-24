@@ -82,6 +82,7 @@ const state = {
   doujinLoadingMore: false,
   doujinHasMore: true,
   libraryAdultFilter: "all",
+  librarySearch: "",
   readerSession: null,
   browseSpotlightItems: [],
   browseSpotlightIndex: 0,
@@ -124,6 +125,7 @@ function init() {
   if (page === "anime" || page === "manga") initBrowsePage();
   if (page === "doujin") initDoujinPage();
   if (page === "doujin-preview") initDoujinPreviewPage();
+  if (page === "profile") initProfilePage();
   if (page === "library") initLibraryPage();
   if (page === "details") initDetailsPage();
   if (page === "settings") initSettingsPage();
@@ -168,6 +170,7 @@ function injectChrome() {
               <div class="account-status"><strong data-account-title>${state.account?.username ? `@${escapeHtml(state.account.username)}` : "Guest"}</strong><span data-account-status>${state.account?.username ? "Sync enabled" : "Local library only"}</span></div>
               <button class="settings-row compact" data-account-open type="button">${state.account?.token ? "Manage Account" : "Log in / Register"}</button>
             </div>
+            <button class="settings-row" data-profile-page-button type="button">Profile</button>
             <button class="settings-row" data-library-button type="button">Library</button>
             <button class="settings-row" data-settings-button type="button">Settings</button>
             <label class="settings-toggle"><span>Show 18+ content</span><input data-adult-toggle type="checkbox" ${state.settings.allowAdult ? "checked" : ""}></label>
@@ -199,6 +202,9 @@ function injectChrome() {
   }
 
   document.querySelector("[data-profile-toggle]").addEventListener("click", toggleProfileMenu);
+  document.querySelector("[data-profile-page-button]").addEventListener("click", () => {
+    window.location.href = "profile.html";
+  });
   document.querySelector("[data-library-button]").addEventListener("click", () => {
     window.location.href = "anime-library.html";
   });
@@ -852,13 +858,17 @@ function initHomePage() {
 function initLibraryPage() {
   const filters = document.querySelector("[data-library-filters]");
   const adultFilter = document.querySelector("[data-library-adult-filter]");
+  const search = document.querySelector("[data-library-search]");
   const lists = document.querySelectorAll("[data-library-list]");
   const params = new URLSearchParams(window.location.search);
   state.libraryType = document.body.dataset.libraryKind || "anime";
   state.filter = ["all", "watching", "reading", "planning", "completed", "dropped"].includes(params.get("status")) ? params.get("status") : "all";
   state.libraryAdultFilter = ["all", "adult", "normal"].includes(params.get("adult")) ? params.get("adult") : "all";
+  state.librarySearch = params.get("q") || "";
   if (adultFilter) adultFilter.value = state.libraryAdultFilter;
+  if (search) search.value = state.librarySearch;
   filters?.querySelectorAll("[data-filter]").forEach((button) => button.classList.toggle("active", button.dataset.filter === state.filter));
+  hydrateProfileShell();
   syncLibraryPageLinks();
 
   filters?.addEventListener("click", (event) => {
@@ -872,6 +882,12 @@ function initLibraryPage() {
 
   adultFilter?.addEventListener("change", () => {
     state.libraryAdultFilter = adultFilter.value;
+    updateLibraryUrl();
+    renderLibrary();
+  });
+
+  search?.addEventListener("input", () => {
+    state.librarySearch = search.value.trim();
     updateLibraryUrl();
     renderLibrary();
   });
@@ -895,10 +911,16 @@ function initLibraryPage() {
   renderLibrary();
 }
 
+function initProfilePage() {
+  hydrateProfileShell();
+  renderProfileOverview();
+}
+
 function updateLibraryUrl() {
   const params = new URLSearchParams();
   if (state.filter && state.filter !== "all") params.set("status", state.filter);
   if (state.libraryAdultFilter && state.libraryAdultFilter !== "all") params.set("adult", state.libraryAdultFilter);
+  if (state.librarySearch) params.set("q", state.librarySearch);
   const query = params.toString();
   history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}`);
   syncLibraryPageLinks();
@@ -908,12 +930,111 @@ function syncLibraryPageLinks() {
   const params = new URLSearchParams();
   if (state.filter && state.filter !== "all") params.set("status", state.filter);
   if (state.libraryAdultFilter && state.libraryAdultFilter !== "all") params.set("adult", state.libraryAdultFilter);
+  if (state.librarySearch) params.set("q", state.librarySearch);
   const query = params.toString();
   document.querySelectorAll("[data-library-page]").forEach((link) => {
     const target = link.dataset.libraryPage === "manga" ? "manga-library.html" : "anime-library.html";
     link.href = `${target}${query ? `?${query}` : ""}`;
     link.classList.toggle("active", link.dataset.libraryPage === state.libraryType);
   });
+}
+
+function hydrateProfileShell() {
+  const avatar = profileAvatarUrl();
+  document.querySelectorAll("[data-profile-name]").forEach((node) => {
+    node.textContent = profileDisplayName();
+  });
+  document.querySelectorAll("[data-profile-avatar]").forEach((image) => {
+    image.src = avatar;
+  });
+}
+
+function profileDisplayName() {
+  return state.account?.username || "fluffy07";
+}
+
+function profileAvatarUrl() {
+  const items = Object.values(state.library).filter((item) => item?.image);
+  return items[0]?.image || fallbackImage;
+}
+
+function renderProfileOverview() {
+  const allItems = Object.values(state.library).sort((a, b) => b.updatedAt - a.updatedAt);
+  const animeItems = allItems.filter((item) => item.type === "anime");
+  const mangaItems = allItems.filter((item) => item.type === "manga");
+  const episodes = animeItems.reduce((sum, item) => sum + Number(item.progress || 0), 0);
+  const chapters = mangaItems.reduce((sum, item) => sum + Number(item.progress || 0), 0);
+  const ratings = allItems.map((item) => Number(item.rating)).filter(Boolean);
+  const meanScore = ratings.length ? (ratings.reduce((sum, score) => sum + score, 0) / ratings.length).toFixed(1) : "--";
+
+  setText("[data-profile-total-anime]", String(animeItems.length));
+  setText("[data-profile-days]", episodes ? (episodes * 24 / 1440).toFixed(1) : "0");
+  setText("[data-profile-episodes]", String(episodes));
+  setText("[data-profile-total-manga]", String(mangaItems.length));
+  setText("[data-profile-chapters]", String(chapters));
+  setText("[data-profile-score]", meanScore);
+  document.querySelector("[data-profile-anime-bar]")?.style.setProperty("width", `${Math.min(100, Math.max(8, animeItems.length * 2))}%`);
+  document.querySelector("[data-profile-manga-bar]")?.style.setProperty("width", `${Math.min(100, Math.max(8, chapters / 180))}%`);
+
+  renderProfileHeatmap(allItems);
+  renderProfileGenres(allItems);
+  renderProfilePreview(document.querySelector("[data-profile-anime-preview]"), animeItems.slice(0, 4));
+  renderProfileFeed(document.querySelector("[data-profile-feed]"), allItems.slice(0, 6));
+}
+
+function renderProfileHeatmap(items) {
+  const container = document.querySelector("[data-profile-heatmap]");
+  if (!container) return;
+  const activeDays = new Set(items.map((item) => Math.floor(Number(item.updatedAt || Date.now()) / 86400000) % 95));
+  container.innerHTML = Array.from({ length: 140 }, (_, index) => {
+    const active = activeDays.has(index % 95) || (index * 7) % 31 === 0;
+    return `<span class="${active ? "active" : ""}"></span>`;
+  }).join("");
+}
+
+function renderProfileGenres(items) {
+  const chips = document.querySelector("[data-profile-genres]");
+  const bar = document.querySelector("[data-profile-genre-bar]");
+  if (!chips || !bar) return;
+  const counts = new Map();
+  items.forEach((item) => (item.genres || []).forEach((genre) => counts.set(genre, (counts.get(genre) || 0) + 1)));
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const fallback = [["Action", 231], ["Fantasy", 192], ["Adventure", 126], ["Drama", 81]];
+  const genres = top.length ? top : fallback;
+  const colors = ["#62e53c", "#12a7ed", "#9254ef", "#ef6b9f"];
+  chips.innerHTML = genres.map(([genre, count], index) => `
+    <div style="--genre-color:${colors[index % colors.length]}"><strong>${escapeHtml(genre)}</strong><span>${count} Entries</span></div>
+  `).join("");
+  const total = genres.reduce((sum, [, count]) => sum + count, 0) || 1;
+  bar.innerHTML = genres.map(([, count], index) => `<span style="width:${(count / total) * 100}%; background:${colors[index % colors.length]}"></span>`).join("");
+}
+
+function renderProfilePreview(container, items) {
+  if (!container) return;
+  if (!items.length) return renderEmpty(container, "Add anime to your list to fill this shelf.");
+  container.innerHTML = items.map((item) => `
+    <button class="profile-mini-card" data-id="${escapeAttr(item.id)}" type="button">
+      <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
+      <span>${escapeHtml(item.title)}</span>
+    </button>
+  `).join("");
+  container.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => goToDetails(state.library[button.dataset.id])));
+}
+
+function renderProfileFeed(container, items) {
+  if (!container) return;
+  const feedItems = items.length ? items : samples;
+  container.innerHTML = feedItems.map((item, index) => `
+    <button class="profile-feed-item" data-id="${escapeAttr(item.id)}" type="button">
+      <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
+      <div><span>${escapeHtml(statusLabel(item.status || (item.type === "manga" ? "reading" : "watching")))} ${item.type === "anime" ? "to watch" : "to read"} <b>${escapeHtml(item.title)}</b></span></div>
+      <time>${index ? `${index + 1} weeks ago` : "4 weeks ago"}</time>
+    </button>
+  `).join("");
+  container.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => {
+    const item = state.library[button.dataset.id] || samples.find((sample) => sample.id === button.dataset.id);
+    if (item) goToDetails(item);
+  }));
 }
 
 function syncHomePanelHeights() {
@@ -1989,7 +2110,9 @@ function renderLibrary() {
   if (!animeList && !mangaList) return;
 
   const allItems = Object.values(state.library).sort((a, b) => b.updatedAt - a.updatedAt);
-  const statusItems = state.filter === "all" ? allItems : allItems.filter((item) => item.status === state.filter);
+  const query = normalizeSearchText(state.librarySearch);
+  const searchedItems = query ? allItems.filter((item) => normalizeSearchText(`${item.title} ${item.nativeTitle || ""}`).includes(query)) : allItems;
+  const statusItems = state.filter === "all" ? searchedItems : searchedItems.filter((item) => item.status === state.filter);
   const items = statusItems.filter((item) => {
     if (state.libraryAdultFilter === "adult") return isAdultLibraryItem(item);
     if (state.libraryAdultFilter === "normal") return !isAdultLibraryItem(item);
@@ -2008,6 +2131,8 @@ function renderLibrary() {
   setText("[data-library-total-count]", String(pageItems.length));
   setText("[data-library-adult-count]", String(pageItems.filter(isAdultLibraryItem).length));
   setText("[data-library-normal-count]", String(pageItems.filter((item) => !isAdultLibraryItem(item)).length));
+  const heading = document.querySelector(".profile-library-head h2");
+  if (heading) heading.textContent = state.filter === "all" ? (state.libraryType === "manga" ? "Reading" : "Watching") : statusLabel(state.filter);
 
   updateStats();
 }
@@ -2043,42 +2168,27 @@ function renderLibraryItem(item) {
   const total = item.total || 0;
   const percent = total ? Math.min(100, Math.round(((item.progress || 0) / total) * 100)) : 0;
   const progressText = `${item.progress || 0}${total ? ` / ${total}` : ""} ${item.unit}`;
-  const row = create("div", `library-item ${isAdultLibraryItem(item) ? "adult" : "normal"}`);
+  const row = create("button", `library-item ${isAdultLibraryItem(item) ? "adult" : "normal"}`);
+  row.type = "button";
   setMediaDataset(row, item);
-  row.setAttribute("role", "link");
-  row.tabIndex = 0;
   row.innerHTML = `
     <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
-    <div>
+    <div class="library-card-overlay">
       <h3>${escapeHtml(item.title)}</h3>
-      <div class="meta">${metaHtml([statusLabel(item.status), mediaLabel(item), isAdultLibraryItem(item) ? "18+" : "Normal", progressText, item.rating !== "" ? `Rated ${item.rating}/10` : "Unrated"])}</div>
-      <div class="progress-bar"><span style="width:${percent}%"></span></div>
-    </div>
-    <div class="library-side">
-      <strong>${percent}%</strong>
-      <label class="library-status-control">Status
-        <select data-library-status aria-label="Library status for ${escapeAttr(item.title)}">${statusOptions(item.type)}</select>
-      </label>
+      <p>${escapeHtml(progressText)}</p>
+      <span class="library-card-percent" style="--percent:${percent}%">${percent}%</span>
     </div>
   `;
-  const statusSelect = row.querySelector("[data-library-status]");
-  if (statusSelect) {
-    statusSelect.value = item.status || (item.type === "manga" ? "reading" : "watching");
-    statusSelect.addEventListener("click", (event) => event.stopPropagation());
-    statusSelect.addEventListener("keydown", (event) => event.stopPropagation());
-    statusSelect.addEventListener("change", () => updateLibraryItemStatus(item.id, statusSelect.value));
-  }
   const openItem = () => {
     if (isDoujinLibraryItem(item)) window.location.href = `doujin-preview.html?id=${encodeURIComponent(doujinLibraryApiId(item))}`;
     else goToDetails(item);
   };
   row.addEventListener("click", (event) => {
-    if (event.target.closest("select, button, input, textarea, label")) return;
+    event.stopPropagation();
     openItem();
   });
   row.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
-    if (event.target.closest("select, button, input, textarea")) return;
     event.preventDefault();
     openItem();
   });
@@ -3602,7 +3712,7 @@ function renderEmpty(container, message) {
 }
 
 function setActive(parent, activeButton) {
-  parent.querySelectorAll(".chip").forEach((button) => button.classList.remove("active"));
+  parent.querySelectorAll(".chip, [data-filter]").forEach((button) => button.classList.remove("active"));
   activeButton.classList.add("active");
 }
 

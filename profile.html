@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Your AniTrack profile overview." />
+    <title>AniTrack | Profile</title>
+    <link rel="stylesheet" href="styles.css?v=profile-rework-1" />
+    <script src="app.js?v=profile-rework-1" defer></script>
+  </head>
+  <body data-page="profile">
+    <header class="topbar shell anilist-topbar">
+      <a class="brand anilist-brand" href="index.html" aria-label="AniTrack home"><span>A</span><i>L</i></a>
+      <nav class="nav anilist-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a class="active" href="profile.html">Profile</a>
+        <a href="anime-library.html">Anime List</a>
+        <a href="manga-library.html">Manga List</a>
+        <a href="anime.html">Browse</a>
+        <a href="settings.html">Forum</a>
+      </nav>
+    </header>
+
+    <main class="profile-page">
+      <section class="profile-hero" data-profile-hero>
+        <div class="profile-hero-inner shell">
+          <img class="profile-avatar" data-profile-avatar src="" alt="Profile avatar" />
+          <h1 data-profile-name>fluffy07</h1>
+        </div>
+      </section>
+
+      <nav class="profile-tabs" aria-label="Profile navigation">
+        <div class="shell profile-tabs-inner">
+          <a class="active" href="profile.html">Overview</a>
+          <a href="anime-library.html">Anime List</a>
+          <a href="manga-library.html">Manga List</a>
+          <a href="#favorites">Favorites</a>
+          <a href="#stats">Stats</a>
+          <a href="#social">Social</a>
+          <a href="#reviews">Reviews</a>
+          <a href="#submissions">Submissions</a>
+        </div>
+      </nav>
+
+      <section class="shell profile-overview-grid">
+        <aside class="profile-overview-left">
+          <article class="profile-panel profile-activity-history">
+            <h2>Activity History</h2>
+            <div class="profile-heatmap" data-profile-heatmap aria-label="Activity history"></div>
+          </article>
+
+          <article class="profile-panel profile-genres">
+            <h2>Genre Overview</h2>
+            <div class="profile-genre-chips" data-profile-genres></div>
+            <div class="profile-genre-bar" data-profile-genre-bar></div>
+          </article>
+
+          <article class="profile-panel" id="favorites">
+            <h2>Anime</h2>
+            <div class="profile-mini-library" data-profile-anime-preview></div>
+          </article>
+        </aside>
+
+        <section class="profile-overview-main">
+          <div class="profile-stat-card" id="stats">
+            <div><strong data-profile-total-anime>0</strong><span>Total Anime</span></div>
+            <div><strong data-profile-days>0</strong><span>Days Watched</span></div>
+            <div><strong data-profile-episodes>0</strong><span>Episodes Watched</span></div>
+          </div>
+          <div class="profile-stat-scale"><span>10</span><span>30</span><span>50</span><i data-profile-anime-bar></i></div>
+
+          <div class="profile-stat-card">
+            <div><strong data-profile-total-manga>0</strong><span>Total Manga</span></div>
+            <div><strong data-profile-chapters>0</strong><span>Chapters Read</span></div>
+            <div><strong data-profile-score>--</strong><span>Mean Score</span></div>
+          </div>
+          <div class="profile-stat-scale"><span>17000</span><span>17500</span><span>18000</span><i data-profile-manga-bar></i></div>
+
+          <article class="profile-feed" id="social">
+            <div class="profile-feed-head"><h2>Activity</h2><button type="button">Filter⌄</button></div>
+            <div class="profile-status-box">Write a status...</div>
+            <div class="profile-feed-list" data-profile-feed></div>
+          </article>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

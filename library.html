@@ -3,70 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Your saved anime tracking library." />
-    <title>AniTrack | Anime Library</title>
-    <link rel="stylesheet" href="styles.css?v=library-status-edit-1" />
-    <script src="app.js?v=library-status-edit-1" defer></script>
+    <meta http-equiv="refresh" content="0; url=anime-library.html" />
+    <title>AniTrack | Library</title>
+    <script>window.location.replace("anime-library.html" + window.location.search);</script>
   </head>
-  <body data-page="library" data-library-kind="anime">
-    <header class="topbar shell">
-      <a class="brand" href="index.html"><span>AT</span>AniTrack</a>
-      <nav class="nav" aria-label="Primary navigation">
-        <a href="index.html">Home</a>
-        <a href="anime.html">Anime</a>
-        <a href="manga.html">Manga</a>
-        <a href="doujin.html" data-adult-nav hidden>Doujin</a>
-      </nav>
-    </header>
-
-    <main class="shell">
-      <section class="panel section">
-        <div class="section-head library-head">
-          <div>
-            <span class="eyebrow">Saved locally</span>
-              <h2>Anime Library</h2>
-              <p class="muted" data-library-summary>0 anime saved locally</p>
-            </div>
-          <div class="library-toolbar">
-            <div class="chips library-type-tabs">
-              <a class="chip active" data-library-page="anime" href="anime-library.html">Anime</a>
-              <a class="chip" data-library-page="manga" href="manga-library.html">Manga</a>
-            </div>
-            <label class="library-filter-select">Adult filter
-              <select data-library-adult-filter>
-                <option value="all">All titles</option>
-                <option value="adult">Adult only</option>
-                <option value="normal">Normal only</option>
-              </select>
-            </label>
-            <div class="chips" data-library-filters>
-              <button class="chip active" data-filter="all">All statuses</button>
-              <button class="chip" data-filter="watching">Watching</button>
-              <button class="chip" data-filter="reading">Reading</button>
-              <button class="chip" data-filter="planning">Planning</button>
-              <button class="chip" data-filter="completed">Completed</button>
-              <button class="chip" data-filter="dropped">Dropped</button>
-            </div>
-          </div>
-        </div>
-        <div class="library-stats-row">
-          <div><strong data-library-total-count>0</strong><span>Total saved</span></div>
-          <div><strong data-library-adult-count>0</strong><span>Adult</span></div>
-          <div><strong data-library-normal-count>0</strong><span>Normal</span></div>
-        </div>
-        <div class="library-columns single">
-          <section class="library-group" data-library-group="anime">
-            <div class="library-group-head">
-              <div>
-                <span class="eyebrow">Anime</span>
-                <h3>Anime Library</h3>
-              </div>
-              <span class="library-count" data-anime-count>0 titles</span>
-            </div>
-            <div class="library-list" data-library-list="anime" aria-live="polite"></div>
-          </section>
-        </div>
-      </section>
-    </main>
+  <body>
+    <a href="anime-library.html">Open Anime List</a>
   </body>
 </html>
