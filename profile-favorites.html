@@ -48,7 +48,18 @@
           <p>Filter favorite anime, manga, adult titles, and artist pins from one focused page.</p>
         </header>
         <article class="profile-panel profile-control-panel" id="favorites">
-          <div class="profile-panel-head profile-filter-head"><h2>Favorites</h2><div class="profile-filter-tools"><input data-profile-favorite-search type="search" placeholder="Search favorites" aria-label="Search favorites"><select data-profile-favorite-filter aria-label="Filter favorites"><option value="all">All favorites</option><option value="anime">Anime</option><option value="manga">Manga / Manhwa</option><option value="doujin">Doujin</option><option value="hentai">Hentai</option><option value="pornhwa">Pornhwa</option><option value="artists">Artists</option></select><select data-profile-favorite-sort aria-label="Sort favorites"><option value="recent">Recently favorited</option><option value="title">Title A-Z</option><option value="type">Group by type</option></select></div></div>
+          <div class="profile-favorites-toolbar profile-filter-head">
+            <div>
+              <span class="eyebrow">Collection</span>
+              <h2>Favorites</h2>
+              <p>Search and sort your pinned titles and artists.</p>
+            </div>
+            <div class="profile-filter-tools">
+              <label class="profile-search-control"><span>Search</span><input data-profile-favorite-search type="search" placeholder="Search favorites" aria-label="Search favorites"></label>
+              <label><span>Filter</span><select data-profile-favorite-filter aria-label="Filter favorites"><option value="all">All favorites</option><option value="anime">Anime</option><option value="manga">Manga / Manhwa</option><option value="doujin">Doujin</option><option value="hentai">Hentai</option><option value="pornhwa">Pornhwa</option><option value="artists">Artists</option></select></label>
+              <label><span>Sort</span><select data-profile-favorite-sort aria-label="Sort favorites"><option value="recent">Recently favorited</option><option value="title">Title A-Z</option><option value="type">Group by type</option></select></label>
+            </div>
+          </div>
           <div class="profile-favorites-list profile-favorites-page" data-profile-favorites></div>
         </article>
       </section>

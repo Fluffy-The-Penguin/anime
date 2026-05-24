@@ -1455,7 +1455,7 @@ function renderProfileFavorites(container) {
   if (!groups.size) return renderEmpty(container, state.profileFavoriteFilter === "all" ? "Use the Favorite button on details pages to pin anime, manga, doujin, hentai, pornhwa, and artists here." : "No favorites match this filter yet.");
   container.innerHTML = [...groups.entries()].map(([label, items]) => `
     <section class="profile-favorite-group">
-      <h3>${escapeHtml(label)}</h3>
+      <h3><span>${escapeHtml(label)}</span><small>${items.length}</small></h3>
       <div class="profile-mini-library">${items.map((item) => `
         <button class="profile-mini-card ${item.favoriteType === "doujin-artist" ? "profile-artist-card" : ""}" data-id="${escapeAttr(item.id)}" type="button">
           ${item.favoriteType === "doujin-artist" ? `<div class="profile-artist-avatar">${escapeHtml(profileArtistInitials(item.title))}</div>` : `<img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">`}

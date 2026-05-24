@@ -6184,17 +6184,9 @@ body[data-page="library"] .library-item img {
     grid-template-columns: 1fr;
   }
 
-  .profile-filter-head {
-    display: grid;
-  }
-
+  .profile-favorites-toolbar,
   .profile-filter-tools {
-    justify-content: stretch;
-  }
-
-  .profile-filter-tools input,
-  .profile-filter-tools select {
-    width: 100%;
+    grid-template-columns: 1fr;
   }
 
   .profile-heatmap {
@@ -6459,31 +6451,70 @@ body[data-page="library"] .profile-btn {
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 }
 
-.profile-filter-head {
-  align-items: start;
+.profile-favorites-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.85fr) minmax(360px, 1.15fr);
+  gap: 18px;
+  align-items: end;
+  margin-bottom: 22px;
+  border: 1px solid rgba(138, 168, 199, 0.12);
+  border-radius: 18px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 8% 12%, rgba(22, 143, 255, 0.14), transparent 18rem),
+    linear-gradient(135deg, rgba(21, 31, 46, 0.95), rgba(16, 26, 40, 0.95));
+}
+
+.profile-favorites-toolbar h2 {
+  margin: 4px 0 6px;
+  color: #dce9f8;
+  font-size: clamp(24px, 3vw, 34px);
+}
+
+.profile-favorites-toolbar p {
+  margin: 0;
+  color: #8aa8c7;
+  font-size: 13px;
 }
 
 .profile-filter-tools {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.55fr) minmax(170px, 0.65fr);
   gap: 10px;
+}
+
+.profile-filter-tools label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.profile-filter-tools label span {
+  color: #8aa8c7;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .profile-filter-tools input,
 .profile-filter-tools select {
-  min-height: 38px;
-  border: 1px solid rgba(138, 168, 199, 0.18);
-  border-radius: 10px;
-  padding: 0 12px;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(138, 168, 199, 0.2);
+  border-radius: 13px;
+  padding: 0 14px;
   color: #dce9f8;
-  background: var(--al-surface-2);
-  font-size: 12px;
+  background: rgba(10, 19, 31, 0.78);
+  font-size: 13px;
   font-weight: 800;
+  outline: none;
 }
 
-.profile-filter-tools input {
-  min-width: min(260px, 100%);
+.profile-filter-tools input:focus,
+.profile-filter-tools select:focus {
+  border-color: rgba(22, 143, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(22, 143, 255, 0.14);
 }
 
 .profile-stats-page {
@@ -6673,12 +6704,32 @@ body[data-page="library"] .profile-btn {
 }
 
 .profile-favorite-group h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin: 0;
+  border: 1px solid rgba(138, 168, 199, 0.1);
+  border-radius: 14px 14px 0 0;
+  padding: 12px 14px;
   color: #8aa8c7;
+  background: rgba(16, 26, 40, 0.7);
   font-size: 13px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.profile-favorite-group h3 small {
+  display: inline-grid;
+  min-width: 28px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  color: #dce9f8;
+  background: rgba(22, 143, 255, 0.18);
+  font-size: 12px;
+  letter-spacing: 0;
 }
 
 .profile-artist-card {
