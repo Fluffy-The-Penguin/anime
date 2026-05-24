@@ -133,13 +133,13 @@ async function handleAniListRoute(req, res, backendUrl) {
         body: JSON.stringify({ query: body.query, variables: body.variables || {} }),
       });
     } catch (error) {
-      const fallback = await fallbackAniListResponse(body);
+      const fallback = await directAniListResponse(body).catch(() => fallbackAniListResponse(body));
       res.json(fallback);
       return;
     }
     const text = await response.text();
     if (!response.ok) {
-      const fallback = await fallbackAniListResponse(body);
+      const fallback = await directAniListResponse(body).catch(() => fallbackAniListResponse(body));
       res.json(fallback);
       return;
     }
@@ -149,6 +149,16 @@ async function handleAniListRoute(req, res, backendUrl) {
   } catch (error) {
     res.status(502).json({ error: "AniList proxy failed" });
   }
+}
+
+async function directAniListResponse(body) {
+  const response = await fetchWithTimeout(ANILIST_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ query: body.query, variables: body.variables || {} }),
+  });
+  if (!response.ok) throw new Error(`AniList request failed: ${response.status}`);
+  return response.json();
 }
 
 async function fallbackAniListResponse(body) {

@@ -1,4 +1,5 @@
 const ANILIST_URL = "/api/anilist";
+const ANILIST_DIRECT_URL = "https://graphql.anilist.co";
 const STORAGE_KEY = "anitrack-library-v1";
 const LEGACY_STORAGE_KEYS = ["anitrack-library-v2"];
 const THEME_KEY = "anitrack-theme";
@@ -2162,11 +2163,18 @@ async function searchManga(query, pageNumber = 1) {
 }
 
 async function anilistQuery(query, variables) {
-  const response = await fetch(apiRequestUrl(ANILIST_URL), {
+  const request = {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ query, variables }),
-  });
+  };
+  let response;
+  try {
+    response = await fetch(apiRequestUrl(ANILIST_URL), request);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  } catch (error) {
+    response = await fetch(ANILIST_DIRECT_URL, request);
+  }
   assertOk(response);
   const payload = await response.json();
   if (payload.errors) throw new Error(payload.errors.map((error) => error.message).join(", "));
@@ -7589,7 +7597,6 @@ async function initReaderPage() {
 
   setupReadingMode(manga);
   setupReaderControlsVisibility();
-  document.body.classList.add("reader-controls-visible");
 
   document.querySelector("[data-reader-top]")?.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -7870,25 +7877,6 @@ function compactText(value, maxLength) {
 
 function setupReaderControlsVisibility() {
   document.body.classList.remove("reader-controls-visible", "reader-images-ready");
-  const controlsSelector = ".reader-back-button, .reader-source-bar, .reader-control-bar, .reader-top-button";
-  const showControls = () => {
-    document.body.classList.add("reader-controls-visible");
-    clearTimeout(setupReaderControlsVisibility.hideTimer);
-    setupReaderControlsVisibility.hideTimer = setTimeout(() => {
-      if ([...document.querySelectorAll(controlsSelector)].some((node) => node.matches(":hover, :focus-within"))) return;
-      document.body.classList.remove("reader-controls-visible");
-    }, 1800);
-  };
-  document.addEventListener("pointermove", (event) => {
-    if (event.clientY <= 150 || event.clientX <= 96 || event.clientY >= window.innerHeight - 90) showControls();
-  }, { passive: true });
-  document.querySelectorAll(controlsSelector).forEach((node) => {
-    node.addEventListener("pointerenter", () => {
-      clearTimeout(setupReaderControlsVisibility.hideTimer);
-      document.body.classList.add("reader-controls-visible");
-    });
-    node.addEventListener("pointerleave", () => showControls());
-  });
   document.addEventListener("click", (event) => {
     if (event.target.closest("button, a, select, input, textarea, label")) return;
     const x = event.clientX / Math.max(1, window.innerWidth);
