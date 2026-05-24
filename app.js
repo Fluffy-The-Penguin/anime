@@ -1210,6 +1210,7 @@ function initLibraryPage() {
   syncLibraryViewControls();
   hydrateProfileShell();
   syncLibraryPageLinks();
+  setupLibraryFilterDrawer();
 
   filters?.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-filter]");
@@ -1263,6 +1264,36 @@ function initLibraryPage() {
   });
 
   renderLibrary();
+}
+
+function setupLibraryFilterDrawer() {
+  const sidebar = document.querySelector(".profile-list-sidebar");
+  if (!sidebar) return;
+  sidebar.setAttribute("data-library-filter-panel", "");
+  sidebar.setAttribute("aria-label", "Library filters");
+  if (!document.querySelector("[data-library-filter-toggle]")) {
+    document.body.insertAdjacentHTML("beforeend", `<button class="library-filter-fab" data-library-filter-toggle type="button" aria-label="Open library filters" aria-expanded="false">Filters</button>`);
+  }
+  if (!document.querySelector("[data-library-filter-overlay]")) {
+    document.body.insertAdjacentHTML("beforeend", `<button class="library-filter-overlay" data-library-filter-overlay type="button" aria-label="Close library filters"></button>`);
+  }
+  if (!sidebar.querySelector("[data-library-filter-close]")) {
+    sidebar.insertAdjacentHTML("afterbegin", `<div class="library-filter-drawer-head"><strong>Library Filters</strong><button data-library-filter-close type="button" aria-label="Close library filters">Close</button></div>`);
+  }
+
+  const toggle = document.querySelector("[data-library-filter-toggle]");
+  const setOpen = (open) => {
+    document.body.classList.toggle("library-filter-open", open);
+    toggle?.setAttribute("aria-expanded", String(open));
+  };
+  toggle?.addEventListener("click", () => setOpen(!document.body.classList.contains("library-filter-open")));
+  document.querySelector("[data-library-filter-overlay]")?.addEventListener("click", () => setOpen(false));
+  sidebar.querySelector("[data-library-filter-close]")?.addEventListener("click", () => setOpen(false));
+  sidebar.querySelectorAll("button[data-filter], select").forEach((control) => control.addEventListener("change", () => setOpen(false)));
+  sidebar.querySelectorAll("button[data-filter]").forEach((control) => control.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setOpen(false);
+  });
 }
 
 function libraryViewStorageKey() {
@@ -1579,16 +1610,20 @@ function renderProfileFullStats({ allItems, animeItems, mangaItems, adultItems, 
 
 function renderProfileFeed(container, items) {
   if (!container) return;
-  const feedItems = items.length ? items : samples;
-  container.innerHTML = feedItems.map((item, index) => `
+  const storedActivities = loadActivity().filter(activityVisibleItem).slice(0, 6);
+  const feedItems = storedActivities.length
+    ? storedActivities.map((activity) => ({ item: activity.item, text: activity.text || activityTextForItem(activity.item, activity.action), time: activity.time }))
+    : items.filter(contentVisibleItem).slice(0, 6).map((item) => ({ item, text: `${statusLabel(item.status || (item.type === "manga" ? "reading" : "watching"))} ${item.type === "anime" ? "to watch" : "to read"}`, time: item.updatedAt }));
+  if (!feedItems.length) return renderEmpty(container, "Your recent activity will appear here.");
+  container.innerHTML = feedItems.map(({ item, text, time }) => `
     <button class="profile-feed-item" data-id="${escapeAttr(item.id)}" type="button">
       <img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
-      <div><span>${escapeHtml(statusLabel(item.status || (item.type === "manga" ? "reading" : "watching")))} ${item.type === "anime" ? "to watch" : "to read"} <b>${escapeHtml(item.title)}</b></span></div>
-      <time>${index ? `${index + 1} weeks ago` : "4 weeks ago"}</time>
+      <div><span>${escapeHtml(text)} <b>${escapeHtml(item.title)}</b></span></div>
+      <time>${escapeHtml(time ? relativeTime(time) : "Just now")}</time>
     </button>
   `).join("");
   container.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => {
-    const item = state.library[button.dataset.id] || samples.find((sample) => sample.id === button.dataset.id);
+    const item = state.library[button.dataset.id] || feedItems.find((entry) => entry.item.id === button.dataset.id)?.item || samples.find((sample) => sample.id === button.dataset.id);
     if (item) openLibraryItem(item);
   }));
 }
