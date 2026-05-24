@@ -9181,3 +9181,17 @@ body[data-page="profile"] .profile-hero h1 {
     font-size: 11px;
   }
 }
+
+/* Keep the mobile action row stable when the floating nav takes over. */
+@media (max-width: 720px) {
+  body[data-page] > .topbar.shell.anilist-topbar .menu-toggle {
+    display: inline-grid !important;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  body[data-page].primary-nav-collapsed > .topbar.shell.anilist-topbar .menu-toggle {
+    visibility: visible;
+    pointer-events: auto;
+  }
+}
