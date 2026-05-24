@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Customize your AniTrack experience." />
     <title>AniTrack | Settings</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-22" />
-    <script src="app.js?v=site-fix-22" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-24" />
+    <script src="app.js?v=site-fix-24" defer></script>
   </head>
   <body data-page="settings">
     <header class="topbar shell anilist-topbar">
@@ -361,6 +361,7 @@
         gap: clamp(18px, 3vw, 32px);
         margin: 28px 0 40px;
         align-items: start;
+        min-width: 0;
       }
 
       .settings-sidebar {
@@ -453,6 +454,7 @@
         backdrop-filter: blur(20px);
         border-radius: 24px;
         padding: clamp(18px, 3vw, 28px);
+        min-width: 0;
         overflow: hidden;
       }
 
@@ -465,14 +467,27 @@
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
+        min-width: 0;
       }
 
       .subtitle-style-controls label {
         display: grid;
         gap: 6px;
+        min-width: 0;
         color: var(--muted);
         font-size: 12px;
         font-weight: 800;
+      }
+
+      .subtitle-style-controls input,
+      .subtitle-style-controls select,
+      .subtitle-style-controls .btn {
+        max-width: 100%;
+        min-width: 0;
+      }
+
+      .subtitle-style-controls input[type="range"] {
+        width: 100%;
       }
 
       .subtitle-style-controls span {
@@ -517,6 +532,7 @@
       .settings-form {
         display: grid;
         gap: 16px;
+        min-width: 0;
       }
 
       .form-group {
@@ -528,10 +544,12 @@
         border: 1px solid color-mix(in srgb, var(--theme-primary) 14%, var(--line));
         border-radius: 16px;
         background: linear-gradient(135deg, color-mix(in srgb, var(--soft) 58%, transparent), color-mix(in srgb, var(--solid) 42%, transparent));
+        min-width: 0;
       }
 
       .form-group label {
         display: block;
+        min-width: 0;
         color: var(--muted);
         font-size: 12px;
         font-weight: 700;
@@ -633,6 +651,7 @@
       .form-group select,
       .form-group input[type="url"] {
         width: min(100%, 390px);
+        max-width: 100%;
         min-width: 0;
         min-height: 44px;
         padding: 8px 12px;
@@ -684,7 +703,7 @@
         color: var(--text);
         font-size: 13px;
         font-weight: 800;
-        white-space: nowrap;
+        white-space: normal;
       }
 
       .button-group {
@@ -1010,6 +1029,10 @@
           padding: 12px;
         }
 
+        .form-group > * {
+          min-width: 0;
+        }
+
         .section-header {
           display: block;
         }
@@ -1040,6 +1063,12 @@
         .about-item {
           grid-template-columns: 1fr;
           gap: 6px;
+        }
+      }
+
+      @media (max-width: 420px) {
+        .subtitle-style-controls {
+          grid-template-columns: 1fr;
         }
       }
 

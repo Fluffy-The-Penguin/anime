@@ -650,14 +650,19 @@ async function loadDoujinSearch(options = {}) {
 
   try {
     const providers = doujinProviderIds();
-    const queryParam = usingTagEndpoint
-      ? `latest=1&category=${encodeURIComponent(selectedCategory)}&tag=${encodeURIComponent(selectedTag)}&`
-      : query ? `title=${encodeURIComponent(query)}&` : "latest=1&";
     const pageParam = `page=${encodeURIComponent(state.doujinPage)}&limit=${DOUJIN_PAGE_SIZE}&`;
-    const results = await fetchApiJson(`/api/manga/search?${queryParam}${pageParam}providers=${encodeURIComponent(providers.join(","))}`);
+    const tagRequests = usingTagFilters
+      ? selectedFilterTags.map((tag) => ({ category: "tags", tag }))
+      : usingTagEndpoint ? [{ category: selectedCategory, tag: selectedTag }] : [];
+    const searchRequests = tagRequests.length
+      ? tagRequests.map((request) => ({ ...request, queryParam: `latest=1&category=${encodeURIComponent(request.category)}&tag=${encodeURIComponent(request.tag)}&` }))
+      : [{ queryParam: query ? `title=${encodeURIComponent(query)}&` : "latest=1&" }];
+    const resultGroups = await Promise.all(searchRequests.map(async (request) => {
+      const results = await fetchApiJson(`/api/manga/search?${request.queryParam}${pageParam}providers=${encodeURIComponent(providers.join(","))}`);
+      return bestDoujinResults(results, providers).map((item) => request.tag ? addImplicitDoujinTag(item, request.category, request.tag) : item);
+    }));
     if (token !== state.doujinToken) return;
-    const rawPageItems = bestDoujinResults(results, providers)
-      .map((item) => usingTagEndpoint ? addImplicitDoujinTag(item, selectedCategory, selectedTag) : item)
+    const rawPageItems = mergeDoujinResultItems(resultGroups.flat())
       .filter((item) => doujinItemMatchesActiveFilters(item, { query, tags: selectedFilterTags, category: usingTagPage ? selectedCategory : "", tag: usingTagPage ? selectedTag : "" }));
     const pageItems = rawPageItems.slice(0, DOUJIN_PAGE_SIZE);
     const newItems = pageItems.filter((item) => !state.doujinItems.some((existing) => existing.id === item.id));
@@ -702,7 +707,11 @@ function doujinItemMatchesActiveFilters(item, filters = {}) {
   const tagFilters = uniqueStrings(filters.tags || []);
   if (tagFilters.length) {
     const values = doujinMetadataValues(item.metadata).map(normalizeSearchText);
-    if (!tagFilters.every((tag) => values.includes(normalizeSearchText(tag)))) return false;
+    const searchable = normalizeSearchText(`${item.title || ""} ${(item.tags || []).join(" ")}`);
+    if (!tagFilters.every((tag) => {
+      const normalizedTag = normalizeSearchText(tag);
+      return values.includes(normalizedTag) || searchable.includes(normalizedTag);
+    })) return false;
   }
   if (filters.tag) {
     const normalizedCategory = normalizeDoujinMetadataCategory(filters.category) || "tags";
@@ -814,6 +823,28 @@ function bestDoujinResults(results, providers) {
     if (score < 0.15) return;
     const current = byId.get(result.id);
     if (!current || score > Number(current.score || 0)) byId.set(result.id, result);
+  });
+  return [...byId.values()].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+}
+
+function mergeDoujinResultItems(items) {
+  const byId = new Map();
+  (items || []).forEach((item) => {
+    if (!item?.id) return;
+    const current = byId.get(item.id);
+    if (!current) {
+      byId.set(item.id, item);
+      return;
+    }
+    const metadata = mergeDoujinMetadata(current.metadata, item.metadata);
+    const preferred = Number(item.score || 0) > Number(current.score || 0) ? item : current;
+    byId.set(item.id, {
+      ...current,
+      ...preferred,
+      score: Math.max(Number(current.score || 0), Number(item.score || 0)),
+      metadata,
+      tags: doujinMetadataValues(metadata),
+    });
   });
   return [...byId.values()].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
 }
@@ -2908,7 +2939,7 @@ function renderLibrary() {
   const adultItems = items.filter((item) => {
     if (!isAdultLibraryItem(item)) return false;
     if (state.libraryAdultFilter === "doujin") return isDoujinLibraryItem(item);
-    if (state.libraryAdultFilter === "hentai") return isHentaiLibraryItem(item);
+    if (state.libraryAdultFilter === "hentai") return isHentaiAnimeItem(item);
     if (state.libraryAdultFilter === "pornhwa") return isPornhwaLibraryItem(item);
     return true;
   });
@@ -4632,7 +4663,7 @@ function accountModalHtml() {
         <button class="account-modal-close" data-account-close type="button" aria-label="Close account dialog">×</button>
         <span class="eyebrow">AniTrack Sync</span>
         <h2 id="account-modal-title">Keep your library everywhere</h2>
-        <p class="muted">Register or log in with a username and password to sync library, preferences, sources, theme, and reader mode across devices.</p>
+        <p class="muted">Register or log in with a username and password to sync library, activity, preferences, sources, theme, and reader mode across devices.</p>
         <div class="account-status modal-status"><strong data-account-title>${state.account?.username ? `@${escapeHtml(state.account.username)}` : "Guest"}</strong><span data-account-status>${state.account?.username ? "Sync enabled" : "Local library only"}</span></div>
         <form class="account-form" data-account-form ${state.account?.token ? "hidden" : ""}>
           <label>Username<input data-account-username type="text" autocomplete="username" placeholder="fluffy" minlength="3" maxlength="32"></label>
@@ -4747,7 +4778,7 @@ async function syncAccountNow(showStatus = false) {
     const remote = await accountApi("/api/account/sync", "GET");
     applyAccountData(remote.data || {});
     await accountApi("/api/account/sync", "PUT", { data: accountSyncPayload() });
-    if (showStatus) setAccountStatus("Synced library, preferences, and sources.");
+    if (showStatus) setAccountStatus("Synced library, activity, preferences, and sources.");
   } catch (error) {
     if (showStatus) setAccountStatus(error.message || "Sync failed.");
   }
@@ -4776,6 +4807,7 @@ async function accountApi(path, method = "GET", body = null, requireToken = true
 function accountSyncPayload() {
   return {
     library: state.library,
+    activity: loadActivity(),
     settings: state.settings,
     theme: localStorage.getItem(THEME_KEY) || document.documentElement.dataset.theme || "",
     readerMode: localStorage.getItem("reader-mode") || "",
@@ -4786,6 +4818,7 @@ function accountSyncPayload() {
 function applyAccountData(data) {
   if (!data || typeof data !== "object") return;
   state.library = mergeLibraryData(state.library, data.library || {});
+  saveActivity(mergeActivityData(loadActivity(), data.activity || []), false);
   state.settings = mergeSettingsData(state.settings, data.settings || {});
   if (data.theme) {
     localStorage.setItem(THEME_KEY, data.theme);
@@ -4797,6 +4830,9 @@ function applyAccountData(data) {
   if (data.readerMode) localStorage.setItem("reader-mode", data.readerMode);
   persistLibrary(false);
   persistSettings(false);
+  renderHistory();
+  if (page === "profile") renderProfileOverview();
+  if (page === "history") initHistoryPage();
   applyThemeColor();
   hydrateProfileShell();
   syncAdultControls();
@@ -4810,6 +4846,17 @@ function mergeLibraryData(local, remote) {
     if (!merged[id] || Number(item?.updatedAt || 0) >= Number(merged[id]?.updatedAt || 0)) merged[id] = item;
   });
   return merged;
+}
+
+function mergeActivityData(local, remote) {
+  const byKey = new Map();
+  [...(local || []), ...(remote || [])].forEach((activity) => {
+    if (!activity?.item?.id) return;
+    const key = activity.id || `${activity.item.id}:${activity.action || "updated"}:${activity.time || 0}`;
+    const current = byKey.get(key);
+    if (!current || Number(activity.time || 0) >= Number(current.time || 0)) byKey.set(key, activity);
+  });
+  return compactActivityTimeline([...byKey.values()].sort((a, b) => Number(b.time || 0) - Number(a.time || 0))).slice(0, ACTIVITY_LIMIT);
 }
 
 function mergeSettingsData(local, remote) {
@@ -5248,8 +5295,9 @@ function toggleFavoriteItem(item = state.current) {
   return true;
 }
 
-function saveActivity(items) {
+function saveActivity(items, sync = true) {
   writeStoredArray(ACTIVITY_KEY, items.slice(0, ACTIVITY_LIMIT));
+  if (sync) scheduleAccountSync();
 }
 
 function recordActivity(item, action = "updated") {
