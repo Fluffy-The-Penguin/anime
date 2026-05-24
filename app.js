@@ -775,8 +775,23 @@ function doujinArtistFavoriteId(artist) {
   return `doujin-artist:${normalizeSearchText(artist).replace(/\s+/g, "-")}`;
 }
 
+function doujinCreatorFavoriteCategory(category) {
+  return normalizeDoujinMetadataCategory(category) === "groups" ? "groups" : "artists";
+}
+
+function doujinCreatorFavoriteId(category, name) {
+  const normalizedName = normalizeSearchText(name).replace(/\s+/g, "-");
+  if (doujinCreatorFavoriteCategory(category) === "groups") return `doujin-group:${normalizedName}`;
+  return doujinArtistFavoriteId(name);
+}
+
 function isFavoriteDoujinArtist(artist) {
-  const id = doujinArtistFavoriteId(artist);
+  const id = doujinCreatorFavoriteId("artists", artist);
+  return state.favorites.some((favorite) => favorite.favoriteType === "doujin-artist" && favorite.id === id);
+}
+
+function isFavoriteDoujinCreator(category, name) {
+  const id = doujinCreatorFavoriteId(category, name);
   return state.favorites.some((favorite) => favorite.favoriteType === "doujin-artist" && favorite.id === id);
 }
 
@@ -984,14 +999,17 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
     button.classList.toggle("active", activeFavorite);
     button.textContent = activeFavorite ? "★ Favorited" : "☆ Favorite";
   });
-  root.querySelectorAll("[data-doujin-artist-favorite]").forEach((button) => {
+  root.querySelectorAll("[data-doujin-creator-favorite]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const activeFavorite = toggleFavoriteDoujinArtist(button.dataset.doujinArtistFavorite);
+      const name = button.dataset.doujinCreatorFavorite;
+      const category = button.dataset.doujinCreatorCategory || "artists";
+      const activeFavorite = toggleFavoriteDoujinCreator(category, name);
       button.classList.toggle("active", activeFavorite);
       button.textContent = activeFavorite ? "★" : "☆";
-      button.setAttribute("aria-label", `${activeFavorite ? "Remove" : "Add"} ${button.dataset.doujinArtistFavorite} as favorite artist`);
+      const label = doujinCreatorFavoriteCategory(category) === "groups" ? "group" : "artist";
+      button.setAttribute("aria-label", `${activeFavorite ? "Remove" : "Add"} ${name} as favorite ${label}`);
     });
   });
   root.querySelector("[data-doujin-preview-more]")?.addEventListener("click", () => {
@@ -1026,9 +1044,11 @@ function renderDoujinMetadataHtml(metadata) {
 
 function doujinMetadataChipHtml(category, value) {
   const link = `<a class="doujin-tag-chip" href="${escapeAttr(doujinTagUrl(category, value))}">${escapeHtml(value)}</a>`;
-  if (category !== "artists") return link;
-  const active = isFavoriteDoujinArtist(value);
-  return `<span class="doujin-artist-chip">${link}<button class="doujin-artist-favorite ${active ? "active" : ""}" data-doujin-artist-favorite="${escapeAttr(value)}" type="button" aria-label="${active ? "Remove" : "Add"} ${escapeAttr(value)} as favorite artist">${active ? "★" : "☆"}</button></span>`;
+  if (category !== "artists" && category !== "groups") return link;
+  const favoriteCategory = doujinCreatorFavoriteCategory(category);
+  const active = isFavoriteDoujinCreator(favoriteCategory, value);
+  const label = favoriteCategory === "groups" ? "group" : "artist";
+  return `<span class="doujin-artist-chip">${link}<button class="doujin-artist-favorite ${active ? "active" : ""}" data-doujin-creator-category="${favoriteCategory}" data-doujin-creator-favorite="${escapeAttr(value)}" type="button" aria-label="${active ? "Remove" : "Add"} ${escapeAttr(value)} as favorite ${label}">${active ? "★" : "☆"}</button></span>`;
 }
 
 function doujinPreviewThumbHtml(manga, url, index) {
@@ -1458,7 +1478,7 @@ function renderProfileFavorites(container) {
     if (!groups.has(label)) groups.set(label, []);
     groups.get(label).push(item);
   });
-  if (!groups.size) return renderEmpty(container, state.profileFavoriteFilter === "all" ? "Use the Favorite button on details pages to pin anime, manga, doujin, hentai, pornhwa, and artists here." : "No favorites match this filter yet.");
+  if (!groups.size) return renderEmpty(container, state.profileFavoriteFilter === "all" ? "Use the Favorite button on details pages to pin anime, manga, doujin, hentai, pornhwa, artists, and groups here." : "No favorites match this filter yet.");
   container.innerHTML = [...groups.entries()].map(([label, items]) => `
     <section class="profile-favorite-group">
       <h3><span>${escapeHtml(label)}</span><small>${items.length}</small></h3>
@@ -1498,7 +1518,7 @@ function favoriteMatchesProfileFilter(item) {
 
 function openFavoriteProfileItem(item) {
   if (item.favoriteType === "doujin-artist") {
-    window.location.href = doujinTagUrl("artists", item.tag || item.title);
+    window.location.href = doujinTagUrl(item.category || "artists", item.tag || item.title);
     return;
   }
   openLibraryItem(item);
@@ -1675,7 +1695,7 @@ function homeProgressVisibleItem(item) {
 function homeProgressBucket(item) {
   if (isDoujinLibraryItem(item)) return "doujin";
   if (isPornhwaLibraryItem(item)) return "pornhwa";
-  if (isHentaiLibraryItem(item)) return "hentai";
+  if (isHentaiAnimeItem(item)) return "hentai";
   if (item?.type === "anime") return "anime";
   if (item?.type === "manga") return "manga";
   return "";
@@ -5148,19 +5168,25 @@ function isFavoriteItem(item) {
 }
 
 function toggleFavoriteDoujinArtist(artist) {
-  const name = String(artist || "").trim();
+  return toggleFavoriteDoujinCreator("artists", artist);
+}
+
+function toggleFavoriteDoujinCreator(category, nameValue) {
+  const categoryKey = doujinCreatorFavoriteCategory(category);
+  const label = categoryKey === "groups" ? "group" : "artist";
+  const name = String(nameValue || "").trim();
   if (!name) return false;
-  const id = doujinArtistFavoriteId(name);
+  const id = doujinCreatorFavoriteId(categoryKey, name);
   const index = state.favorites.findIndex((favorite) => favorite.favoriteType === "doujin-artist" && favorite.id === id);
   if (index >= 0) {
     state.favorites.splice(index, 1);
     persistFavorites();
-    showToast("Removed favorite artist.");
+    showToast(`Removed favorite ${label}.`);
     return false;
   }
-  state.favorites = [{ id, favoriteType: "doujin-artist", type: "artist", title: name, category: "artists", tag: name, isAdult: true, favoriteAt: Date.now() }, ...state.favorites].slice(0, ACTIVITY_LIMIT);
+  state.favorites = [{ id, favoriteType: "doujin-artist", type: "artist", title: name, category: categoryKey, tag: name, isAdult: true, favoriteAt: Date.now() }, ...state.favorites].slice(0, ACTIVITY_LIMIT);
   persistFavorites();
-  showToast("Added favorite artist.");
+  showToast(`Added favorite ${label}.`);
   return true;
 }
 
