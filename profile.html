@@ -5,19 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Your AniTrack profile overview." />
     <title>AniTrack | Profile</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-3" />
-    <script src="app.js?v=site-fix-3" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-6" />
+    <script src="app.js?v=site-fix-6" defer></script>
   </head>
   <body data-page="profile">
     <header class="topbar shell anilist-topbar">
       <a class="brand anilist-brand" href="index.html" aria-label="AniTrack home"><span>AT</span><b>AniTrack</b></a>
       <nav class="nav anilist-nav" aria-label="Primary navigation">
         <a href="index.html">Home</a>
-        <a class="active" href="profile.html">Profile</a>
         <a href="anime.html">Anime</a>
         <a href="manga.html">Manga / Manhwa</a>
         <a href="doujin.html" data-adult-nav hidden>Doujin</a>
-        <a href="settings.html">Settings</a>
+        <a class="active" href="profile.html">Profile</a>
       </nav>
     </header>
 
@@ -34,6 +33,7 @@
           <a class="active" href="profile.html">Overview</a>
           <a href="anime-library.html">Anime Library</a>
           <a href="manga-library.html">Manga Library</a>
+          <a href="adult-library.html" data-adult-nav hidden>Adult Library</a>
           <a href="#favorites">Favorites</a>
           <a href="#stats">Stats</a>
           <a href="#social">Social</a>
@@ -75,6 +75,13 @@
             <div><strong data-profile-score>--</strong><span>Mean Score</span></div>
           </div>
           <div class="profile-stat-scale"><span>17000</span><span>17500</span><span>18000</span><i data-profile-manga-bar></i></div>
+
+          <div class="profile-stat-card" data-adult-nav hidden>
+            <div><strong data-profile-total-adult>0</strong><span>Adult Titles</span></div>
+            <div><strong data-profile-total-hentai>0</strong><span>Hentai</span></div>
+            <div><strong data-profile-total-doujin>0</strong><span>Doujin</span></div>
+          </div>
+          <div class="profile-stat-scale" data-adult-nav hidden><span>Adult</span><span>Hentai</span><span>Doujin</span><i data-profile-adult-bar></i></div>
 
           <article class="profile-feed" id="social">
             <div class="profile-feed-head"><h2>Activity</h2><button type="button">Filter⌄</button></div>

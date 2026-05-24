@@ -5,19 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Read manga with chapter details and tracking." />
     <title>AniTrack | Manga Reader</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-3" />
-    <script src="app.js?v=site-fix-3" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-6" />
+    <script src="app.js?v=site-fix-6" defer></script>
   </head>
   <body data-page="reader">
     <header class="topbar shell anilist-topbar">
       <a class="brand anilist-brand" href="index.html" aria-label="AniTrack home"><span>AT</span><b>AniTrack</b></a>
       <nav class="nav anilist-nav" aria-label="Primary navigation">
         <a href="index.html">Home</a>
-        <a href="profile.html">Profile</a>
         <a href="anime.html">Anime</a>
         <a class="active" href="manga.html">Manga / Manhwa</a>
         <a href="doujin.html" data-adult-nav hidden>Doujin</a>
-        <a href="settings.html">Settings</a>
+        <a href="profile.html">Profile</a>
       </nav>
     </header>
 
@@ -38,6 +37,7 @@
           <div class="reader-source-bar" data-manga-source-bar hidden>
             <label for="manga-source-select">Source</label>
             <select id="manga-source-select" data-manga-source-select></select>
+            <input data-manga-source-query type="search" placeholder="Optional source title" autocomplete="off">
             <span class="muted" data-manga-source-status>Searching sources...</span>
           </div>
 
@@ -124,7 +124,7 @@
 
       .reader-source-bar {
         display: none;
-        grid-template-columns: auto minmax(180px, 360px) minmax(0, auto);
+        grid-template-columns: auto minmax(180px, 300px) minmax(180px, 260px) minmax(0, auto);
         gap: 10px;
         align-items: center;
         padding: 8px 12px;
@@ -155,7 +155,8 @@
         white-space: nowrap;
       }
 
-      .reader-source-bar select {
+      .reader-source-bar select,
+      .reader-source-bar input {
         width: min(360px, 52vw);
         max-width: 100%;
         min-height: 36px;
@@ -168,6 +169,10 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .reader-source-bar input {
+        width: min(260px, 42vw);
       }
 
       .reader-control-bar {
@@ -459,7 +464,8 @@
           width: auto;
         }
 
-        .reader-source-bar select {
+        .reader-source-bar select,
+        .reader-source-bar input {
           width: min(100%, calc(100vw - 48px));
         }
 

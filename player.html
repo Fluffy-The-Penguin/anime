@@ -5,19 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-3" />
-    <script src="app.js?v=site-fix-3" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-6" />
+    <script src="app.js?v=site-fix-6" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell anilist-topbar">
       <a class="brand anilist-brand" href="index.html" aria-label="AniTrack home"><span>AT</span><b>AniTrack</b></a>
       <nav class="nav anilist-nav" aria-label="Primary navigation">
         <a href="index.html">Home</a>
-        <a href="profile.html">Profile</a>
         <a class="active" href="anime.html">Anime</a>
         <a href="manga.html">Manga / Manhwa</a>
         <a href="doujin.html" data-adult-nav hidden>Doujin</a>
-        <a href="settings.html">Settings</a>
+        <a href="profile.html">Profile</a>
       </nav>
     </header>
 
@@ -79,6 +78,12 @@
             </div>
           </div>
 
+          <div class="player-source-bar">
+            <label>Source <select data-player-source-select><option>Loading sources...</option></select></label>
+            <input data-player-source-query type="search" placeholder="Optional source title" autocomplete="off">
+            <span class="muted" data-player-source-status>Source ready</span>
+          </div>
+
           <div class="episodes-search" data-episodes-search>
             <input type="search" placeholder="Search episodes..." aria-label="Search episodes">
           </div>
@@ -95,7 +100,10 @@
 
     <style>
       body[data-page="player"] {
-        background: #000;
+        background:
+          radial-gradient(circle at 18% 0%, rgba(22, 168, 255, 0.18), transparent 34%),
+          radial-gradient(circle at 82% 12%, rgba(185, 92, 255, 0.16), transparent 30%),
+          #05070b;
       }
 
       body[data-page="player"] .mobile-bottom-nav,
@@ -124,8 +132,8 @@
 
       .player-container {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-        gap: 16px;
+        grid-template-columns: minmax(0, 1fr) minmax(330px, 390px);
+        gap: clamp(14px, 1.8vw, 24px);
         margin: 0;
         align-items: start;
       }
@@ -145,9 +153,10 @@
         position: relative;
         width: 100%;
         aspect-ratio: 16 / 9;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 18px;
         background: #000;
+        box-shadow: 0 24px 90px rgba(0, 0, 0, 0.46), 0 0 0 1px rgba(255, 255, 255, 0.04);
         overflow: hidden;
         display: grid;
         place-items: center;
@@ -447,12 +456,15 @@
       }
 
       .player-controls {
-        display: block;
-        padding: 10px 0 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        backdrop-filter: none;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 16px;
+        background: rgba(10, 15, 24, 0.72);
+        backdrop-filter: blur(14px) saturate(130%);
       }
 
       .video-wrapper:fullscreen,
@@ -521,7 +533,10 @@
       }
 
       .player-actions {
-        display: none !important;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
       }
 
       .player-settings-panel {
@@ -596,10 +611,11 @@
       }
 
       .episode-card {
-        border-radius: 14px;
-        padding: 12px 0 0;
-        border: 0;
-        background: transparent;
+        border-radius: 18px;
+        padding: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        background: rgba(10, 15, 24, 0.72);
+        backdrop-filter: blur(14px) saturate(130%);
       }
 
       .episode-meta {
@@ -706,13 +722,15 @@
         display: grid;
         gap: 10px;
         align-content: start;
-        max-height: calc(100vh - 24px);
-        position: static;
+        max-height: calc(100vh - 28px);
+        position: sticky;
+        top: 14px;
         overflow: hidden;
-        border: 0;
-        border-radius: 0;
-        padding: 0;
-        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 18px;
+        padding: 12px;
+        background: rgba(10, 15, 24, 0.72);
+        backdrop-filter: blur(14px) saturate(130%);
       }
 
       .sidebar-head {
@@ -720,7 +738,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        padding: 0 6px;
+        padding: 0 2px 4px;
       }
 
       .sidebar-head h3 {
@@ -731,6 +749,42 @@
       .sidebar-controls {
         display: flex;
         gap: 4px;
+      }
+
+      .player-source-bar {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.04);
+      }
+
+      .player-source-bar label {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .player-source-bar select,
+      .player-source-bar input {
+        min-height: 36px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 9px;
+        padding: 7px 10px;
+        color: #f7f8ff;
+        background: #111827;
+        font: inherit;
+      }
+
+      .player-source-bar span {
+        font-size: 12px;
       }
 
       .episodes-search {
@@ -867,7 +921,7 @@
 
         body[data-page="player"] > .topbar.shell .nav {
           display: grid !important;
-          grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+          grid-template-columns: repeat(auto-fit, minmax(82px, 1fr)) !important;
           width: 100% !important;
         }
 
@@ -878,7 +932,8 @@
 
         .player-sidebar {
           max-height: none;
-          padding: 0 8px;
+          position: static;
+          padding: 10px 8px;
         }
 
         .episodes-list {

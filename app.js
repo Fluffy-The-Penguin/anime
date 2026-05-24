@@ -54,6 +54,15 @@ const DOUJIN_TAGS = [
   "pregnant", "lactation", "dark skin", "elf", "monster girl", "succubus", "tentacles", "bondage", "femdom", "exhibitionism", "voyeurism", "incest",
   "sister", "daughter", "childhood friend", "idol", "game cg", "artist cg", "western", "doujinshi", "manga", "english"
 ];
+const DOUJIN_METADATA_LABELS = {
+  artists: "Artists",
+  groups: "Groups",
+  parodies: "Parodies",
+  characters: "Characters",
+  categories: "Categories",
+  tags: "Tags",
+  languages: "Languages",
+};
 const DOUJIN_PAGE_SIZE = 42;
 const fallbackImage = "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=900&q=80";
 
@@ -82,6 +91,8 @@ const state = {
   browseHasMore: true,
   doujinQuery: "",
   doujinTags: [],
+  doujinTagCategory: "",
+  doujinTagValue: "",
   doujinToken: 0,
   doujinPage: 1,
   doujinItems: [],
@@ -429,6 +440,8 @@ function initDoujinPage() {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     state.doujinQuery = search.value.trim();
+    state.doujinTagCategory = "";
+    state.doujinTagValue = "";
     updateDoujinUrl();
     loadDoujinSearch();
   });
@@ -437,6 +450,8 @@ function initDoujinPage() {
     if (event.key !== "Enter") return;
     event.preventDefault();
     state.doujinQuery = search.value.trim();
+    state.doujinTagCategory = "";
+    state.doujinTagValue = "";
     updateDoujinUrl();
     loadDoujinSearch();
   });
@@ -460,6 +475,8 @@ function initDoujinPage() {
     if (!input) return;
     const tag = input.dataset.doujinTag;
     state.doujinTags = state.doujinTags.includes(tag) ? state.doujinTags.filter((item) => item !== tag) : [...state.doujinTags, tag];
+    state.doujinTagCategory = "";
+    state.doujinTagValue = "";
     syncDoujinTags();
     updateDoujinUrl();
     loadDoujinSearch();
@@ -469,6 +486,8 @@ function initDoujinPage() {
     search.value = "";
     state.doujinQuery = "";
     state.doujinTags = [];
+    state.doujinTagCategory = "";
+    state.doujinTagValue = "";
     syncDoujinTags();
     updateDoujinUrl();
     loadDoujinSearch();
@@ -491,6 +510,9 @@ function applyDoujinUrlParams(searchInput) {
   const params = new URLSearchParams(window.location.search);
   state.doujinQuery = params.get("search") || "";
   state.doujinTags = uniqueStrings((params.get("tags") || "").split(",")).filter((tag) => DOUJIN_TAGS.includes(tag));
+  state.doujinTagCategory = normalizeDoujinMetadataCategory(params.get("category"));
+  state.doujinTagValue = (params.get("tag") || "").trim();
+  if (state.doujinTagValue && !state.doujinTagCategory) state.doujinTagCategory = "tags";
   searchInput.value = state.doujinQuery;
 }
 
@@ -498,6 +520,10 @@ function updateDoujinUrl() {
   const params = new URLSearchParams();
   if (state.doujinQuery) params.set("search", state.doujinQuery);
   if (state.doujinTags.length) params.set("tags", state.doujinTags.join(","));
+  if (state.doujinTagValue) {
+    params.set("category", state.doujinTagCategory || "tags");
+    params.set("tag", state.doujinTagValue);
+  }
   const query = params.toString();
   history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}`);
 }
@@ -533,13 +559,16 @@ async function loadDoujinSearch(options = {}) {
   }
 
   const query = doujinSearchQuery();
+  const selectedTag = state.doujinTagValue.trim();
+  const selectedCategory = normalizeDoujinMetadataCategory(state.doujinTagCategory) || "tags";
+  const usingTagPage = Boolean(selectedTag && !query);
   if (!append) {
     state.doujinPage = 1;
     state.doujinItems = [];
     state.doujinHasMore = true;
   }
   if (append && (!state.doujinHasMore || state.doujinLoadingMore)) return;
-  if (!query) {
+  if (!query && !selectedTag) {
     if (heading) heading.textContent = "English Doujinshi";
     if (status) status.textContent = "Loading latest English doujinshi...";
   }
@@ -547,12 +576,16 @@ async function loadDoujinSearch(options = {}) {
   const token = ++state.doujinToken;
   if (query && heading) heading.textContent = `English doujinshi for "${query}"`;
   if (query && status) status.textContent = "Searching English-only sources...";
+  if (usingTagPage && heading) heading.textContent = doujinTagHeading(selectedCategory, selectedTag);
+  if (usingTagPage && status) status.textContent = `Loading ${doujinMetadataLabel(selectedCategory).toLowerCase()} results from English-only sources...`;
   if (!append) setLoading(grid, 12);
   state.doujinLoadingMore = true;
 
   try {
     const providers = doujinProviderIds();
-    const queryParam = query ? `title=${encodeURIComponent(query)}&` : "latest=1&";
+    const queryParam = usingTagPage
+      ? `latest=1&category=${encodeURIComponent(selectedCategory)}&tag=${encodeURIComponent(selectedTag)}&`
+      : query ? `title=${encodeURIComponent(query)}&` : "latest=1&";
     const pageParam = `page=${encodeURIComponent(state.doujinPage)}&limit=${DOUJIN_PAGE_SIZE}&`;
     const results = await fetchApiJson(`/api/manga/search?${queryParam}${pageParam}providers=${encodeURIComponent(providers.join(","))}`);
     if (token !== state.doujinToken) return;
@@ -563,7 +596,8 @@ async function loadDoujinSearch(options = {}) {
     state.doujinItems = append ? [...state.doujinItems, ...newItems] : pageItems;
     state.doujinHasMore = rawPageItems.length > 0 && state.doujinItems.length > previousCount;
     if (state.doujinHasMore) state.doujinPage += 1;
-    if (status) status.textContent = `${state.doujinItems.length} ${query ? "English result" : "latest English doujinshi"}${state.doujinItems.length === 1 ? "" : "s"} from ${providers.length} enabled sources`;
+    const resultLabel = usingTagPage ? `${doujinMetadataLabel(selectedCategory).toLowerCase()} result` : query ? "English result" : "latest English doujinshi";
+    if (status) status.textContent = `${state.doujinItems.length} ${resultLabel}${state.doujinItems.length === 1 ? "" : "s"} from ${providers.length} enabled sources`;
     if (append) appendDoujinCards(grid, newItems, state.doujinHasMore);
     else renderDoujinCards(grid, state.doujinItems, state.doujinHasMore);
   } catch (error) {
@@ -583,6 +617,66 @@ function maybeLoadMoreDoujin() {
 
 function doujinSearchQuery() {
   return uniqueStrings([state.doujinQuery, ...state.doujinTags]).join(" ").trim();
+}
+
+function normalizeDoujinMetadataCategory(value) {
+  const key = String(value || "").toLowerCase().trim();
+  return ({
+    artist: "artists",
+    artists: "artists",
+    group: "groups",
+    groups: "groups",
+    parody: "parodies",
+    parodies: "parodies",
+    character: "characters",
+    characters: "characters",
+    category: "categories",
+    categories: "categories",
+    tag: "tags",
+    tags: "tags",
+    language: "languages",
+    languages: "languages",
+  }[key] || "");
+}
+
+function doujinMetadataLabel(category) {
+  return DOUJIN_METADATA_LABELS[normalizeDoujinMetadataCategory(category)] || "Tags";
+}
+
+function doujinTagHeading(category, tag) {
+  const normalized = normalizeDoujinMetadataCategory(category);
+  const label = ({ artists: "artist", groups: "group", parodies: "parody", characters: "character", categories: "category", tags: "tag", languages: "language" }[normalized] || "tag");
+  if (normalized === "artists") return `English doujinshi by ${tag}`;
+  return `English doujinshi for ${label} "${tag}"`;
+}
+
+function normalizeDoujinMetadata(metadata) {
+  const source = metadata || {};
+  return Object.fromEntries(Object.keys(DOUJIN_METADATA_LABELS).map((key) => [key, uniqueStrings(source[key] || [])]));
+}
+
+function doujinMetadataValues(metadata) {
+  return Object.values(normalizeDoujinMetadata(metadata)).flat();
+}
+
+function hasDoujinMetadata(metadata) {
+  return doujinMetadataValues(metadata).length > 0;
+}
+
+function mergeDoujinMetadata(...items) {
+  const merged = normalizeDoujinMetadata();
+  items.forEach((item) => {
+    const normalized = normalizeDoujinMetadata(item);
+    Object.keys(DOUJIN_METADATA_LABELS).forEach((key) => {
+      merged[key] = uniqueStrings([...merged[key], ...normalized[key]]);
+    });
+  });
+  return merged;
+}
+
+function doujinTagUrl(category, value) {
+  const params = new URLSearchParams({ category: normalizeDoujinMetadataCategory(category) || "tags", tag: value });
+  return `doujin.html?${params.toString()}`;
 }
 
 function doujinProviderIds() {
@@ -629,8 +723,15 @@ function renderDoujinCard(item) {
     <img src="${escapeAttr(item.cover || fallbackImage)}" alt="${escapeAttr(item.title)} cover" loading="lazy">
     <h3>${escapeHtml(item.title)}</h3>
     <div class="browse-meta"><span>${escapeHtml(providerLabel(item.provider))}</span><i></i><span>English</span></div>
+    ${doujinCardTagsHtml(item)}
   `;
   return card;
+}
+
+function doujinCardTagsHtml(item) {
+  const tags = doujinMetadataValues(item.metadata).filter((tag) => !/^english$/i.test(tag)).slice(0, 3);
+  if (!tags.length) return "";
+  return `<div class="doujin-card-tags">${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>`;
 }
 
 function renderDoujinLoadMoreMarker(container, hasMore) {
@@ -676,6 +777,7 @@ function doujinMangaFromSource(source) {
     providerId: source.id,
     providerTitle: source.title || providerLabel(source.provider),
     preloadedSources: [source],
+    metadata: normalizeDoujinMetadata(source.metadata),
     isAdult: true,
   };
 }
@@ -706,6 +808,8 @@ async function initDoujinPreviewPage() {
   try {
     const chapters = await fetchApiJson(`/api/manga/chapters?mangaId=${encodeURIComponent(manga.apiId)}`);
     const chapter = chapters[0] || { id: manga.apiId, provider: manga.provider, number: "1", title: manga.title };
+    manga = { ...manga, metadata: mergeDoujinMetadata(manga.metadata, chapter.metadata) };
+    state.current = { ...manga, ...state.library[manga.id] };
     const data = await fetchMangaPagesCached(chapter.id || manga.apiId);
     renderDoujinPreview(root, manga, data.pages || [], false, chapter);
   } catch (error) {
@@ -733,6 +837,7 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
           <span>Language: English</span>
           <span>Category: Doujinshi</span>
         </div>
+        ${renderDoujinMetadataHtml(manga.metadata)}
         <div class="doujin-preview-actions">
           <button class="btn" data-doujin-read-page="0" type="button">Read online</button>
           <button class="btn secondary" data-doujin-save type="button">${tracked ? "Remove from Library" : "Add to Library"}</button>
@@ -768,6 +873,25 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
   });
   bindDoujinPreviewReadButtons(root, manga, chapter);
   if (!loading) loadDoujinPreviewImagesInBatches(root);
+}
+
+function renderDoujinMetadataHtml(metadata) {
+  const normalized = normalizeDoujinMetadata(metadata);
+  if (!hasDoujinMetadata(normalized)) return "";
+  return `
+    <div class="doujin-metadata" aria-label="Doujin metadata">
+      ${Object.entries(DOUJIN_METADATA_LABELS).map(([category, label]) => {
+        const values = normalized[category] || [];
+        if (!values.length) return "";
+        return `
+          <div class="doujin-metadata-row">
+            <strong>${escapeHtml(label)}</strong>
+            <div>${values.slice(0, 36).map((value) => `<a class="doujin-tag-chip" href="${escapeAttr(doujinTagUrl(category, value))}">${escapeHtml(value)}</a>`).join("")}</div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
 }
 
 function doujinPreviewThumbHtml(manga, url, index) {
@@ -909,14 +1033,15 @@ function initLibraryPage() {
   const params = new URLSearchParams(window.location.search);
   state.libraryType = document.body.dataset.libraryKind || "anime";
   state.filter = ["all", "watching", "reading", "planning", "completed", "dropped"].includes(params.get("status")) ? params.get("status") : "all";
-  state.libraryAdultFilter = ["all", "adult", "normal", "doujin", "hentai"].includes(params.get("adult")) ? params.get("adult") : "all";
+  state.libraryAdultFilter = ["all", "adult", "normal", "doujin", "hentai"].includes(params.get("adult")) ? params.get("adult") : (state.libraryType === "adult" ? "adult" : "all");
   state.librarySearch = params.get("q") || "";
   state.libraryFormat = params.get("format") || "all";
   state.libraryStatusText = params.get("airing") || "all";
   state.libraryGenre = params.get("genre") || "all";
   state.libraryYear = params.get("year") || "all";
   state.librarySort = params.get("sort") || "updated";
-  if (adultFilter) adultFilter.value = state.libraryAdultFilter;
+  if (adultFilter) adultFilter.value = [...adultFilter.options].some((option) => option.value === state.libraryAdultFilter) ? state.libraryAdultFilter : adultFilter.options[0]?.value || "adult";
+  if (adultFilter) state.libraryAdultFilter = adultFilter.value;
   if (search) search.value = state.librarySearch;
   populateLibraryAdvancedFilters();
   filters?.querySelectorAll("[data-filter]").forEach((button) => button.classList.toggle("active", button.dataset.filter === state.filter));
@@ -959,14 +1084,9 @@ function initLibraryPage() {
       const row = event.target.closest("[data-id]");
       if (!row) return;
       const item = state.library[row.dataset.id];
-      if (isDoujinLibraryItem(item)) {
-        event.preventDefault();
-        event.stopPropagation();
-        sessionStorage.setItem("doujin-preview-manga", JSON.stringify(item));
-        window.location.href = `doujin-preview.html?id=${encodeURIComponent(doujinLibraryApiId(item))}`;
-        return;
-      }
-      goToDetails(item);
+      event.preventDefault();
+      event.stopPropagation();
+      openLibraryItem(item);
     });
   });
 
@@ -1005,7 +1125,7 @@ function syncLibraryPageLinks() {
   if (state.librarySort !== "updated") params.set("sort", state.librarySort);
   const query = params.toString();
   document.querySelectorAll("[data-library-page]").forEach((link) => {
-    const target = link.dataset.libraryPage === "manga" ? "manga-library.html" : "anime-library.html";
+    const target = link.dataset.libraryPage === "adult" ? "adult-library.html" : link.dataset.libraryPage === "manga" ? "manga-library.html" : "anime-library.html";
     link.href = `${target}${query ? `?${query}` : ""}`;
     link.classList.toggle("active", link.dataset.libraryPage === state.libraryType);
   });
@@ -1042,8 +1162,9 @@ function profileBannerUrl() {
 
 function renderProfileOverview() {
   const allItems = Object.values(state.library).sort((a, b) => b.updatedAt - a.updatedAt);
-  const animeItems = allItems.filter((item) => item.type === "anime");
-  const mangaItems = allItems.filter((item) => item.type === "manga");
+  const adultItems = allItems.filter(isAdultLibraryItem);
+  const animeItems = allItems.filter((item) => item.type === "anime" && !isAdultLibraryItem(item));
+  const mangaItems = allItems.filter((item) => item.type === "manga" && !isAdultLibraryItem(item));
   const episodes = animeItems.reduce((sum, item) => sum + Number(item.progress || 0), 0);
   const chapters = mangaItems.reduce((sum, item) => sum + Number(item.progress || 0), 0);
   const ratings = allItems.map((item) => Number(item.rating)).filter(Boolean);
@@ -1055,13 +1176,17 @@ function renderProfileOverview() {
   setText("[data-profile-total-manga]", String(mangaItems.length));
   setText("[data-profile-chapters]", String(chapters));
   setText("[data-profile-score]", meanScore);
+  setText("[data-profile-total-adult]", String(adultItems.length));
+  setText("[data-profile-total-hentai]", String(adultItems.filter(isHentaiLibraryItem).length));
+  setText("[data-profile-total-doujin]", String(adultItems.filter(isDoujinLibraryItem).length));
   document.querySelector("[data-profile-anime-bar]")?.style.setProperty("width", `${Math.min(100, Math.max(8, animeItems.length * 2))}%`);
   document.querySelector("[data-profile-manga-bar]")?.style.setProperty("width", `${Math.min(100, Math.max(8, chapters / 180))}%`);
+  document.querySelector("[data-profile-adult-bar]")?.style.setProperty("width", `${Math.min(100, Math.max(8, adultItems.length * 6))}%`);
 
   renderProfileHeatmap(allItems);
   renderProfileGenres(allItems);
-  renderProfilePreview(document.querySelector("[data-profile-favorites]"), favoriteProfileItems(allItems));
-  renderProfileFeed(document.querySelector("[data-profile-feed]"), allItems.slice(0, 6));
+  renderProfilePreview(document.querySelector("[data-profile-favorites]"), favoriteProfileItems([...animeItems, ...mangaItems]));
+  renderProfileFeed(document.querySelector("[data-profile-feed]"), [...animeItems, ...mangaItems].slice(0, 6));
 }
 
 function favoriteProfileItems(items) {
@@ -1106,7 +1231,7 @@ function renderProfilePreview(container, items) {
       <span>${escapeHtml(item.title)}</span>
     </button>
   `).join("");
-  container.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => goToDetails(state.library[button.dataset.id])));
+  container.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => openLibraryItem(state.library[button.dataset.id])));
 }
 
 function renderProfileFeed(container, items) {
@@ -1121,7 +1246,7 @@ function renderProfileFeed(container, items) {
   `).join("");
   container.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => {
     const item = state.library[button.dataset.id] || samples.find((sample) => sample.id === button.dataset.id);
-    if (item) goToDetails(item);
+    if (item) openLibraryItem(item);
   }));
 }
 
@@ -2173,8 +2298,9 @@ function setupLatestRailAutoLoad(container) {
 function handleCardNavigation(event) {
   const card = event.target.closest("[data-id]");
   if (!card) return;
-  const item = state.currentItems.find((entry) => entry.id === card.dataset.id) || itemFromDataset(card);
-  goToDetails(item);
+  const activityItem = card.classList.contains("home-activity-card") ? homeActivityItemById(card.dataset.id) : null;
+  const item = activityItem || state.currentItems.find((entry) => entry.id === card.dataset.id) || itemFromDataset(card);
+  openLibraryItem(resolveNavigableItem(item));
 }
 
 function handleHomePointerDown(event) {
@@ -2204,8 +2330,13 @@ function handleHomePointerNavigation(event) {
 
   event.preventDefault();
   event.stopImmediatePropagation();
-  const item = state.currentItems.find((entry) => entry.id === start.id) || itemFromDataset(start.card);
-  goToDetails(item);
+  const activityItem = start.card.classList.contains("home-activity-card") ? homeActivityItemById(start.id) : null;
+  const item = activityItem || state.currentItems.find((entry) => entry.id === start.id) || itemFromDataset(start.card);
+  openLibraryItem(resolveNavigableItem(item));
+}
+
+function homeActivityItemById(id) {
+  return state.homeActivityItems.find((activity) => (activity.item || activity)?.id === id)?.item || null;
 }
 
 function setMediaDataset(element, item) {
@@ -2304,7 +2435,8 @@ function renderEditorPick(container, item) {
 function renderLibrary() {
   const animeList = document.querySelector('[data-library-list="anime"]');
   const mangaList = document.querySelector('[data-library-list="manga"]');
-  if (!animeList && !mangaList) return;
+  const adultList = document.querySelector('[data-library-list="adult"]');
+  if (!animeList && !mangaList && !adultList) return;
 
   const allItems = Object.values(state.library).sort((a, b) => b.updatedAt - a.updatedAt);
   const query = normalizeSearchText(state.librarySearch);
@@ -2317,35 +2449,36 @@ function renderLibrary() {
     if (state.libraryYear !== "all" && String(item.year || "") !== state.libraryYear) return false;
     return true;
   });
-  const adultItems = advancedItems.filter((item) => {
-    if (state.libraryAdultFilter === "adult") return isAdultLibraryItem(item);
-    if (state.libraryAdultFilter === "normal") return !isAdultLibraryItem(item);
+  const items = sortLibraryItems(advancedItems);
+  const animeItems = items.filter((item) => item.type === "anime" && !isAdultLibraryItem(item));
+  const mangaItems = items.filter((item) => item.type === "manga" && !isAdultLibraryItem(item));
+  const adultItems = items.filter((item) => {
+    if (!isAdultLibraryItem(item)) return false;
     if (state.libraryAdultFilter === "doujin") return isDoujinLibraryItem(item);
     if (state.libraryAdultFilter === "hentai") return isHentaiLibraryItem(item);
     return true;
   });
-  const items = sortLibraryItems(adultItems);
-  const animeItems = items.filter((item) => item.type === "anime");
-  const mangaItems = items.filter((item) => item.type === "manga");
 
   if (animeList) renderLibraryGroup(animeList, animeItems, allItems.length ? "No anime match this filter." : "No anime tracked yet. Add titles from the Anime page.");
   if (mangaList) renderLibraryGroup(mangaList, mangaItems, allItems.length ? "No manga match this filter." : "No manga tracked yet. Add titles from the Manga page.");
+  if (adultList) renderLibraryGroup(adultList, adultItems, allItems.length ? "No adult titles match this filter." : "No adult titles tracked yet. Add hentai or doujin from adult sources.");
   setText("[data-anime-count]", `${animeItems.length} ${animeItems.length === 1 ? "title" : "titles"}`);
   setText("[data-manga-count]", `${mangaItems.length} ${mangaItems.length === 1 ? "title" : "titles"}`);
-  const pageItems = state.libraryType === "manga" ? mangaItems : animeItems;
-  const allPageItems = allItems.filter((item) => item.type === state.libraryType);
-  setText("[data-library-summary]", state.libraryType === "manga" ? `${allPageItems.length} manga saved locally` : `${allPageItems.length} anime saved locally`);
+  const pageItems = state.libraryType === "adult" ? adultItems : state.libraryType === "manga" ? mangaItems : animeItems;
+  const allPageItems = allItems.filter((item) => state.libraryType === "adult" ? isAdultLibraryItem(item) : item.type === state.libraryType && !isAdultLibraryItem(item));
+  setText("[data-library-summary]", state.libraryType === "adult" ? `${allPageItems.length} adult titles saved locally` : state.libraryType === "manga" ? `${allPageItems.length} manga saved locally` : `${allPageItems.length} anime saved locally`);
   setText("[data-library-total-count]", String(pageItems.length));
   setText("[data-library-adult-count]", String(pageItems.filter(isAdultLibraryItem).length));
   setText("[data-library-normal-count]", String(pageItems.filter((item) => !isAdultLibraryItem(item)).length));
   const heading = document.querySelector(".profile-library-head h2");
-  if (heading) heading.textContent = state.filter === "all" ? (state.libraryType === "manga" ? "Reading" : "Watching") : statusLabel(state.filter);
+  if (heading) heading.textContent = state.filter === "all" ? (state.libraryType === "adult" ? "Adult Library" : state.libraryType === "manga" ? "Reading" : "Watching") : statusLabel(state.filter);
 
   updateStats();
 }
 
 function populateLibraryAdvancedFilters() {
-  const pageItems = Object.values(state.library).filter((item) => item.type === (document.body.dataset.libraryKind || "anime"));
+  const kind = document.body.dataset.libraryKind || "anime";
+  const pageItems = Object.values(state.library).filter((item) => kind === "adult" ? isAdultLibraryItem(item) : item.type === kind && !isAdultLibraryItem(item));
   populateLibrarySelect("Format", uniqueStrings(pageItems.map((item) => item.format || item.displayType).filter(Boolean)), "Format");
   populateLibrarySelect("StatusText", uniqueStrings(pageItems.map((item) => item.statusText).filter(Boolean)), "Status");
   populateLibrarySelect("Genre", uniqueStrings(pageItems.flatMap((item) => item.genres || [])), "Genres");
@@ -2398,6 +2531,24 @@ function doujinLibraryApiId(item) {
   return String(item?.id || "").replace(/^doujin-/, "");
 }
 
+function openLibraryItem(item) {
+  if (!item) return;
+  if (isDoujinLibraryItem(item)) {
+    sessionStorage.setItem("doujin-preview-manga", JSON.stringify(item));
+    window.location.href = `doujin-preview.html?id=${encodeURIComponent(doujinLibraryApiId(item))}`;
+    return;
+  }
+  goToDetails(item);
+}
+
+function resolveNavigableItem(item) {
+  if (!item) return null;
+  const libraryId = item.libraryId || item.id;
+  if (libraryId && state.library[libraryId]) return state.library[libraryId];
+  if (item.item) return resolveNavigableItem(item.item);
+  return item.type && (item.apiId || item.id) ? item : null;
+}
+
 function renderLibraryGroup(container, items, emptyMessage) {
   container.innerHTML = "";
   if (!items.length) return renderEmpty(container, emptyMessage);
@@ -2422,10 +2573,7 @@ function renderLibraryItem(item) {
       <span class="library-card-percent" style="--percent:${percent}%">${percent}%</span>
     </div>
   `;
-  const openItem = () => {
-    if (isDoujinLibraryItem(item)) window.location.href = `doujin-preview.html?id=${encodeURIComponent(doujinLibraryApiId(item))}`;
-    else goToDetails(item);
-  };
+  const openItem = () => openLibraryItem(item);
   row.addEventListener("click", (event) => {
     event.stopPropagation();
     openItem();
@@ -3436,16 +3584,16 @@ function renderNotifications() {
   popover.innerHTML = `
     <strong>Notifications</strong>
     ${visibleItems.length ? visibleItems.map((item) => `
-      <button class="notification-row" data-library-id="${escapeAttr(item.libraryId || item.id)}" type="button">
+      <button class="notification-row" data-notification-index="${visibleItems.indexOf(item)}" type="button">
         <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
         <span>${escapeHtml(notificationText(item))}<small>${escapeHtml(relativeTime(item.updatedAt))}</small></span>
       </button>
     `).join("") : `<p class="notification-empty">No notifications yet.</p>`}
     ${hasMore ? `<button class="notification-more" data-notification-more type="button">Load more notifications</button>` : ""}
   `;
-  popover.querySelectorAll("[data-library-id]").forEach((row) => row.addEventListener("click", () => {
-    const item = state.library[row.dataset.libraryId];
-    if (item) goToDetails(item);
+  popover.querySelectorAll("[data-notification-index]").forEach((row) => row.addEventListener("click", () => {
+    const item = resolveNavigableItem(visibleItems[Number(row.dataset.notificationIndex)]);
+    if (item) openLibraryItem(item);
   }));
   popover.querySelector("[data-notification-more]")?.addEventListener("click", () => {
     state.notificationPage += 1;
@@ -3494,16 +3642,16 @@ function renderHistory() {
   popover.innerHTML = `
     <strong>History</strong>
     ${visibleItems.length ? visibleItems.map((item) => `
-      <button class="history-row" data-id="${escapeAttr(item.id)}" type="button">
+      <button class="history-row" data-history-index="${visibleItems.indexOf(item)}" type="button">
         <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
         <span>${escapeHtml(historyText(item))}<small>${escapeHtml(relativeTime(item.activityTime || item.updatedAt))}</small></span>
       </button>
     `).join("") : `<p class="notification-empty">No library history yet.</p>`}
     ${hasMore ? `<button class="notification-more" data-history-more type="button">Load more history</button>` : ""}
   `;
-  popover.querySelectorAll("[data-id]").forEach((row) => row.addEventListener("click", () => {
-    const item = state.library[row.dataset.id];
-    if (item) goToDetails(item);
+  popover.querySelectorAll("[data-history-index]").forEach((row) => row.addEventListener("click", () => {
+    const item = resolveNavigableItem(visibleItems[Number(row.dataset.historyIndex)]);
+    if (item) openLibraryItem(item);
   }));
   popover.querySelector("[data-history-more]")?.addEventListener("click", () => {
     state.historyPage += 1;
@@ -4289,10 +4437,15 @@ function compactActivityItem(item) {
   return {
     id: item.id,
     apiId: item.apiId,
+    apiSource: item.apiSource,
     providerId: item.providerId,
+    provider: item.provider,
     type: item.type,
     title: item.title,
     image: item.image || fallbackImage,
+    displayType: item.displayType,
+    format: item.format,
+    genres: item.genres,
     status: item.status,
     progress: item.progress,
     total: item.total,
@@ -5003,6 +5156,7 @@ async function initPlayerPage() {
   document.querySelector("[data-anime-title]").textContent = anime.title;
 
   playerRuntime.anime = anime;
+  const currentSourceId = params.get("source") || startData?.sourceId || localStorage.getItem(animeSourceKey(anime)) || "";
 
   let episodes = buildEpisodes(anime);
   if (sourceMatches.length && startData?.sourceId === "hstream") {
@@ -5023,31 +5177,17 @@ async function initPlayerPage() {
   }
   playerRuntime.episodes = episodes;
 
-  renderEpisodesList(episodes, anime);
-
-  // Setup episode search
-  const searchInput = document.querySelector("[data-episodes-search] input");
-  const searchToggle = document.querySelector("[data-episodes-search-toggle]");
-  const searchContainer = document.querySelector("[data-episodes-search]");
-
-  searchToggle.addEventListener("click", () => {
-    searchContainer.classList.toggle("show");
-    if (searchContainer.classList.contains("show")) {
-      searchInput.focus();
-    }
-  });
-
-  searchInput.addEventListener("input", (e) => {
-    const query = e.target.value.toLowerCase();
-    document.querySelectorAll("[data-episode-item]").forEach((item) => {
-      const title = item.dataset.episodeTitle.toLowerCase();
-      const number = item.dataset.episodeNumber;
-      const matches = title.includes(query) || number.includes(query);
-      item.style.display = matches ? "" : "none";
-    });
-  });
+  setupPlayerSourceSelector(anime, currentSourceId);
+  setupPlayerEpisodeSearchControls();
 
   const targetEpisode = params.get("episode") || startData?.episode?.number || "";
+  if (!episodes.length) {
+    const loaded = await switchPlayerSource(anime, currentSourceId || preferredAnimeDetailSource(animePlaybackSources(), ""), targetEpisode, { silent: true });
+    if (loaded) return;
+  }
+
+  renderEpisodesList(episodes, anime);
+
   const targetAudio = episodeAudioKey(startData?.episode);
   const targetButton = targetEpisode ? [...document.querySelectorAll("[data-episode-item]")].find((button) => {
     if (button.dataset.episodeNumber !== String(targetEpisode)) return false;
@@ -5063,6 +5203,120 @@ async function initPlayerPage() {
   else {
     document.querySelector("[data-video-player]").innerHTML = '<div class="player-loading"><p>No real episodes available.</p><p class="muted" style="font-size: 12px;">Use the details page source selector when a provider exposes episode entries.</p></div>';
     document.querySelector("[data-streaming-sources]").innerHTML = '<div class="empty">No episode list was returned by AniList or the selected source.</div>';
+  }
+}
+
+function setupPlayerEpisodeSearchControls() {
+  const searchInput = document.querySelector("[data-episodes-search] input");
+  const searchToggle = document.querySelector("[data-episodes-search-toggle]");
+  const searchContainer = document.querySelector("[data-episodes-search]");
+  if (!searchInput || !searchToggle || !searchContainer || searchInput.dataset.bound) return;
+  searchInput.dataset.bound = "true";
+
+  searchToggle.addEventListener("click", () => {
+    searchContainer.classList.toggle("show");
+    if (searchContainer.classList.contains("show")) searchInput.focus();
+  });
+
+  searchInput.addEventListener("input", (event) => {
+    const query = event.target.value.toLowerCase();
+    document.querySelectorAll("[data-episode-item]").forEach((item) => {
+      const title = item.dataset.episodeTitle.toLowerCase();
+      const number = item.dataset.episodeNumber;
+      const matches = title.includes(query) || number.includes(query);
+      item.style.display = matches ? "" : "none";
+    });
+  });
+}
+
+function animePlaybackSources() {
+  const sources = [];
+  if (animeSourceEnabled("animedex")) sources.push({ id: "animedex", name: "AnimeDex" });
+  if (animeSourceEnabled("anizone")) sources.push({ id: "anizone", name: "AniZone" });
+  if (animeSourceEnabled("anilibria")) sources.push({ id: "anilibria", name: "AniLibria" });
+  if (animeSourceEnabled("tokyoinsider")) sources.push({ id: "tokyoinsider", name: "TokyoInsider" });
+  if (animeSourceEnabled("hstream") && state.settings.allowAdult) sources.push({ id: "hstream", name: "hstream.moe" });
+  return sources;
+}
+
+function setupPlayerSourceSelector(anime, currentSourceId = "") {
+  const select = document.querySelector("[data-player-source-select]");
+  const status = document.querySelector("[data-player-source-status]");
+  const query = document.querySelector("[data-player-source-query]");
+  if (!select || !status) return;
+
+  const sources = animePlaybackSources();
+  if (!sources.length) {
+    select.innerHTML = '<option value="">No enabled sources</option>';
+    select.disabled = true;
+    if (query) query.disabled = true;
+    status.textContent = "Enable anime sources in Settings";
+    return;
+  }
+
+  select.disabled = false;
+  select.innerHTML = sources.map((source) => `<option value="${escapeAttr(source.id)}">${escapeHtml(source.name)}</option>`).join("");
+  const saved = currentSourceId || localStorage.getItem(animeSourceKey(anime)) || preferredAnimeDetailSource(sources, "");
+  select.value = sources.some((source) => source.id === saved) ? saved : sources[0].id;
+  if (query) query.value = localStorage.getItem(animeSourceCustomQueryKey(anime)) || "";
+  status.textContent = playerRuntime.episodes.length ? `${playerRuntime.episodes.length} episode${playerRuntime.episodes.length === 1 ? "" : "s"} loaded` : "Choose a source";
+
+  const loadSelected = () => switchPlayerSource(anime, select.value, playerRuntime.currentEpisodeNumber || "");
+  select.onchange = loadSelected;
+  if (query) {
+    query.onchange = () => {
+      localStorage.setItem(animeSourceCustomQueryKey(anime), query.value.trim());
+      loadSelected();
+    };
+  }
+}
+
+async function switchPlayerSource(anime, sourceId, targetEpisode = "", options = {}) {
+  const select = document.querySelector("[data-player-source-select]");
+  const status = document.querySelector("[data-player-source-status]");
+  const videoPlayer = document.querySelector("[data-video-player]");
+  const sources = document.querySelector("[data-streaming-sources]");
+  const source = animePlaybackSources().find((item) => item.id === sourceId) || animePlaybackSources()[0];
+  if (!source) return false;
+
+  if (select) select.value = source.id;
+  if (status) status.textContent = `Loading ${source.name}...`;
+  if (videoPlayer) videoPlayer.innerHTML = '<div class="player-loading"><div class="spinner"></div><p>Loading source episodes...</p></div>';
+  if (sources) sources.innerHTML = `<p class="muted">Loading ${escapeHtml(source.name)}...</p>`;
+  localStorage.setItem(animeSourceKey(anime), source.id);
+
+  try {
+    let episodes = [];
+    if (source.id === "hstream") {
+      const matches = await searchAdultAnime({ ...anime, sourceQuery: document.querySelector("[data-player-source-query]")?.value.trim() || "" });
+      episodes = hstreamMatchesToEpisodes(matches);
+      playerRuntime.currentSourceMatches = matches;
+      playerRuntime.allSourceEpisodes = [];
+    } else {
+      const match = await searchAnimeProviderMatch(anime, source.id, document.querySelector("[data-player-source-query]")?.value.trim() || "");
+      episodes = match ? await fetchAnimeProviderEpisodes(match) : [];
+      playerRuntime.currentSourceMatches = [];
+      playerRuntime.allSourceEpisodes = episodes;
+      if (source.id === "animedex") {
+        const preferredAudio = selectedAnimeEpisodeAudio(anime, episodes);
+        episodes = filterEpisodesByAudio(episodes, preferredAudio);
+      }
+    }
+
+    if (!episodes.length) throw new Error("No episodes");
+    playerRuntime.episodes = episodes;
+    renderEpisodesList(episodes, anime);
+    if (status) status.textContent = `${source.name} / ${episodes.length} episode${episodes.length === 1 ? "" : "s"}`;
+    const target = String(targetEpisode || "");
+    const button = target ? [...document.querySelectorAll("[data-episode-item]")].find((item) => item.dataset.episodeNumber === target) : null;
+    (button || document.querySelector("[data-episode-item]"))?.click();
+    return true;
+  } catch (error) {
+    if (status) status.textContent = `${source.name} returned no episodes`;
+    if (!options.silent) showToast(`No episodes found on ${source.name}`);
+    renderEpisodesList([], anime);
+    if (videoPlayer) videoPlayer.innerHTML = '<div class="player-loading"><p style="color: var(--red);">No playable episodes from this source</p></div>';
+    return false;
   }
 }
 
@@ -6427,6 +6681,7 @@ async function initReaderPage() {
 
   setupReadingMode();
   setupReaderControlsVisibility();
+  document.body.classList.add("reader-controls-visible");
 
   document.querySelector("[data-reader-top]")?.addEventListener("click", () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -6439,7 +6694,9 @@ async function initReaderPage() {
   });
 
   // Setup source and chapter list
-  const mangaSources = await loadMangaSourceMatches(manga);
+  const sourceQuery = document.querySelector("[data-manga-source-query]");
+  if (sourceQuery) sourceQuery.value = localStorage.getItem(mangaSourceCustomQueryKey(manga)) || "";
+  const mangaSources = await loadMangaSourceMatches(manga, sourceQuery?.value.trim() || "");
   renderMangaSourceSelector(mangaSources, manga);
   await loadMangaSourceChapters(manga, mangaSources);
 
@@ -6529,7 +6786,19 @@ function renderMangaSourceSelector(matches, manga) {
   const bar = document.querySelector("[data-manga-source-bar]");
   const select = document.querySelector("[data-manga-source-select]");
   const status = document.querySelector("[data-manga-source-status]");
+  const query = document.querySelector("[data-manga-source-query]");
   if (!bar || !select || !status) return;
+  if (query) query.value = localStorage.getItem(mangaSourceCustomQueryKey(manga)) || "";
+  if (query) {
+    query.onchange = async () => {
+      localStorage.setItem(mangaSourceCustomQueryKey(manga), query.value.trim());
+      status.textContent = "Searching sources...";
+      select.disabled = true;
+      const nextMatches = await loadMangaSourceMatches(manga, query.value.trim());
+      renderMangaSourceSelector(nextMatches, manga);
+      await loadMangaSourceChapters(manga, nextMatches);
+    };
+  }
 
   if (!matches.length) {
     bar.hidden = false;

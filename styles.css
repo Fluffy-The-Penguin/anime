@@ -218,6 +218,13 @@ input:focus, select:focus, textarea:focus { border-color: color-mix(in srgb, var
 .doujin-preview-copy h1 { max-width: 100%; margin: 8px 0 10px; font-size: clamp(26px, 4.2vw, 50px); line-height: 1.02; overflow-wrap: anywhere; hyphens: auto; }
 .doujin-preview-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
 .doujin-preview-meta span { border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; background: var(--soft); color: var(--muted); font-size: 12px; font-weight: 800; }
+.doujin-metadata { display: grid; gap: 10px; margin: 14px 0 4px; }
+.doujin-metadata-row { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; align-items: start; }
+.doujin-metadata-row strong { padding-top: 6px; color: var(--muted); font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+.doujin-metadata-row div { display: flex; flex-wrap: wrap; gap: 7px; }
+.doujin-tag-chip, .doujin-card-tags span { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--soft) 82%, var(--blue) 8%); color: var(--text); font-size: 12px; font-weight: 800; text-decoration: none; }
+.doujin-tag-chip { padding: 7px 10px; }
+.doujin-tag-chip:hover { border-color: color-mix(in srgb, var(--blue) 50%, var(--line)); color: #fff; background: linear-gradient(135deg, var(--blue), var(--pink)); }
 .doujin-preview-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .doujin-preview-panel { padding: clamp(14px, 3vw, 22px); }
 .doujin-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
@@ -628,6 +635,7 @@ input:focus, select:focus, textarea:focus { border-color: color-mix(in srgb, var
   .doujin-preview-hero { grid-template-columns: 1fr; }
   .doujin-preview-cover { max-width: 260px; }
   .doujin-preview-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .doujin-metadata-row { grid-template-columns: 1fr; gap: 6px; }
   .doujin-tag-filter .genre-menu { left: 0; right: auto; grid-template-columns: 1fr; }
   .content-board { grid-template-columns: 1fr; }
   .track-grid, .stats-grid, .search-row { grid-template-columns: 1fr; }
@@ -2586,15 +2594,37 @@ body[data-page="manga"] {
 }
 
 .doujin-toolbar {
-  grid-template-columns: minmax(280px, 1fr) auto;
-  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 .doujin-tag-picker {
-  grid-column: 1 / -1;
+  grid-column: auto;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.doujin-toolbar .browse-search {
+  flex: 1 1 420px;
+}
+
+.doujin-toolbar .browse-submit {
+  flex: 0 0 auto;
+}
+
+.doujin-toolbar .doujin-tag-picker {
+  flex: 0 0 auto;
+}
+
+.doujin-toolbar .doujin-tag-filter {
+  min-height: 42px;
+}
+
+.doujin-toolbar .doujin-tag-filter > span {
+  white-space: nowrap;
 }
 
 .doujin-card {
@@ -2604,6 +2634,18 @@ body[data-page="manga"] {
   color: inherit;
   background: transparent;
   text-align: left;
+}
+
+.doujin-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.doujin-card-tags span {
+  padding: 5px 8px;
+  color: var(--muted);
 }
 
 .doujin-page .browse-title {
@@ -4009,6 +4051,37 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
 }
 
 @media (max-width: 900px) {
+  .doujin-toolbar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .doujin-toolbar .browse-search {
+    flex: 1 1 100% !important;
+  }
+
+  .doujin-toolbar .browse-submit {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+  }
+
+  .doujin-toolbar .doujin-tag-picker {
+    flex: 1 1 auto !important;
+  }
+
+  .doujin-toolbar .doujin-tag-filter {
+    display: flex !important;
+    border: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
   .browse-toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;

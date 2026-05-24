@@ -13,11 +13,13 @@ module.exports = async function handler(req, res) {
   const providers = String(req.query.providers || "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
   const results = Array.isArray(backendResults) ? backendResults.filter((item) => !providers.length || providers.includes(item.provider)) : [];
   const title = String(req.query.title || "").trim();
-  const latest = !title && String(req.query.latest || "") === "1";
+  const tag = String(req.query.tag || "").trim();
+  const category = String(req.query.category || "").trim();
+  const latest = !title && (String(req.query.latest || "") === "1" || tag);
   const page = Math.max(1, Number.parseInt(req.query.page || "1", 10) || 1);
   if (latest) {
     const latestProviders = ADULT_MANGA_PROVIDERS.filter((provider) => (!providers.length || providers.includes(provider)) && !results.some((item) => item.provider === provider));
-    const latestResults = await Promise.allSettled(latestProviders.map((provider) => latestAdultMangaSource(provider, { page })));
+    const latestResults = await Promise.allSettled(latestProviders.map((provider) => latestAdultMangaSource(provider, { page, tag, category })));
     latestResults.forEach((result) => {
       if (result.status === "fulfilled") results.push(...result.value);
     });

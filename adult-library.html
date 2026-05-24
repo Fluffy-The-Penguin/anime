@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Your saved anime tracking library." />
-    <title>AniTrack | Anime Library</title>
+    <meta name="description" content="Your saved adult anime and doujin tracking library." />
+    <title>AniTrack | Adult Library</title>
     <link rel="stylesheet" href="styles.css?v=site-fix-6" />
     <script src="app.js?v=site-fix-6" defer></script>
   </head>
-  <body data-page="library" data-library-kind="anime">
+  <body data-page="library" data-library-kind="adult">
     <header class="topbar shell anilist-topbar">
       <a class="brand anilist-brand" href="index.html" aria-label="AniTrack home"><span>AT</span><b>AniTrack</b></a>
       <nav class="nav anilist-nav" aria-label="Primary navigation">
@@ -31,9 +31,9 @@
       <nav class="profile-tabs" aria-label="Profile navigation">
         <div class="shell profile-tabs-inner">
           <a href="profile.html">Overview</a>
-          <a class="active" href="anime-library.html">Anime Library</a>
+          <a href="anime-library.html">Anime Library</a>
           <a href="manga-library.html">Manga Library</a>
-          <a href="adult-library.html" data-adult-nav hidden>Adult Library</a>
+          <a class="active" href="adult-library.html" data-adult-nav hidden>Adult Library</a>
           <a href="profile.html#favorites">Favorites</a>
           <a href="profile.html#stats">Stats</a>
           <a href="profile.html#social">Social</a>
@@ -46,13 +46,14 @@
         <aside class="profile-list-sidebar">
           <label class="profile-library-search">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 18.4a7.7 7.7 0 1 1 5.4-13.1 7.7 7.7 0 0 1 0 10.8l4.1 4.1-2 2-4.1-4.1a7.6 7.6 0 0 1-3.4.8Zm0-3a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Z"/></svg>
-            <input data-library-search type="search" placeholder="Filter" autocomplete="off">
+            <input data-library-search type="search" placeholder="Filter adult titles" autocomplete="off">
           </label>
           <div class="profile-sidebar-block">
             <span>Lists</span>
             <div data-library-filters>
               <button class="active" data-filter="all" type="button">All</button>
               <button data-filter="watching" type="button">Watching</button>
+              <button data-filter="reading" type="button">Reading</button>
               <button data-filter="completed" type="button">Completed</button>
               <button data-filter="planning" type="button">Planning</button>
               <button data-filter="dropped" type="button">Dropped</button>
@@ -60,6 +61,7 @@
           </div>
           <div class="profile-sidebar-block filters">
             <span>Filters</span>
+            <label>Adult type<select data-library-adult-filter><option value="adult">All adult</option><option value="hentai">Hentai only</option><option value="doujin">Doujin only</option></select></label>
             <label>Format<select data-library-advanced-filter="Format"><option value="all">Format</option></select></label>
             <label>Status<select data-library-advanced-filter="StatusText"><option value="all">Status</option></select></label>
             <label>Genres<select data-library-advanced-filter="Genre"><option value="all">Genres</option></select></label>
@@ -69,8 +71,8 @@
         </aside>
         <section class="profile-library-content">
           <div class="profile-list-tools" aria-hidden="true"><span></span><span></span><span class="active"></span></div>
-          <div class="profile-library-head"><h2>Watching</h2><p class="muted" data-library-summary>0 anime saved locally</p></div>
-          <div class="library-list profile-card-grid" data-library-list="anime" aria-live="polite"></div>
+          <div class="profile-library-head"><h2>Adult Library</h2><p class="muted" data-library-summary>0 adult titles saved locally</p></div>
+          <div class="library-list profile-card-grid" data-library-list="adult" aria-live="polite"></div>
         </section>
       </section>
     </main>
