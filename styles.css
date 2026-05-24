@@ -8702,3 +8702,85 @@ body[data-page="profile"] .profile-hero h1 {
     grid-template-columns: 1fr;
   }
 }
+
+/* Final profile mobile guardrails: keep every profile subpage inside the viewport. */
+@media (max-width: 720px) {
+  body[data-page="profile"],
+  body[data-page="library"] {
+    overflow-x: hidden;
+  }
+
+  body[data-page="profile"] .shell,
+  body[data-page="library"] .shell,
+  body[data-page="profile"] .profile-overview-grid,
+  body[data-page="profile"] .profile-subpage,
+  body[data-page="library"] .profile-list-layout {
+    width: min(100% - 22px, 1300px) !important;
+    max-width: calc(100vw - 22px) !important;
+  }
+
+  body[data-page="profile"] .profile-overview-grid,
+  body[data-page="profile"] .profile-stats-page,
+  body[data-page="library"] .profile-list-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+    justify-content: stretch !important;
+    gap: 18px !important;
+  }
+
+  body[data-page="profile"] .profile-overview-left,
+  body[data-page="profile"] .profile-overview-main,
+  body[data-page="profile"] .profile-panel,
+  body[data-page="profile"] .profile-favorites-list,
+  body[data-page="profile"] .profile-favorite-group,
+  body[data-page="library"] .profile-library-content,
+  body[data-page="library"] .profile-list-sidebar {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  body[data-page="profile"] .profile-tabs {
+    overflow: hidden;
+  }
+
+  body[data-page="profile"] .profile-tabs-inner {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    gap: 8px !important;
+    overflow-x: auto;
+    padding: 0 10px !important;
+    scroll-padding: 10px;
+  }
+
+  body[data-page="profile"] .profile-tabs a {
+    flex: 0 0 auto;
+    max-width: 44vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  body[data-page="profile"] .profile-read-data-grid,
+  body[data-page="profile"] .profile-stats-grid,
+  body[data-page="profile"] .profile-favorites-page .profile-mini-library,
+  body[data-page="library"] .profile-card-grid.library-list {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body[data-page="profile"] .profile-read-data-grid div,
+  body[data-page="profile"] .profile-stats-grid div,
+  body[data-page="profile"] .profile-mini-library,
+  body[data-page="profile"] .profile-filter-tools,
+  body[data-page="library"] .profile-list-tools,
+  body[data-page="library"] .profile-library-search {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (min-width: 461px) and (max-width: 720px) {
+  body[data-page="profile"] .profile-read-data-grid,
+  body[data-page="profile"] .profile-stats-grid,
+  body[data-page="profile"] .profile-favorites-page .profile-mini-library {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
