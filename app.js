@@ -169,8 +169,12 @@ function injectChrome() {
         </button>` : ""}
         <button class="icon-btn theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">${themeIcon()}</button>
         <div class="notification-menu">
-          <button class="icon-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false"><span data-notification-count>0</span></button>
+          <button class="icon-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.7 2.7 0 0 0 2.5-1.7h-5A2.7 2.7 0 0 0 12 22Zm7-6.4-1.7-2.3V9a5.3 5.3 0 0 0-4-5.1V3a1.3 1.3 0 0 0-2.6 0v.9a5.3 5.3 0 0 0-4 5.1v4.3L5 15.6V18h14v-2.4Z"/></svg><span data-notification-count hidden>0</span></button>
           <div class="notification-popover" data-notification-popover></div>
+        </div>
+        <div class="history-menu">
+          <button class="icon-btn history-btn" data-history-toggle type="button" aria-label="Open history" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-2.3-5.7L15 9h7V2l-2.9 2.9A10 10 0 0 0 12 2Zm-1 5v6l5 3 .9-1.6-3.9-2.3V7h-2Z"/></svg></button>
+          <div class="history-popover" data-history-popover></div>
         </div>
         <div class="profile-menu">
           <button class="icon-btn profile-btn" data-profile-toggle type="button" aria-label="Open profile settings">${profileInitials()}</button>
@@ -227,19 +231,23 @@ function injectChrome() {
   document.querySelector("[data-theme-toggle]").addEventListener("click", toggleTheme);
   document.querySelector("[data-menu-toggle]").addEventListener("click", toggleMobileMenu);
   document.querySelector("[data-notification-toggle]")?.addEventListener("click", toggleNotifications);
+  document.querySelector("[data-history-toggle]")?.addEventListener("click", toggleHistory);
   document.querySelector("[data-browse-filter-toggle]")?.addEventListener("click", toggleBrowseFilters);
   initAccountControls();
   syncAdultControls();
   renderNotifications();
+  renderHistory();
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeMobileMenu();
     if (event.key === "Escape") closeAccountModal();
     if (event.key === "Escape") closeNotifications();
+    if (event.key === "Escape") closeHistory();
   });
 
   document.addEventListener("click", (event) => {
     if (!event.target.closest(".profile-menu")) closeProfileMenu();
     if (!event.target.closest(".notification-menu")) closeNotifications();
+    if (!event.target.closest(".history-menu")) closeHistory();
     if (!event.target.closest(".topbar")) closeMobileMenu();
   });
 }
@@ -3295,6 +3303,7 @@ function closeSearchOverlay() {
 function toggleProfileMenu(event) {
   event.stopPropagation();
   closeNotifications();
+  closeHistory();
   document.querySelector("[data-profile-popover]")?.classList.toggle("show");
 }
 
@@ -3305,6 +3314,7 @@ function closeProfileMenu() {
 function toggleNotifications(event) {
   event.stopPropagation();
   closeProfileMenu();
+  closeHistory();
   const popover = document.querySelector("[data-notification-popover]");
   const button = document.querySelector("[data-notification-toggle]");
   if (!popover || !button) return;
@@ -3328,10 +3338,10 @@ function renderNotifications() {
   const count = document.querySelector("[data-notification-count]");
   const button = document.querySelector("[data-notification-toggle]");
   if (!popover || !count || !button) return;
-  const readAt = Number(localStorage.getItem(NOTIFICATION_READ_KEY) || 0);
   const items = notificationItems();
-  const unread = items.filter((item) => Number(item.updatedAt || 0) > readAt).length;
+  const unread = 0;
   count.textContent = unread > 99 ? "99+" : String(unread);
+  count.hidden = unread === 0;
   button.classList.toggle("has-unread", unread > 0);
   button.setAttribute("aria-label", unread ? `Open notifications, ${unread} unread` : "Open notifications");
   popover.innerHTML = `
@@ -3341,7 +3351,7 @@ function renderNotifications() {
         <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
         <span>${escapeHtml(notificationText(item))}<small>${escapeHtml(relativeTime(item.updatedAt))}</small></span>
       </button>
-    `).join("") : `<p class="notification-empty">No library activity yet.</p>`}
+    `).join("") : `<p class="notification-empty">No notifications yet.</p>`}
   `;
   popover.querySelectorAll("[data-id]").forEach((row) => row.addEventListener("click", () => {
     const item = state.library[row.dataset.id];
@@ -3350,10 +3360,55 @@ function renderNotifications() {
 }
 
 function notificationItems() {
+  return [];
+}
+
+function toggleHistory(event) {
+  event.stopPropagation();
+  closeProfileMenu();
+  closeNotifications();
+  const popover = document.querySelector("[data-history-popover]");
+  const button = document.querySelector("[data-history-toggle]");
+  if (!popover || !button) return;
+  const shouldOpen = !popover.classList.contains("show");
+  popover.classList.toggle("show", shouldOpen);
+  button.setAttribute("aria-expanded", String(shouldOpen));
+  if (shouldOpen) renderHistory();
+}
+
+function closeHistory() {
+  document.querySelector("[data-history-popover]")?.classList.remove("show");
+  document.querySelector("[data-history-toggle]")?.setAttribute("aria-expanded", "false");
+}
+
+function renderHistory() {
+  const popover = document.querySelector("[data-history-popover]");
+  if (!popover) return;
+  const items = historyItems();
+  popover.innerHTML = `
+    <strong>History</strong>
+    ${items.length ? items.map((item) => `
+      <button class="history-row" data-id="${escapeAttr(item.id)}" type="button">
+        <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
+        <span>${escapeHtml(historyText(item))}<small>${escapeHtml(relativeTime(item.updatedAt))}</small></span>
+      </button>
+    `).join("") : `<p class="notification-empty">No library history yet.</p>`}
+  `;
+  popover.querySelectorAll("[data-id]").forEach((row) => row.addEventListener("click", () => {
+    const item = state.library[row.dataset.id];
+    if (item) goToDetails(item);
+  }));
+}
+
+function historyItems() {
   return Object.values(state.library)
     .filter((item) => item?.updatedAt)
     .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))
     .slice(0, 8);
+}
+
+function historyText(item) {
+  return notificationText(item);
 }
 
 function notificationText(item) {
@@ -3988,6 +4043,7 @@ function persistLibrary(sync = true) {
     LEGACY_STORAGE_KEYS.forEach((key) => localStorage.setItem(key, JSON.stringify(state.library)));
     if (sync) scheduleAccountSync();
     renderNotifications();
+    renderHistory();
     return true;
   } catch (error) {
     return false;
