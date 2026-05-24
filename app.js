@@ -941,11 +941,16 @@ function syncLibraryPageLinks() {
 
 function hydrateProfileShell() {
   const avatar = profileAvatarUrl();
+  const banner = profileBannerUrl();
+  document.body.style.setProperty("--profile-bg", `url("${avatar.replace(/"/g, "%22")}")`);
   document.querySelectorAll("[data-profile-name]").forEach((node) => {
     node.textContent = profileDisplayName();
   });
   document.querySelectorAll("[data-profile-avatar]").forEach((image) => {
     image.src = avatar;
+  });
+  document.querySelectorAll("[data-profile-hero]").forEach((hero) => {
+    hero.style.setProperty("--profile-bg", `url("${banner.replace(/"/g, "%22")}")`);
   });
 }
 
@@ -956,6 +961,11 @@ function profileDisplayName() {
 function profileAvatarUrl() {
   const items = Object.values(state.library).filter((item) => item?.image);
   return items[0]?.image || fallbackImage;
+}
+
+function profileBannerUrl() {
+  const items = Object.values(state.library).filter((item) => item?.banner || item?.image);
+  return items[0]?.banner || items[0]?.image || fallbackImage;
 }
 
 function renderProfileOverview() {
