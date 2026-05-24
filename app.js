@@ -54,7 +54,13 @@ const DOUJIN_TAGS = [
   "vanilla", "romance", "full color", "uncensored", "anal", "creampie", "paizuri", "blowjob", "nakadashi", "threesome", "group", "mind break",
   "hypnosis", "corruption", "cosplay", "maid", "nurse", "office lady", "gyaru", "tomboy", "futanari", "yuri", "stockings", "swimsuit",
   "pregnant", "lactation", "dark skin", "elf", "monster girl", "succubus", "tentacles", "bondage", "femdom", "exhibitionism", "voyeurism", "incest",
-  "sister", "daughter", "childhood friend", "idol", "game cg", "artist cg", "western", "doujinshi", "manga", "english"
+  "sister", "daughter", "childhood friend", "idol", "game cg", "artist cg", "western", "doujinshi", "manga", "english",
+  "sole female", "sole male", "schoolgirl uniform", "glasses", "multi-work series", "x-ray", "yaoi", "defloration", "mosaic censorship", "males only",
+  "big penis", "impregnation", "double penetration", "sex toys", "hairy", "big ass", "ffm threesome", "sweating", "twintails", "dilf", "muscle",
+  "collar", "ponytail", "kissing", "full censorship", "small breasts", "big nipples", "masturbation", "oral", "handjob", "lingerie", "bikini",
+  "garter belt", "kimono", "apron", "bunny girl", "catgirl", "kemonomimi", "tanned", "tanlines", "public use", "humiliation", "blackmail",
+  "drugs", "mind control", "slave", "petplay", "pegging", "facesitting", "cunnilingus", "sixty-nine", "rimjob", "footjob", "foot licking",
+  "smell", "urination", "scat", "inflation", "vore", "monster", "demon", "ghost", "alien", "robot", "body swap", "gender bender"
 ];
 const DOUJIN_METADATA_LABELS = {
   artists: "Artists",
@@ -1653,7 +1659,8 @@ function renderAllHomeProgress(items, grids = homeProgressGrids()) {
   Object.entries(grids).forEach(([bucket, grid]) => {
     const section = document.querySelector(`[data-home-progress-section="${bucket}"]`);
     const adultBucket = ["pornhwa", "hentai", "doujin"].includes(bucket);
-    if (section) section.hidden = adultBucket && !state.settings.allowAdult;
+    const progressItems = buckets[bucket] || [];
+    if (section) section.hidden = !progressItems.length || (adultBucket && !state.settings.allowAdult);
     renderHomeProgress(grid, buckets[bucket] || [], bucket);
   });
 }
@@ -1763,7 +1770,10 @@ function legacyRenderHomeActivity(container, items) {
 function renderHomeProgress(container, items, mediaType = "anime") {
   if (!container) return;
   const progressItems = items.slice(0, 20);
-  if (!progressItems.length) return renderEmpty(container, `No ${homeProgressLabel(mediaType).toLowerCase()} in progress yet.`);
+  if (!progressItems.length) {
+    container.innerHTML = "";
+    return;
+  }
   container.innerHTML = progressItems.map((item, index) => {
     const isManga = item.type === "manga" || ["manga", "pornhwa", "doujin"].includes(mediaType);
     const total = Number(item.total || 0);
@@ -5028,15 +5038,8 @@ function compactActivityTimeline(items) {
     const progress = Number(item?.progress || 0);
     const previous = compacted[compacted.length - 1];
     if (activity?.action === "updated" && previous?.action === "updated" && item?.id && previous.item?.id === item.id && progress > 0) {
-      const start = Math.min(
-        Number(previous.item.progressStart || previous.item.progress || progress),
-        Number(item.progressStart || progress)
-      );
-      const end = Math.max(
-        Number(previous.item.progressEnd || previous.item.progress || progress),
-        Number(item.progressEnd || progress)
-      );
-      previous.item = { ...previous.item, ...item, progressStart: start, progressEnd: end, progress: end };
+      const ranges = mergeActivityRanges([...activityRangesFromItem(previous.item), ...activityRangesFromItem(item, progress)]);
+      previous.item = { ...item, ...previous.item, progressRanges: ranges, progress: activityRangesMax(ranges) || previous.item.progress || progress };
       previous.text = activityTextForItem(previous.item, "updated");
       previous.time = Math.max(Number(previous.time || 0), Number(activity.time || 0));
       return;
@@ -5044,6 +5047,64 @@ function compactActivityTimeline(items) {
     compacted.push(activity);
   });
   return compacted;
+}
+
+function activityRangesFromItem(item, fallbackProgress = 0) {
+  const ranges = [];
+  if (Array.isArray(item?.progressRanges)) {
+    item.progressRanges.forEach((range) => {
+      const start = Number(Array.isArray(range) ? range[0] : range?.start);
+      const end = Number(Array.isArray(range) ? range[1] : range?.end);
+      if (Number.isFinite(start) && start > 0) ranges.push({ start, end: Number.isFinite(end) && end > 0 ? end : start });
+    });
+  }
+
+  if (!ranges.length) {
+    const start = Number(item?.progressStart || 0);
+    const end = Number(item?.progressEnd || item?.progress || fallbackProgress || 0);
+    if (end > 0) ranges.push({ start: start > 0 ? start : end, end });
+  }
+
+  const progress = Number(fallbackProgress || item?.progress || 0);
+  if (progress > 0 && !ranges.some((range) => progress >= range.start && progress <= range.end)) ranges.push({ start: progress, end: progress });
+  return mergeActivityRanges(ranges);
+}
+
+function addProgressToActivityRanges(item, progress) {
+  const value = Number(progress || 0);
+  if (!value) return activityRangesFromItem(item);
+  return mergeActivityRanges([...activityRangesFromItem(item), { start: value, end: value }]);
+}
+
+function mergeActivityRanges(ranges) {
+  const sorted = (ranges || [])
+    .map((range) => ({ start: Math.min(Number(range.start), Number(range.end)), end: Math.max(Number(range.start), Number(range.end)) }))
+    .filter((range) => Number.isFinite(range.start) && Number.isFinite(range.end) && range.end > 0)
+    .sort((a, b) => a.start - b.start);
+  const merged = [];
+  sorted.forEach((range) => {
+    const previous = merged[merged.length - 1];
+    if (previous && range.start <= previous.end + 1) {
+      previous.end = Math.max(previous.end, range.end);
+      return;
+    }
+    merged.push({ start: range.start, end: range.end });
+  });
+  return merged;
+}
+
+function activityRangesMax(ranges) {
+  return Math.max(0, ...(ranges || []).map((range) => Number(range.end || 0)));
+}
+
+function formatActivityRanges(item) {
+  const ranges = activityRangesFromItem(item);
+  return ranges.map((range) => range.start === range.end ? formatProgressNumber(range.start) : `${formatProgressNumber(range.start)}-${formatProgressNumber(range.end)}`).join(", ");
+}
+
+function formatProgressNumber(value) {
+  const number = Number(value || 0);
+  return Number.isInteger(number) ? String(number) : String(number).replace(/\.0+$/, "");
 }
 
 function loadFavorites() {
@@ -5129,15 +5190,13 @@ function recordActivity(item, action = "updated") {
   const latest = existing[0];
   const progress = Number(compact.progress || 0);
   if (action === "updated" && progress > 0 && latest?.action === "updated" && latest.item?.id === item.id) {
-    const start = Number(latest.item.progressStart || latest.item.progress || progress);
-    const end = Number(latest.item.progressEnd || latest.item.progress || progress);
+    const ranges = addProgressToActivityRanges(latest.item, progress);
     latest.time = Date.now();
     latest.item = {
       ...latest.item,
       ...compact,
-      progressStart: Math.min(start, progress),
-      progressEnd: Math.max(end, progress),
-      progress: Math.max(end, progress),
+      progressRanges: ranges,
+      progress: activityRangesMax(ranges) || progress,
     };
     latest.text = activityTextForItem(latest.item, action);
     saveActivity(existing);
@@ -5170,6 +5229,7 @@ function compactActivityItem(item) {
     progress: item.progress,
     progressStart: item.progressStart,
     progressEnd: item.progressEnd,
+    progressRanges: item.progressRanges,
     total: item.total,
     unit: item.unit,
     updatedAt: item.updatedAt,
@@ -5182,9 +5242,11 @@ function activityTextForItem(item, action = "updated") {
   if (action === "added") return `Added`;
   if (action === "removed") return `Removed`;
   if (item.status === "completed") return "Completed";
-  const start = Number(item.progressStart || 0);
-  const end = Number(item.progressEnd || item.progress || 0);
-  if (end > 0) return `${isManga ? "Read chapter" : "Watched episode"} ${start > 0 && start !== end ? `${start}-${end}` : end}`;
+  const ranges = formatActivityRanges(item);
+  if (ranges) {
+    const isMultiple = ranges.includes(",") || ranges.includes("-");
+    return `${isManga ? `Read chapter${isMultiple ? "s" : ""}` : `Watched episode${isMultiple ? "s" : ""}`} ${ranges}`;
+  }
   return `Plans to ${isManga ? "read" : "watch"}`;
 }
 
@@ -7300,7 +7362,7 @@ function applySubtitleStyle(overlay) {
   const offset = Math.max(16, Math.min(320, Number(style.offset) || DEFAULT_SUBTITLE_STYLE.offset));
   overlay.style.setProperty("--subtitle-base-offset", `${offset}px`);
   overlay.style.setProperty("--subtitle-controls-offset", `${offset + 52}px`);
-  overlay.style.setProperty("--subtitle-settings-offset", `${offset + 134}px`);
+  overlay.style.setProperty("--subtitle-settings-offset", `${offset + 52}px`);
   overlay.classList.toggle("subtitle-top", style.position === "top");
 }
 

@@ -7552,7 +7552,8 @@ body[data-page="doujin-preview"] .doujin-preview-actions {
   position: sticky;
   top: 0;
   z-index: 1200;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, auto) minmax(220px, 1fr);
   align-items: center;
   width: 100% !important;
   min-height: 66px;
@@ -7564,7 +7565,7 @@ body[data-page="doujin-preview"] .doujin-preview-actions {
 }
 
 .anilist-topbar .top-actions {
-  flex: 0 0 auto;
+  justify-self: end;
   gap: 12px;
 }
 
@@ -7606,6 +7607,7 @@ body[data-page].primary-nav-collapsed > .topbar.shell.anilist-topbar .menu-toggl
 }
 
 .anilist-brand.brand {
+  justify-self: start;
   width: 150px;
   min-width: 150px;
   border: 0;
@@ -7640,7 +7642,7 @@ body[data-page].primary-nav-collapsed > .topbar.shell.anilist-topbar .menu-toggl
 }
 
 .anilist-nav.nav {
-  flex: 1 1 auto;
+  justify-self: center;
   justify-content: center;
   gap: clamp(18px, 2.2vw, 32px);
   border: 0;
@@ -8329,5 +8331,94 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
 
   .profile-hero h1 {
     margin: 0;
+  }
+}
+
+/* Profile banner should feel like page chrome, not a cropped strip below it. */
+body[data-page="profile"] > .topbar.shell.anilist-topbar {
+  position: absolute !important;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 80;
+  width: 100%;
+  border-bottom: 1px solid rgba(232, 244, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(9, 15, 25, 0.88), rgba(9, 15, 25, 0.42) 72%, rgba(9, 15, 25, 0)) !important;
+  box-shadow: none;
+  backdrop-filter: blur(12px) saturate(130%);
+}
+
+body[data-page="profile"] .profile-page {
+  padding-top: 0;
+}
+
+body[data-page="profile"] .profile-hero {
+  min-height: clamp(390px, 42vw, 520px);
+  background: #07101b;
+}
+
+body[data-page="profile"] .profile-hero.compact {
+  min-height: clamp(300px, 32vw, 390px);
+}
+
+body[data-page="profile"] .profile-hero::before {
+  background-position: center 30%;
+  background-size: cover;
+  filter: saturate(1.12) brightness(0.92) contrast(1.04);
+  opacity: 0.92;
+  transform: scale(1.01);
+}
+
+body[data-page="profile"] .profile-hero::after {
+  background:
+    linear-gradient(180deg, rgba(8, 13, 22, 0.08), rgba(8, 13, 22, 0.24) 35%, rgba(8, 13, 22, 0.86) 100%),
+    linear-gradient(90deg, rgba(8, 13, 22, 0.66), rgba(8, 13, 22, 0.18) 46%, rgba(8, 13, 22, 0.7)),
+    radial-gradient(circle at 22% 72%, rgba(22, 143, 255, 0.22), transparent 28rem);
+}
+
+body[data-page="profile"] .profile-hero-inner {
+  align-items: flex-end;
+  gap: clamp(18px, 3vw, 34px);
+  padding-top: 98px;
+  padding-bottom: clamp(34px, 5vw, 64px);
+}
+
+body[data-page="profile"] .profile-avatar {
+  width: clamp(156px, 15vw, 220px);
+  height: clamp(156px, 15vw, 220px);
+  border: 4px solid rgba(232, 244, 255, 0.86);
+  border-radius: 22px;
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+}
+
+body[data-page="profile"] .profile-hero.compact .profile-avatar {
+  width: 150px;
+  height: 150px;
+}
+
+body[data-page="profile"] .profile-hero h1 {
+  margin-bottom: 24px;
+  border-color: rgba(232, 244, 255, 0.16);
+  background: rgba(8, 14, 24, 0.58);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.24);
+}
+
+@media (max-width: 720px) {
+  body[data-page="profile"] > .topbar.shell.anilist-topbar {
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  body[data-page="profile"] .profile-hero,
+  body[data-page="profile"] .profile-hero.compact {
+    min-height: 390px;
+  }
+
+  body[data-page="profile"] .profile-hero-inner {
+    justify-content: flex-end;
+    padding-top: 90px;
+    padding-bottom: 30px;
   }
 }

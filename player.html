@@ -547,7 +547,7 @@
       }
 
       .video-player.player-settings-open .custom-subtitles {
-        bottom: var(--subtitle-settings-offset, 192px);
+        bottom: var(--subtitle-settings-offset, var(--subtitle-controls-offset, 66px));
       }
 
       .custom-subtitles.subtitle-top,
@@ -625,7 +625,7 @@
 
       .video-wrapper:fullscreen .video-player.player-settings-open .custom-subtitles,
       .video-wrapper.player-fullscreen .video-player.player-settings-open .custom-subtitles {
-        bottom: clamp(210px, 29vh, 300px);
+        bottom: clamp(112px, 15vh, 160px);
       }
 
       .video-wrapper:fullscreen .custom-video-controls,
