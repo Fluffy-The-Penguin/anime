@@ -7543,7 +7543,15 @@ body[data-page="doujin-preview"] .doujin-preview-actions {
 }
 
 .anilist-topbar .menu-toggle {
-  display: none;
+  display: none !important;
+}
+
+body[data-page] > .topbar.shell.anilist-topbar .menu-toggle {
+  display: none !important;
+}
+
+body[data-page].primary-nav-collapsed > .topbar.shell.anilist-topbar .menu-toggle {
+  display: inline-grid !important;
 }
 
 .anilist-brand.brand {

@@ -172,7 +172,7 @@ function init() {
 
 function setupMobileNavMode() {
   if (page === "reader") {
-    document.body.classList.remove("is-scrolled", "mobile-nav-floating");
+    document.body.classList.remove("is-scrolled", "mobile-nav-floating", "primary-nav-collapsed");
     return;
   }
   const media = window.matchMedia?.("(max-width: 720px)");
@@ -181,11 +181,22 @@ function setupMobileNavMode() {
     const isScrolled = (window.scrollY || document.documentElement.scrollTop || 0) > 24;
     document.body.classList.toggle("is-scrolled", isScrolled);
     document.body.classList.toggle("mobile-nav-floating", isMobile && isScrolled);
+    window.requestAnimationFrame(syncMenuToggleVisibility);
   };
   update();
   window.addEventListener("scroll", update, { passive: true });
   window.addEventListener("resize", update);
   media?.addEventListener?.("change", update);
+}
+
+function syncMenuToggleVisibility() {
+  const topbar = document.querySelector(".topbar");
+  const nav = topbar?.querySelector(".nav");
+  const isMobile = window.matchMedia?.("(max-width: 720px)").matches || window.innerWidth <= 720;
+  const navVisible = nav ? getComputedStyle(nav).display !== "none" : false;
+  const menuOpen = document.body.classList.contains("mobile-menu-open");
+  const floating = document.body.classList.contains("mobile-nav-floating");
+  document.body.classList.toggle("primary-nav-collapsed", Boolean(isMobile && !floating && (menuOpen || !navVisible)));
 }
 
 function injectChrome() {
@@ -4341,11 +4352,13 @@ function toggleMobileMenu(event) {
   event.stopPropagation();
   const expanded = document.body.classList.toggle("mobile-menu-open");
   event.currentTarget.setAttribute("aria-expanded", String(expanded));
+  syncMenuToggleVisibility();
 }
 
 function closeMobileMenu() {
   document.body.classList.remove("mobile-menu-open");
   document.querySelector("[data-menu-toggle]")?.setAttribute("aria-expanded", "false");
+  syncMenuToggleVisibility();
 }
 
 function toggleBrowseFilters(event) {
