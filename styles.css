@@ -9194,4 +9194,12 @@ body[data-page="profile"] .profile-hero h1 {
     visibility: visible;
     pointer-events: auto;
   }
+
+  body[data-page="details"].mobile-nav-floating > .topbar.shell.anilist-topbar {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    left: 0 !important;
+    margin: 0 !important;
+  }
 }
