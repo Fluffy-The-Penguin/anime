@@ -1424,9 +1424,37 @@ body[data-page="details"] .details-panel {
   font-family: "Cascadia Mono", "SFMono-Regular", Consolas, ui-monospace, monospace;
 }
 
+body[data-page="details"] > .topbar.shell.anilist-topbar {
+  position: absolute !important;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 1200;
+  width: 100%;
+  border-bottom: 1px solid rgba(232, 244, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(6, 9, 15, 0.86), rgba(6, 9, 15, 0.46) 72%, rgba(6, 9, 15, 0)) !important;
+  box-shadow: none;
+  backdrop-filter: blur(12px) saturate(130%);
+}
+
+body[data-page="details"] main.shell {
+  width: 100% !important;
+  margin: 0;
+}
+
+body[data-page="details"] .details-shell {
+  margin-top: 0 !important;
+}
+
+body[data-page="details"] .detail-pro {
+  min-height: 100vh;
+  margin-top: 0;
+}
+
 .detail-backdrop {
   position: relative;
-  height: clamp(260px, 20vw, 360px);
+  height: clamp(370px, 34vw, 520px);
   overflow: hidden;
   border-bottom: 1px solid rgba(148, 163, 184, 0.22);
   background:
@@ -1440,11 +1468,18 @@ body[data-page="details"] .details-panel {
   object-fit: cover;
   object-position: center;
   opacity: 1;
-  filter: none;
+  filter: saturate(1.08) brightness(0.92) contrast(1.04);
 }
 
 .detail-backdrop::after {
-  display: none;
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: block;
+  background:
+    linear-gradient(180deg, rgba(6, 9, 15, 0.12), rgba(6, 9, 15, 0.3) 38%, rgba(6, 9, 15, 0.92) 100%),
+    linear-gradient(90deg, rgba(6, 9, 15, 0.72), rgba(6, 9, 15, 0.16) 46%, rgba(6, 9, 15, 0.68));
+  pointer-events: none;
 }
 
 .detail-pro-top {
@@ -1455,7 +1490,7 @@ body[data-page="details"] .details-panel {
   gap: clamp(28px, 4vw, 46px);
   align-items: start;
   padding: 0 clamp(18px, 4vw, 54px);
-  margin-top: -84px;
+  margin-top: -150px;
 }
 
 .detail-cover-stack {
@@ -1795,7 +1830,10 @@ body[data-page="details"] .details-panel {
 }
 
 :root[data-theme="light"] .detail-backdrop::after {
-  display: none;
+  display: block;
+  background:
+    linear-gradient(180deg, rgba(248, 251, 255, 0.04), rgba(248, 251, 255, 0.18) 38%, rgba(248, 251, 255, 0.92) 100%),
+    linear-gradient(90deg, rgba(248, 251, 255, 0.72), rgba(248, 251, 255, 0.16) 46%, rgba(248, 251, 255, 0.64));
 }
 
 :root[data-theme="light"] .detail-title-block h1,
@@ -2058,7 +2096,7 @@ body[data-page="details"] .details-panel {
   .detail-pro-top {
     grid-template-columns: 220px minmax(0, 1fr);
     gap: 22px;
-    margin-top: -64px;
+    margin-top: -112px;
   }
 
   .detail-cover-stack {
@@ -2067,13 +2105,23 @@ body[data-page="details"] .details-panel {
 }
 
 @media (max-width: 720px) {
+  body[data-page="details"] > .topbar.shell.anilist-topbar {
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .detail-backdrop {
+    height: 390px;
+  }
+
   .detail-pro {
     padding-top: 0;
   }
 
   .detail-pro-top {
     grid-template-columns: 1fr;
-    margin-top: -78px;
+    margin-top: -120px;
   }
 
   .detail-pro-main {
