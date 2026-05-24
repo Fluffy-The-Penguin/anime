@@ -5419,6 +5419,16 @@ body[data-page="library"] .notification-btn.has-unread span {
   margin: 0;
 }
 
+.notification-more {
+  min-height: 36px;
+  border: 0;
+  border-radius: 10px;
+  color: #9cc9ff;
+  background: #172436;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .profile-page {
   min-height: calc(100vh - 86px);
   background: var(--al-bg);
@@ -6633,6 +6643,16 @@ body[data-page="home"] .profile-btn {
   gap: 25px;
 }
 
+.home-activity-sentinel {
+  border-radius: 5px;
+  padding: 14px;
+  color: #8aa8c7;
+  background: #101b29;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .home-activity-card {
   position: relative;
   display: grid;
@@ -6971,7 +6991,8 @@ body[data-page="settings"] .shell {
 }
 
 .anilist-nav.nav a {
-  padding: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
   color: #b7c5d7;
   font-size: 14px;
   font-weight: 700;
@@ -6982,7 +7003,8 @@ body[data-page="settings"] .shell {
 .anilist-nav.nav a:hover,
 .anilist-nav.nav a.active {
   color: #eef6ff;
-  background: transparent;
+  background: rgba(22, 168, 255, 0.14);
+  box-shadow: inset 0 -2px 0 #16a8ff;
 }
 
 body[data-page="anime"] .site-footer,
@@ -7186,6 +7208,8 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
 :root[data-theme="light"] .anilist-nav.nav a:hover,
 :root[data-theme="light"] .anilist-nav.nav a.active {
   color: #0f2238;
+  background: rgba(22, 168, 255, 0.16);
+  box-shadow: inset 0 -2px 0 #168fff;
 }
 
 :root[data-theme="light"] .anilist-topbar .notification-btn span {
@@ -7220,6 +7244,11 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
 :root[data-theme="light"] .history-row small,
 :root[data-theme="light"] .notification-empty {
   color: #647993;
+}
+
+:root[data-theme="light"] .notification-more {
+  color: #145ea8;
+  background: #eef4fb;
 }
 
 :root[data-theme="light"] .home-status-input,

@@ -6,6 +6,11 @@ const SETTINGS_KEY = "anitrack-settings-v1";
 const ACCOUNT_KEY = "anitrack-account-v1";
 const DETAIL_CACHE_KEY = "anitrack-last-detail";
 const NOTIFICATION_READ_KEY = "anitrack-notifications-read-at";
+const NOTIFICATION_STORE_KEY = "anitrack-notifications-v1";
+const CHAPTER_SEEN_KEY = "anitrack-chapter-seen-v1";
+const ACTIVITY_KEY = "anitrack-activity-v1";
+const ACTIVITY_LIMIT = 500;
+const ACTIVITY_PAGE_SIZE = 8;
 const MANGA_CHAPTER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const MANGA_PAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const BROWSE_PAGE_SIZE = 28;
@@ -94,6 +99,10 @@ const state = {
   browseSpotlightIndex: 0,
   browseSpotlightTimer: null,
   homePointerStart: null,
+  homeActivityPage: 1,
+  homeActivityItems: [],
+  notificationPage: 1,
+  historyPage: 1,
   libraryType: "all",
   settings: loadSettings(),
   library: loadLibrary(),
@@ -235,6 +244,7 @@ function injectChrome() {
   document.querySelector("[data-browse-filter-toggle]")?.addEventListener("click", toggleBrowseFilters);
   initAccountControls();
   syncAdultControls();
+  checkLibraryChapterNotifications();
   renderNotifications();
   renderHistory();
   document.addEventListener("keydown", (event) => {
@@ -809,6 +819,7 @@ function doujinPreviewInitialCount(root) {
 
 function toggleDoujinLibrary(root, manga, pages, chapter) {
   if (state.library[manga.id]) {
+    recordActivity(state.library[manga.id], "removed");
     delete state.library[manga.id];
     persistLibrary();
     showLibraryOverlay(`${manga.title} removed from Library`, "Removed");
@@ -823,6 +834,7 @@ function saveDoujinToLibrary(manga) {
   const saved = { ...manga, status: state.library[manga.id]?.status || "reading", progress: state.library[manga.id]?.progress || 0, rating: state.library[manga.id]?.rating || "", notes: state.library[manga.id]?.notes || "", updatedAt: Date.now(), isAdult: true };
   state.library[saved.id] = saved;
   state.current = saved;
+  recordActivity(saved, "added");
   persistLibrary();
   showToast("Saved to your library.");
   showLibraryOverlay(`${saved.title} added to Library`, "Saved");
@@ -860,6 +872,7 @@ function initHomePage() {
   if (activity || progress) {
     activity?.addEventListener("click", handleCardNavigation);
     progress?.addEventListener("click", handleCardNavigation);
+    setupHomeActivityInfiniteScroll(activity);
     loadHomeSections();
     return;
   }
@@ -896,7 +909,7 @@ function initLibraryPage() {
   const params = new URLSearchParams(window.location.search);
   state.libraryType = document.body.dataset.libraryKind || "anime";
   state.filter = ["all", "watching", "reading", "planning", "completed", "dropped"].includes(params.get("status")) ? params.get("status") : "all";
-  state.libraryAdultFilter = ["all", "adult", "normal"].includes(params.get("adult")) ? params.get("adult") : "all";
+  state.libraryAdultFilter = ["all", "adult", "normal", "doujin", "hentai"].includes(params.get("adult")) ? params.get("adult") : "all";
   state.librarySearch = params.get("q") || "";
   state.libraryFormat = params.get("format") || "all";
   state.libraryStatusText = params.get("airing") || "all";
@@ -1179,6 +1192,67 @@ async function loadHomeSections() {
 }
 
 function renderHomeActivity(container, items) {
+  if (!container) return;
+  const stored = loadActivity();
+  state.homeActivityItems = stored.length ? stored : activityFromItems(items.length ? items : samples);
+  state.homeActivityPage = 1;
+  renderHomeActivityPage(container);
+}
+
+function renderHomeActivityPage(container, append = false) {
+  if (!container) return;
+  const end = state.homeActivityPage * ACTIVITY_PAGE_SIZE;
+  const feedItems = state.homeActivityItems.slice(0, end);
+  const html = feedItems.map((activity) => homeActivityHtml(activity)).join("");
+  const hasMore = end < state.homeActivityItems.length;
+  container.innerHTML = `${html}${hasMore ? `<div class="home-activity-sentinel" data-home-activity-sentinel>Loading more activity...</div>` : ""}`;
+  observeHomeActivitySentinel(container);
+}
+
+function homeActivityHtml(activity) {
+  const item = activity.item || activity;
+  const isManga = item.type === "manga";
+  const verb = activity.text || (item.status === "completed" ? "Completed" : item.progress ? `${isManga ? "Read chapter" : "Watched episode"} ${escapeHtml(item.progress)}` : `Plans to ${isManga ? "read" : "watch"}`);
+  return `
+    <button class="home-activity-card" data-id="${escapeAttr(item.id)}" data-type="${escapeAttr(item.type)}" data-api-id="${escapeAttr(item.apiId || item.id)}" data-title="${escapeAttr(item.title)}" data-image="${escapeAttr(item.image)}" type="button">
+      <img class="home-activity-avatar" src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
+      <div class="home-activity-copy">
+        <div><strong>${escapeHtml(profileDisplayName())}</strong><time>${escapeHtml(relativeTime(activity.time || item.updatedAt))}</time></div>
+        <p>${verb} <span>${escapeHtml(item.title)}</span></p>
+        <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} thumbnail" loading="lazy">
+      </div>
+      <div class="home-activity-actions"><span>☁</span><span>♥</span></div>
+    </button>
+  `;
+}
+
+function activityFromItems(items) {
+  return items.slice(0, ACTIVITY_LIMIT).map((item, index) => ({
+    id: `${item.id || item.apiId || index}:${item.updatedAt || index}`,
+    time: Number(item.updatedAt || Date.now() - index * 3600000),
+    text: activityTextForItem(item),
+    item,
+  }));
+}
+
+function setupHomeActivityInfiniteScroll(container) {
+  if (!container || container.homeActivityObserver) return;
+  container.homeActivityObserver = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    if (state.homeActivityPage * ACTIVITY_PAGE_SIZE >= state.homeActivityItems.length) return;
+    state.homeActivityPage += 1;
+    renderHomeActivityPage(container, true);
+  }, { rootMargin: "240px" });
+}
+
+function observeHomeActivitySentinel(container) {
+  const sentinel = container.querySelector("[data-home-activity-sentinel]");
+  if (!sentinel || !container.homeActivityObserver) return;
+  container.homeActivityObserver.disconnect();
+  container.homeActivityObserver.observe(sentinel);
+}
+
+function legacyRenderHomeActivity(container, items) {
   if (!container) return;
   const feedItems = items.length ? items.slice(0, 8) : samples;
   container.innerHTML = feedItems.map((item, index) => {
@@ -2246,6 +2320,8 @@ function renderLibrary() {
   const adultItems = advancedItems.filter((item) => {
     if (state.libraryAdultFilter === "adult") return isAdultLibraryItem(item);
     if (state.libraryAdultFilter === "normal") return !isAdultLibraryItem(item);
+    if (state.libraryAdultFilter === "doujin") return isDoujinLibraryItem(item);
+    if (state.libraryAdultFilter === "hentai") return isHentaiLibraryItem(item);
     return true;
   });
   const items = sortLibraryItems(adultItems);
@@ -2311,6 +2387,11 @@ function isDoujinLibraryItem(item) {
     || DOUJIN_SOURCES.some((source) => String(item?.apiId || item?.providerId || "").startsWith(`${source.id}:`));
 }
 
+function isHentaiLibraryItem(item) {
+  if (!isAdultLibraryItem(item) || isDoujinLibraryItem(item)) return false;
+  return item?.type === "anime" || /hentai|pornhwa|adult/i.test(`${item?.displayType || ""} ${item?.format || ""} ${(item?.genres || []).join(" ")} ${item?.provider || ""} ${item?.providerId || ""} ${item?.apiId || ""}`);
+}
+
 function doujinLibraryApiId(item) {
   const id = String(item?.apiId || item?.providerId || "");
   if (DOUJIN_SOURCES.some((source) => id.startsWith(`${source.id}:`))) return id;
@@ -2362,6 +2443,7 @@ function updateLibraryItemStatus(id, status) {
   if (!item || !status) return;
   item.status = status;
   item.updatedAt = Date.now();
+  recordActivity(item, "updated");
   persistLibrary();
   renderLibrary();
 }
@@ -3235,8 +3317,10 @@ function saveCurrent(silent = false) {
     updatedAt: Date.now(),
   };
 
+  const existed = Boolean(state.library[saved.id]);
   state.library[saved.id] = saved;
   state.current = saved;
+  recordActivity(saved, existed ? "updated" : "added");
   if (!persistLibrary()) {
     showToast("Could not save. Browser storage may be blocked.");
     return;
@@ -3257,6 +3341,7 @@ function clampProgressValue(value, item = state.current) {
 
 function removeCurrent() {
   if (!state.current) return;
+  if (state.library[state.current.id]) recordActivity(state.library[state.current.id], "removed");
   delete state.library[state.current.id];
   if (!persistLibrary()) {
     showToast("Could not remove. Browser storage may be blocked.");
@@ -3323,6 +3408,7 @@ function toggleNotifications(event) {
   button.setAttribute("aria-expanded", String(shouldOpen));
   if (shouldOpen) {
     localStorage.setItem(NOTIFICATION_READ_KEY, String(Date.now()));
+    state.notificationPage = 1;
     renderNotifications();
     popover.classList.add("show");
   }
@@ -3338,29 +3424,44 @@ function renderNotifications() {
   const count = document.querySelector("[data-notification-count]");
   const button = document.querySelector("[data-notification-toggle]");
   if (!popover || !count || !button) return;
+  const readAt = Number(localStorage.getItem(NOTIFICATION_READ_KEY) || 0);
   const items = notificationItems();
-  const unread = 0;
+  const unread = items.filter((item) => Number(item.updatedAt || 0) > readAt).length;
+  const visibleItems = items.slice(0, state.notificationPage * ACTIVITY_PAGE_SIZE);
+  const hasMore = visibleItems.length < items.length;
   count.textContent = unread > 99 ? "99+" : String(unread);
   count.hidden = unread === 0;
   button.classList.toggle("has-unread", unread > 0);
   button.setAttribute("aria-label", unread ? `Open notifications, ${unread} unread` : "Open notifications");
   popover.innerHTML = `
     <strong>Notifications</strong>
-    ${items.length ? items.map((item) => `
-      <button class="notification-row" data-id="${escapeAttr(item.id)}" type="button">
+    ${visibleItems.length ? visibleItems.map((item) => `
+      <button class="notification-row" data-library-id="${escapeAttr(item.libraryId || item.id)}" type="button">
         <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
         <span>${escapeHtml(notificationText(item))}<small>${escapeHtml(relativeTime(item.updatedAt))}</small></span>
       </button>
     `).join("") : `<p class="notification-empty">No notifications yet.</p>`}
+    ${hasMore ? `<button class="notification-more" data-notification-more type="button">Load more notifications</button>` : ""}
   `;
-  popover.querySelectorAll("[data-id]").forEach((row) => row.addEventListener("click", () => {
-    const item = state.library[row.dataset.id];
+  popover.querySelectorAll("[data-library-id]").forEach((row) => row.addEventListener("click", () => {
+    const item = state.library[row.dataset.libraryId];
     if (item) goToDetails(item);
   }));
+  popover.querySelector("[data-notification-more]")?.addEventListener("click", () => {
+    state.notificationPage += 1;
+    renderNotifications();
+    popover.classList.add("show");
+  });
+  popover.onscroll = () => {
+    if (!hasMore || popover.scrollTop + popover.clientHeight < popover.scrollHeight - 32) return;
+    state.notificationPage += 1;
+    renderNotifications();
+    popover.classList.add("show");
+  };
 }
 
 function notificationItems() {
-  return [];
+  return loadNotificationsStore();
 }
 
 function toggleHistory(event) {
@@ -3373,7 +3474,10 @@ function toggleHistory(event) {
   const shouldOpen = !popover.classList.contains("show");
   popover.classList.toggle("show", shouldOpen);
   button.setAttribute("aria-expanded", String(shouldOpen));
-  if (shouldOpen) renderHistory();
+  if (shouldOpen) {
+    state.historyPage = 1;
+    renderHistory();
+  }
 }
 
 function closeHistory() {
@@ -3385,35 +3489,138 @@ function renderHistory() {
   const popover = document.querySelector("[data-history-popover]");
   if (!popover) return;
   const items = historyItems();
+  const visibleItems = items.slice(0, state.historyPage * ACTIVITY_PAGE_SIZE);
+  const hasMore = visibleItems.length < items.length;
   popover.innerHTML = `
     <strong>History</strong>
-    ${items.length ? items.map((item) => `
+    ${visibleItems.length ? visibleItems.map((item) => `
       <button class="history-row" data-id="${escapeAttr(item.id)}" type="button">
         <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
-        <span>${escapeHtml(historyText(item))}<small>${escapeHtml(relativeTime(item.updatedAt))}</small></span>
+        <span>${escapeHtml(historyText(item))}<small>${escapeHtml(relativeTime(item.activityTime || item.updatedAt))}</small></span>
       </button>
     `).join("") : `<p class="notification-empty">No library history yet.</p>`}
+    ${hasMore ? `<button class="notification-more" data-history-more type="button">Load more history</button>` : ""}
   `;
   popover.querySelectorAll("[data-id]").forEach((row) => row.addEventListener("click", () => {
     const item = state.library[row.dataset.id];
     if (item) goToDetails(item);
   }));
+  popover.querySelector("[data-history-more]")?.addEventListener("click", () => {
+    state.historyPage += 1;
+    renderHistory();
+    popover.classList.add("show");
+  });
+  popover.onscroll = () => {
+    if (!hasMore || popover.scrollTop + popover.clientHeight < popover.scrollHeight - 32) return;
+    state.historyPage += 1;
+    renderHistory();
+    popover.classList.add("show");
+  };
 }
 
 function historyItems() {
-  return Object.values(state.library)
-    .filter((item) => item?.updatedAt)
-    .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))
-    .slice(0, 8);
+  return loadActivity().map((activity) => ({ ...activity.item, activityTime: activity.time, activityText: activity.text }));
 }
 
 function historyText(item) {
-  return notificationText(item);
+  return item.activityText || notificationText(item);
 }
 
 function notificationText(item) {
+  if (item.kind === "chapter") return `${item.newCount || "New"} new chapter${Number(item.newCount) === 1 ? "" : "s"} for ${item.title}`;
   const action = item.status === "completed" ? "Completed" : item.status === "planning" ? "Planned" : item.type === "manga" ? "Reading" : "Watching";
   return `${action} ${item.title}`;
+}
+
+async function checkLibraryChapterNotifications() {
+  const mangaItems = Object.values(state.library).filter((item) => item?.type === "manga" && !isDoujinLibraryItem(item));
+  if (!mangaItems.length) return;
+  const seen = readSeenChapterCounts();
+  const notifications = loadNotificationsStore();
+  let changed = false;
+  for (const item of mangaItems.slice(0, 30)) {
+    const source = await notificationMangaSource(item);
+    if (!source?.id || !source.provider) continue;
+    try {
+      const chapters = await fetchMangaChaptersCached(source, item);
+      const count = chapters.length;
+      if (!count) continue;
+      const key = `${item.id}:${source.id}`;
+      const previous = Number(seen[key] || 0);
+      if (!previous) {
+        seen[key] = count;
+        changed = true;
+        continue;
+      }
+      if (count > previous) {
+        const newCount = count - previous;
+        notifications.unshift({
+          id: `chapter:${key}:${count}`,
+          kind: "chapter",
+          libraryId: item.id,
+          title: item.title,
+          image: item.image || fallbackImage,
+          provider: source.provider,
+          newCount,
+          chapterCount: count,
+          updatedAt: Date.now(),
+        });
+        seen[key] = count;
+        changed = true;
+      }
+    } catch (error) {
+      // Source checks are best-effort and should never block page chrome.
+    }
+  }
+  if (!changed) return;
+  writeSeenChapterCounts(seen);
+  saveNotificationsStore(dedupeNotifications(notifications));
+  renderNotifications();
+}
+
+async function notificationMangaSource(item) {
+  const sourceId = localStorage.getItem(mangaSourceKey(item));
+  if (sourceId) {
+    return { id: sourceId, provider: firstProviderFromSourceId(sourceId) || localStorage.getItem(`${mangaSourceKey(item)}:provider`) || String(sourceId).split(":")[0] };
+  }
+  const providers = enabledMangaProviderIds().filter((provider) => !isAdultMangaProvider(provider)).slice(0, 3);
+  for (const provider of providers) {
+    try {
+      const match = await searchMangaProviderMatch(item, provider, localStorage.getItem(mangaSourceCustomQueryKey(item)) || "");
+      if (!match?.id) continue;
+      localStorage.setItem(mangaSourceKey(item), match.id);
+      localStorage.setItem(`${mangaSourceKey(item)}:provider`, match.provider || provider);
+      return { id: match.id, provider: match.provider || provider };
+    } catch (error) {
+      // Try the next enabled source.
+    }
+  }
+  return null;
+}
+
+function readSeenChapterCounts() {
+  try {
+    return JSON.parse(localStorage.getItem(CHAPTER_SEEN_KEY) || "{}") || {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function writeSeenChapterCounts(value) {
+  try {
+    localStorage.setItem(CHAPTER_SEEN_KEY, JSON.stringify(value));
+  } catch (error) {
+    // Ignore storage limits.
+  }
+}
+
+function dedupeNotifications(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  }).slice(0, ACTIVITY_LIMIT);
 }
 
 function relativeTime(timestamp) {
@@ -4056,6 +4263,77 @@ function loadAccount() {
   } catch (error) {
     return null;
   }
+}
+
+function loadActivity() {
+  return readStoredArray(ACTIVITY_KEY).slice(0, ACTIVITY_LIMIT);
+}
+
+function saveActivity(items) {
+  writeStoredArray(ACTIVITY_KEY, items.slice(0, ACTIVITY_LIMIT));
+}
+
+function recordActivity(item, action = "updated") {
+  if (!item?.id) return;
+  const activity = {
+    id: `${item.id}:${Date.now()}`,
+    time: Date.now(),
+    action,
+    text: activityTextForItem(item, action),
+    item: compactActivityItem(item),
+  };
+  saveActivity([activity, ...loadActivity()].slice(0, ACTIVITY_LIMIT));
+}
+
+function compactActivityItem(item) {
+  return {
+    id: item.id,
+    apiId: item.apiId,
+    providerId: item.providerId,
+    type: item.type,
+    title: item.title,
+    image: item.image || fallbackImage,
+    status: item.status,
+    progress: item.progress,
+    total: item.total,
+    unit: item.unit,
+    updatedAt: item.updatedAt,
+    isAdult: item.isAdult,
+  };
+}
+
+function activityTextForItem(item, action = "updated") {
+  const isManga = item.type === "manga";
+  if (action === "added") return `Added`;
+  if (action === "removed") return `Removed`;
+  if (item.status === "completed") return "Completed";
+  if (Number(item.progress || 0) > 0) return `${isManga ? "Read chapter" : "Watched episode"} ${item.progress}`;
+  return `Plans to ${isManga ? "read" : "watch"}`;
+}
+
+function readStoredArray(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(value) ? value : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function writeStoredArray(key, items) {
+  try {
+    localStorage.setItem(key, JSON.stringify(items));
+  } catch (error) {
+    // Ignore storage limits.
+  }
+}
+
+function loadNotificationsStore() {
+  return readStoredArray(NOTIFICATION_STORE_KEY).slice(0, ACTIVITY_LIMIT);
+}
+
+function saveNotificationsStore(items) {
+  writeStoredArray(NOTIFICATION_STORE_KEY, items.slice(0, ACTIVITY_LIMIT));
 }
 
 function persistAccount() {
@@ -4932,6 +5210,7 @@ function setupMarkWatchedButton(anime, episodeNumber) {
     );
     state.library[anime.id].status = "watching";
     state.library[anime.id].updatedAt = Date.now();
+    recordActivity(state.library[anime.id], "updated");
     persistLibrary();
     document.querySelector(`[data-episode-item][data-episode-number="${episodeNumber}"]`)?.classList.add("watched");
     showToast(`Marked Episode ${episodeNumber} as watched`);
@@ -6774,6 +7053,7 @@ function markMangaChapterRead(manga, chapterNumber) {
   );
   state.library[manga.id].status = "reading";
   state.library[manga.id].updatedAt = Date.now();
+  recordActivity(state.library[manga.id], "updated");
   persistLibrary();
   document.querySelector(`[data-chapter-item][data-chapter-number="${chapterNumber}"]`)?.classList.add("read");
 }
