@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Your AniTrack profile overview." />
     <title>AniTrack | Profile</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-6" />
-    <script src="app.js?v=site-fix-6" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-10" />
+    <script src="app.js?v=site-fix-10" defer></script>
   </head>
   <body data-page="profile">
     <header class="topbar shell anilist-topbar">
@@ -38,7 +38,6 @@
           <a href="#stats">Stats</a>
           <a href="#social">Social</a>
           <a href="#reviews">Reviews</a>
-          <a href="#submissions">Submissions</a>
         </div>
       </nav>
 
@@ -55,14 +54,19 @@
             <div class="profile-genre-bar" data-profile-genre-bar></div>
           </article>
 
+          <article class="profile-panel profile-read-data">
+            <h2>Read Data</h2>
+            <div class="profile-read-data-grid" data-profile-read-data></div>
+          </article>
+
           <article class="profile-panel" id="favorites">
             <h2>Favorites</h2>
-            <div class="profile-mini-library" data-profile-favorites></div>
+            <div class="profile-favorites-list" data-profile-favorites></div>
           </article>
         </aside>
 
         <section class="profile-overview-main">
-          <div class="profile-stat-card" id="stats">
+          <div class="profile-stat-card">
             <div><strong data-profile-total-anime>0</strong><span>Total Anime</span></div>
             <div><strong data-profile-days>0</strong><span>Days Watched</span></div>
             <div><strong data-profile-episodes>0</strong><span>Episodes Watched</span></div>
@@ -76,12 +80,18 @@
           </div>
           <div class="profile-stat-scale"><span>17000</span><span>17500</span><span>18000</span><i data-profile-manga-bar></i></div>
 
-          <div class="profile-stat-card" data-adult-nav hidden>
+          <div class="profile-stat-card profile-adult-stat-card" data-adult-nav hidden>
             <div><strong data-profile-total-adult>0</strong><span>Adult Titles</span></div>
             <div><strong data-profile-total-hentai>0</strong><span>Hentai</span></div>
+            <div><strong data-profile-total-pornhwa>0</strong><span>Pornhwa</span></div>
             <div><strong data-profile-total-doujin>0</strong><span>Doujin</span></div>
           </div>
-          <div class="profile-stat-scale" data-adult-nav hidden><span>Adult</span><span>Hentai</span><span>Doujin</span><i data-profile-adult-bar></i></div>
+          <div class="profile-stat-scale profile-adult-stat-scale" data-adult-nav hidden><span>Adult</span><span>Hentai</span><span>Pornhwa</span><span>Doujin</span><i data-profile-adult-bar></i></div>
+
+          <article class="profile-panel profile-full-stats" id="stats">
+            <h2>Full Stats</h2>
+            <div class="profile-stats-grid" data-profile-full-stats></div>
+          </article>
 
           <article class="profile-feed" id="social">
             <div class="profile-feed-head"><h2>Activity</h2><button type="button">Filter⌄</button></div>
@@ -92,11 +102,6 @@
           <article class="profile-panel profile-placeholder" id="reviews">
             <h2>Reviews</h2>
             <p>No reviews yet. Rate titles from details to start building this section.</p>
-          </article>
-
-          <article class="profile-panel profile-placeholder" id="submissions">
-            <h2>Submissions</h2>
-            <p>Your list updates and source matches will appear here.</p>
           </article>
         </section>
       </section>

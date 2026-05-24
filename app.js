@@ -5,6 +5,8 @@ const THEME_KEY = "anitrack-theme";
 const SETTINGS_KEY = "anitrack-settings-v1";
 const ACCOUNT_KEY = "anitrack-account-v1";
 const DETAIL_CACHE_KEY = "anitrack-last-detail";
+const LIBRARY_VIEW_KEY = "anitrack-library-view-v1";
+const FAVORITES_KEY = "anitrack-favorites-v1";
 const NOTIFICATION_READ_KEY = "anitrack-notifications-read-at";
 const NOTIFICATION_STORE_KEY = "anitrack-notifications-v1";
 const CHAPTER_SEEN_KEY = "anitrack-chapter-seen-v1";
@@ -105,6 +107,7 @@ const state = {
   libraryGenre: "all",
   libraryYear: "all",
   librarySort: "updated",
+  libraryView: "grid",
   readerSession: null,
   browseSpotlightItems: [],
   browseSpotlightIndex: 0,
@@ -117,6 +120,7 @@ const state = {
   libraryType: "all",
   settings: loadSettings(),
   library: loadLibrary(),
+  favorites: loadFavorites(),
   account: loadAccount(),
   current: null,
   currentItems: [],
@@ -187,6 +191,9 @@ function injectChrome() {
         ${(page === "anime" || page === "manga" || page === "doujin") ? `<button class="icon-btn nav-search-toggle" data-browse-filter-toggle type="button" aria-label="Show search and filters" aria-expanded="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 18.4a7.7 7.7 0 1 1 5.4-13.1 7.7 7.7 0 0 1 0 10.8l4.1 4.1-2 2-4.1-4.1a7.6 7.6 0 0 1-3.4.8Zm0-3a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Z"/></svg>
         </button>` : ""}
+        ${(page === "anime" || page === "manga" || page === "doujin") ? "" : `<button class="icon-btn nav-search-toggle" data-search-toggle type="button" aria-label="Search titles">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 18.4a7.7 7.7 0 1 1 5.4-13.1 7.7 7.7 0 0 1 0 10.8l4.1 4.1-2 2-4.1-4.1a7.6 7.6 0 0 1-3.4.8Zm0-3a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Z"/></svg>
+        </button>`}
         <button class="icon-btn theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">${themeIcon()}</button>
         <div class="notification-menu">
           <button class="icon-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.7 2.7 0 0 0 2.5-1.7h-5A2.7 2.7 0 0 0 12 22Zm7-6.4-1.7-2.3V9a5.3 5.3 0 0 0-4-5.1V3a1.3 1.3 0 0 0-2.6 0v.9a5.3 5.3 0 0 0-4 5.1v4.3L5 15.6V18h14v-2.4Z"/></svg><span data-notification-count hidden>0</span></button>
@@ -224,6 +231,10 @@ function injectChrome() {
     `<div class="toast" data-toast role="status" aria-live="polite"></div>`
   );
 
+  if (!document.querySelector("[data-search-overlay]")) {
+    document.body.insertAdjacentHTML("beforeend", searchOverlayHtml());
+  }
+
   if (!document.querySelector("[data-account-modal]")) {
     document.body.insertAdjacentHTML("beforeend", accountModalHtml());
   }
@@ -253,6 +264,9 @@ function injectChrome() {
   document.querySelector("[data-notification-toggle]")?.addEventListener("click", toggleNotifications);
   document.querySelector("[data-history-toggle]")?.addEventListener("click", toggleHistory);
   document.querySelector("[data-browse-filter-toggle]")?.addEventListener("click", toggleBrowseFilters);
+  document.querySelector("[data-search-toggle]")?.addEventListener("click", toggleSearchOverlay);
+  document.querySelector("[data-overlay-search-form]")?.addEventListener("submit", handleOverlaySearch);
+  document.querySelector("[data-search-close]")?.addEventListener("click", closeSearchOverlay);
   initAccountControls();
   syncAdultControls();
   checkLibraryChapterNotifications();
@@ -263,6 +277,7 @@ function injectChrome() {
     if (event.key === "Escape") closeAccountModal();
     if (event.key === "Escape") closeNotifications();
     if (event.key === "Escape") closeHistory();
+    if (event.key === "Escape") closeSearchOverlay();
   });
 
   document.addEventListener("click", (event) => {
@@ -271,6 +286,28 @@ function injectChrome() {
     if (!event.target.closest(".history-menu")) closeHistory();
     if (!event.target.closest(".topbar")) closeMobileMenu();
   });
+}
+
+function searchOverlayHtml() {
+  return `
+    <div class="search-overlay" data-search-overlay>
+      <form class="search-box" data-overlay-search-form>
+        <div class="search-head">
+          <strong>Search AniTrack</strong>
+          <button class="icon-btn" data-search-close type="button" aria-label="Close search">×</button>
+        </div>
+        <div class="search-row">
+          <input data-overlay-search-input type="search" placeholder="Search anime, manga, manhwa, doujin..." autocomplete="off">
+          <select data-overlay-search-type aria-label="Search type">
+            <option value="anime">Anime</option>
+            <option value="manga">Manga / Manhwa</option>
+            ${state.settings.allowAdult ? '<option value="doujin">Doujin</option>' : ""}
+          </select>
+          <button class="btn" type="submit">Search</button>
+        </div>
+      </form>
+    </div>
+  `;
 }
 
 function initBrowsePage() {
@@ -679,6 +716,12 @@ function doujinTagUrl(category, value) {
   return `doujin.html?${params.toString()}`;
 }
 
+function doujinMetadataFromTitle(title) {
+  const text = String(title || "");
+  const tags = DOUJIN_TAGS.filter((tag) => normalizeSearchText(text).includes(normalizeSearchText(tag)));
+  return tags.length ? { tags } : {};
+}
+
 function doujinProviderIds() {
   return enabledDoujinProviderIds();
 }
@@ -777,7 +820,7 @@ function doujinMangaFromSource(source) {
     providerId: source.id,
     providerTitle: source.title || providerLabel(source.provider),
     preloadedSources: [source],
-    metadata: normalizeDoujinMetadata(source.metadata),
+    metadata: mergeDoujinMetadata(source.metadata, { tags: source.tags || [] }),
     isAdult: true,
   };
 }
@@ -807,8 +850,13 @@ async function initDoujinPreviewPage() {
 
   try {
     const chapters = await fetchApiJson(`/api/manga/chapters?mangaId=${encodeURIComponent(manga.apiId)}`);
-    const chapter = chapters[0] || { id: manga.apiId, provider: manga.provider, number: "1", title: manga.title };
-    manga = { ...manga, metadata: mergeDoujinMetadata(manga.metadata, chapter.metadata) };
+    let chapter = chapters[0] || { id: manga.apiId, provider: manga.provider, number: "1", title: manga.title };
+    if (!hasDoujinMetadata(chapter.metadata)) {
+      const localChapters = await fetchSameOriginJson(`/api/manga/chapters?mangaId=${encodeURIComponent(manga.apiId)}`).catch(() => []);
+      const localChapter = Array.isArray(localChapters) ? localChapters[0] : null;
+      if (hasDoujinMetadata(localChapter?.metadata)) chapter = { ...chapter, metadata: localChapter.metadata };
+    }
+    manga = { ...manga, metadata: mergeDoujinMetadata(manga.metadata, chapter.metadata, { tags: chapter.tags || [] }, doujinMetadataFromTitle(manga.title)) };
     state.current = { ...manga, ...state.library[manga.id] };
     const data = await fetchMangaPagesCached(chapter.id || manga.apiId);
     renderDoujinPreview(root, manga, data.pages || [], false, chapter);
@@ -841,6 +889,7 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
         <div class="doujin-preview-actions">
           <button class="btn" data-doujin-read-page="0" type="button">Read online</button>
           <button class="btn secondary" data-doujin-save type="button">${tracked ? "Remove from Library" : "Add to Library"}</button>
+          <button class="btn secondary detail-favorite-toggle ${isFavoriteItem(manga) ? "active" : ""}" data-doujin-favorite type="button">${isFavoriteItem(manga) ? "★ Favorited" : "☆ Favorite"}</button>
           <a class="btn secondary" href="doujin.html">Back to Doujin</a>
         </div>
       </div>
@@ -865,6 +914,12 @@ function renderDoujinPreview(root, manga, pages, loading = false, chapter = null
   `;
 
   root.querySelector("[data-doujin-save]")?.addEventListener("click", () => toggleDoujinLibrary(root, manga, pages, chapter));
+  root.querySelector("[data-doujin-favorite]")?.addEventListener("click", () => {
+    const activeFavorite = toggleFavoriteItem(manga);
+    const button = root.querySelector("[data-doujin-favorite]");
+    button.classList.toggle("active", activeFavorite);
+    button.textContent = activeFavorite ? "★ Favorited" : "☆ Favorite";
+  });
   root.querySelector("[data-doujin-preview-more]")?.addEventListener("click", () => {
     appendDoujinPreviewPages(root, manga, pages, chapter, Math.min(pages.length, visibleCount + doujinPreviewInitialCount(root)));
   });
@@ -1030,10 +1085,12 @@ function initLibraryPage() {
   const search = document.querySelector("[data-library-search]");
   const advancedFilters = document.querySelectorAll("[data-library-advanced-filter]");
   const lists = document.querySelectorAll("[data-library-list]");
+  const viewButtons = document.querySelectorAll("[data-library-view]");
   const params = new URLSearchParams(window.location.search);
   state.libraryType = document.body.dataset.libraryKind || "anime";
+  state.libraryView = readLibraryView();
   state.filter = ["all", "watching", "reading", "planning", "completed", "dropped"].includes(params.get("status")) ? params.get("status") : "all";
-  state.libraryAdultFilter = ["all", "adult", "normal", "doujin", "hentai"].includes(params.get("adult")) ? params.get("adult") : (state.libraryType === "adult" ? "adult" : "all");
+  state.libraryAdultFilter = ["all", "adult", "normal", "doujin", "hentai", "pornhwa"].includes(params.get("adult")) ? params.get("adult") : (state.libraryType === "adult" ? "adult" : "all");
   state.librarySearch = params.get("q") || "";
   state.libraryFormat = params.get("format") || "all";
   state.libraryStatusText = params.get("airing") || "all";
@@ -1045,6 +1102,7 @@ function initLibraryPage() {
   if (search) search.value = state.librarySearch;
   populateLibraryAdvancedFilters();
   filters?.querySelectorAll("[data-filter]").forEach((button) => button.classList.toggle("active", button.dataset.filter === state.filter));
+  syncLibraryViewControls();
   hydrateProfileShell();
   syncLibraryPageLinks();
 
@@ -1079,6 +1137,15 @@ function initLibraryPage() {
     });
   });
 
+  viewButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.libraryView = validLibraryView(button.dataset.libraryView);
+      localStorage.setItem(libraryViewStorageKey(), state.libraryView);
+      syncLibraryViewControls();
+      renderLibrary();
+    });
+  });
+
   lists.forEach((list) => {
     list.addEventListener("click", (event) => {
       const row = event.target.closest("[data-id]");
@@ -1091,6 +1158,26 @@ function initLibraryPage() {
   });
 
   renderLibrary();
+}
+
+function libraryViewStorageKey() {
+  return `${LIBRARY_VIEW_KEY}:${state.libraryType || "anime"}`;
+}
+
+function validLibraryView(value) {
+  return ["compact", "text", "grid"].includes(value) ? value : "grid";
+}
+
+function readLibraryView() {
+  return validLibraryView(localStorage.getItem(libraryViewStorageKey()) || "grid");
+}
+
+function syncLibraryViewControls() {
+  document.querySelectorAll("[data-library-view]").forEach((button) => {
+    const active = button.dataset.libraryView === state.libraryView;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
 }
 
 function initProfilePage() {
@@ -1167,6 +1254,7 @@ function renderProfileOverview() {
   const mangaItems = allItems.filter((item) => item.type === "manga" && !isAdultLibraryItem(item));
   const episodes = animeItems.reduce((sum, item) => sum + Number(item.progress || 0), 0);
   const chapters = mangaItems.reduce((sum, item) => sum + Number(item.progress || 0), 0);
+  const adultChapters = adultItems.filter((item) => item.type === "manga").reduce((sum, item) => sum + Number(item.progress || 0), 0);
   const ratings = allItems.map((item) => Number(item.rating)).filter(Boolean);
   const meanScore = ratings.length ? (ratings.reduce((sum, score) => sum + score, 0) / ratings.length).toFixed(1) : "--";
 
@@ -1178,6 +1266,7 @@ function renderProfileOverview() {
   setText("[data-profile-score]", meanScore);
   setText("[data-profile-total-adult]", String(adultItems.length));
   setText("[data-profile-total-hentai]", String(adultItems.filter(isHentaiLibraryItem).length));
+  setText("[data-profile-total-pornhwa]", String(adultItems.filter(isPornhwaLibraryItem).length));
   setText("[data-profile-total-doujin]", String(adultItems.filter(isDoujinLibraryItem).length));
   document.querySelector("[data-profile-anime-bar]")?.style.setProperty("width", `${Math.min(100, Math.max(8, animeItems.length * 2))}%`);
   document.querySelector("[data-profile-manga-bar]")?.style.setProperty("width", `${Math.min(100, Math.max(8, chapters / 180))}%`);
@@ -1185,8 +1274,10 @@ function renderProfileOverview() {
 
   renderProfileHeatmap(allItems);
   renderProfileGenres(allItems);
-  renderProfilePreview(document.querySelector("[data-profile-favorites]"), favoriteProfileItems([...animeItems, ...mangaItems]));
-  renderProfileFeed(document.querySelector("[data-profile-feed]"), [...animeItems, ...mangaItems].slice(0, 6));
+  renderProfileReadData({ animeItems, mangaItems, adultItems, episodes, chapters, adultChapters });
+  renderProfileFavorites(document.querySelector("[data-profile-favorites]"));
+  renderProfileFullStats({ allItems, animeItems, mangaItems, adultItems, episodes, chapters, adultChapters, meanScore });
+  renderProfileFeed(document.querySelector("[data-profile-feed]"), allItems.slice(0, 6));
 }
 
 function favoriteProfileItems(items) {
@@ -1232,6 +1323,79 @@ function renderProfilePreview(container, items) {
     </button>
   `).join("");
   container.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => openLibraryItem(state.library[button.dataset.id])));
+}
+
+function renderProfileFavorites(container) {
+  if (!container) return;
+  const groups = new Map();
+  favoriteItems().forEach((item) => {
+    const label = favoriteGroupLabel(item);
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(item);
+  });
+  if (!groups.size) return renderEmpty(container, "Use the Favorite button on details pages to pin anime, manga, doujin, hentai, and pornhwa here.");
+  container.innerHTML = [...groups.entries()].map(([label, items]) => `
+    <section class="profile-favorite-group">
+      <h3>${escapeHtml(label)}</h3>
+      <div class="profile-mini-library">${items.map((item) => `
+        <button class="profile-mini-card" data-id="${escapeAttr(item.id)}" type="button">
+          <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
+          <span>${escapeHtml(item.title)}</span>
+        </button>
+      `).join("")}</div>
+    </section>
+  `).join("");
+  container.querySelectorAll("[data-id]").forEach((button) => button.addEventListener("click", () => {
+    const item = favoriteItems().find((favorite) => favorite.id === button.dataset.id);
+    if (item) openLibraryItem(item);
+  }));
+}
+
+function favoriteGroupLabel(item) {
+  if (isDoujinLibraryItem(item)) return "Doujin";
+  if (isPornhwaLibraryItem(item)) return "Pornhwa";
+  if (isHentaiLibraryItem(item) || isAdultLibraryItem(item)) return "Hentai";
+  return item.type === "manga" ? "Manga / Manhwa" : "Anime";
+}
+
+function renderProfileReadData({ mangaItems, adultItems, chapters, adultChapters }) {
+  const container = document.querySelector("[data-profile-read-data]");
+  if (!container) return;
+  const normalCompleted = mangaItems.filter((item) => item.status === "completed").length;
+  const adultManga = adultItems.filter((item) => item.type === "manga");
+  const doujinRead = adultItems.filter(isDoujinLibraryItem).reduce((sum, item) => sum + Number(item.progress || 0), 0);
+  container.innerHTML = `
+    <div><strong>${chapters}</strong><span>Manga chapters</span></div>
+    <div><strong>${normalCompleted}</strong><span>Manga completed</span></div>
+    ${state.settings.allowAdult ? `<div><strong>${adultChapters}</strong><span>Adult chapters</span></div><div><strong>${adultManga.length}</strong><span>Adult manga saved</span></div><div><strong>${doujinRead}</strong><span>Doujin read</span></div>` : ""}
+  `;
+}
+
+function renderProfileFullStats({ allItems, animeItems, mangaItems, adultItems, episodes, chapters, adultChapters, meanScore }) {
+  const container = document.querySelector("[data-profile-full-stats]");
+  if (!container) return;
+  const completed = allItems.filter((item) => item.status === "completed").length;
+  const planning = allItems.filter((item) => item.status === "planning").length;
+  const current = allItems.filter((item) => ["watching", "reading"].includes(item.status)).length;
+  const hentai = adultItems.filter(isHentaiLibraryItem).length;
+  const pornhwa = adultItems.filter(isPornhwaLibraryItem).length;
+  const doujin = adultItems.filter(isDoujinLibraryItem).length;
+  const daysWatched = episodes ? (episodes * 24 / 1440).toFixed(1) : "0";
+  const stats = [
+    ["Total titles", allItems.length],
+    ["Anime", animeItems.length],
+    ["Manga / Manhwa", mangaItems.length],
+    ["Episodes watched", episodes],
+    ["Days watched", daysWatched],
+    ["Manga chapters", chapters],
+    ["Completed", completed],
+    ["In progress", current],
+    ["Planning", planning],
+    ["Mean score", meanScore],
+    ["Favorites", favoriteItems().length],
+  ];
+  if (state.settings.allowAdult) stats.push(["Adult titles", adultItems.length], ["Adult chapters", adultChapters], ["Hentai", hentai], ["Pornhwa", pornhwa], ["Doujin", doujin]);
+  container.innerHTML = stats.map(([label, value]) => `<div><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`).join("");
 }
 
 function renderProfileFeed(container, items) {
@@ -2456,6 +2620,7 @@ function renderLibrary() {
     if (!isAdultLibraryItem(item)) return false;
     if (state.libraryAdultFilter === "doujin") return isDoujinLibraryItem(item);
     if (state.libraryAdultFilter === "hentai") return isHentaiLibraryItem(item);
+    if (state.libraryAdultFilter === "pornhwa") return isPornhwaLibraryItem(item);
     return true;
   });
 
@@ -2521,8 +2686,15 @@ function isDoujinLibraryItem(item) {
 }
 
 function isHentaiLibraryItem(item) {
+  if (!isAdultLibraryItem(item) || isDoujinLibraryItem(item) || isPornhwaLibraryItem(item)) return false;
+  return item?.type === "anime" || /hentai|adult/i.test(`${item?.displayType || ""} ${item?.format || ""} ${(item?.genres || []).join(" ")} ${item?.provider || ""} ${item?.providerId || ""} ${item?.apiId || ""}`);
+}
+
+function isPornhwaLibraryItem(item) {
   if (!isAdultLibraryItem(item) || isDoujinLibraryItem(item)) return false;
-  return item?.type === "anime" || /hentai|pornhwa|adult/i.test(`${item?.displayType || ""} ${item?.format || ""} ${(item?.genres || []).join(" ")} ${item?.provider || ""} ${item?.providerId || ""} ${item?.apiId || ""}`);
+  const provider = String(item?.provider || String(item?.providerId || item?.apiId || "").split(":")[0]).toLowerCase();
+  return ["pornhwaz", "pornhwapro"].includes(provider)
+    || /pornhwa|adult manhwa/i.test(`${item?.displayType || ""} ${item?.format || ""} ${(item?.genres || []).join(" ")} ${item?.provider || ""} ${item?.providerId || ""} ${item?.apiId || ""}`);
 }
 
 function doujinLibraryApiId(item) {
@@ -2551,11 +2723,78 @@ function resolveNavigableItem(item) {
 
 function renderLibraryGroup(container, items, emptyMessage) {
   container.innerHTML = "";
+  container.dataset.libraryViewMode = state.libraryView;
   if (!items.length) return renderEmpty(container, emptyMessage);
+
+  if (state.libraryView === "compact" || state.libraryView === "text") {
+    container.append(renderLibraryTable(items, state.libraryView));
+    return;
+  }
 
   const fragment = document.createDocumentFragment();
   items.forEach((item) => fragment.append(renderLibraryItem(item)));
   container.append(fragment);
+}
+
+function renderLibraryTable(items, view) {
+  const table = create("div", `library-table library-table-${view}`);
+  table.setAttribute("role", "table");
+  table.innerHTML = `
+    <div class="library-table-head" role="row">
+      <span>Title</span>
+      <span>Score</span>
+      <span>Progress</span>
+      <span>Type</span>
+    </div>
+  `;
+  items.forEach((item) => table.append(renderLibraryTableRow(item, view)));
+  return table;
+}
+
+function renderLibraryTableRow(item, view) {
+  const row = create("div", "library-table-row");
+  row.setAttribute("role", "row");
+  row.tabIndex = 0;
+  setMediaDataset(row, item);
+  row.innerHTML = `
+    <span class="library-table-title" role="cell">
+      ${view === "compact" ? `<img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">` : ""}
+      <b>${escapeHtml(item.title)}</b>
+    </span>
+    <span role="cell">${escapeHtml(libraryScoreText(item))}</span>
+    <span role="cell">${escapeHtml(libraryProgressText(item))}</span>
+    <span role="cell">${escapeHtml(libraryTypeText(item))}</span>
+  `;
+  row.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openLibraryItem(item);
+  });
+  row.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    openLibraryItem(item);
+  });
+  return row;
+}
+
+function libraryScoreText(item) {
+  const rating = Number(item.rating || 0);
+  if (rating > 0) return String(rating);
+  const score = String(item.score || "").trim();
+  return score && !/^n\/?a$/i.test(score) ? score : "";
+}
+
+function libraryProgressText(item) {
+  const progress = Number(item.progress || 0);
+  const total = Number(item.total || 0);
+  return total > 0 ? `${progress}/${total}` : String(progress || 0);
+}
+
+function libraryTypeText(item) {
+  const text = String(item.displayType || item.format || item.unit || "").trim();
+  if (/episodes?|eps/i.test(text)) return "TV";
+  if (/chapters?|chapter/i.test(text)) return isDoujinLibraryItem(item) ? "Doujin" : "Manga";
+  return text || (item.type === "anime" ? "TV" : "Manga");
 }
 
 function renderLibraryItem(item) {
@@ -2665,6 +2904,7 @@ function renderDetails(root, item, isTemporary = false) {
                 </div>
               </div>
             </div>
+            <button class="btn secondary detail-favorite-toggle ${isFavoriteItem(active) ? "active" : ""}" data-favorite-toggle type="button">${isFavoriteItem(active) ? "★ Favorited" : "☆ Favorite"}</button>
           </section>
         </main>
       </div>
@@ -2705,6 +2945,12 @@ function renderDetails(root, item, isTemporary = false) {
     editorToggle.setAttribute("aria-expanded", String(isHidden));
   });
   root.querySelector("[data-save-track]").addEventListener("click", () => saveCurrent());
+  root.querySelector("[data-favorite-toggle]")?.addEventListener("click", () => {
+    const activeFavorite = toggleFavoriteItem(state.current);
+    const button = root.querySelector("[data-favorite-toggle]");
+    button.classList.toggle("active", activeFavorite);
+    button.textContent = activeFavorite ? "★ Favorited" : "☆ Favorite";
+  });
   root.querySelector("[data-watch-button]")?.addEventListener("click", () => {
     const selectedEpisode = root.querySelector("[data-detail-watch-episode]");
     if (selectedEpisode) {
@@ -3524,9 +3770,15 @@ function shortText(text, maxLength) {
 function openSearchOverlay() {
   const overlay = document.querySelector("[data-search-overlay]");
   const type = document.querySelector("[data-overlay-search-type]");
+  if (!overlay || !type) return;
+  if (state.settings.allowAdult && ![...type.options].some((option) => option.value === "doujin")) {
+    type.insertAdjacentHTML("beforeend", '<option value="doujin">Doujin</option>');
+  }
+  if (!state.settings.allowAdult) type.querySelector('option[value="doujin"]')?.remove();
   overlay.classList.add("show");
-  type.value = page === "manga" ? "manga" : "anime";
-  window.setTimeout(() => document.querySelector("[data-overlay-search-input]").focus(), 0);
+  const preferred = state.current?.type === "manga" ? (isDoujinLibraryItem(state.current) ? "doujin" : "manga") : page === "manga" || page === "reader" ? "manga" : page === "doujin" || page === "doujin-preview" ? "doujin" : "anime";
+  type.value = [...type.options].some((option) => option.value === preferred) ? preferred : "anime";
+  window.setTimeout(() => document.querySelector("[data-overlay-search-input]")?.focus(), 0);
 }
 
 function closeSearchOverlay() {
@@ -3882,7 +4134,7 @@ function applyThemeColor() {
 }
 
 function toggleSearchOverlay() {
-  document.querySelector("[data-search-overlay]").classList.contains("show") ? closeSearchOverlay() : openSearchOverlay();
+  document.querySelector("[data-search-overlay]")?.classList.contains("show") ? closeSearchOverlay() : openSearchOverlay();
 }
 
 function toggleTheme() {
@@ -3950,6 +4202,7 @@ function defaultSettings() {
     subtitleLanguage: "english",
     autoPlay: true,
     autoPlayNext: false,
+    playerAmbient: false,
     defaultAnimeSource: "animedex",
     playerSpeed: "1",
     subtitleStyle: defaultSubtitleStyle(),
@@ -4417,6 +4670,60 @@ function loadActivity() {
   return readStoredArray(ACTIVITY_KEY).slice(0, ACTIVITY_LIMIT);
 }
 
+function loadFavorites() {
+  return readStoredArray(FAVORITES_KEY);
+}
+
+function persistFavorites() {
+  writeStoredArray(FAVORITES_KEY, state.favorites);
+}
+
+function favoriteItems() {
+  return state.favorites
+    .map((item) => ({ ...item, ...(state.library[item.id] || {}) }))
+    .filter((item) => item?.id && (state.settings.allowAdult || !isAdultLibraryItem(item)));
+}
+
+function compactFavoriteItem(item) {
+  return {
+    id: item.id,
+    apiId: item.apiId,
+    apiSource: item.apiSource,
+    providerId: item.providerId,
+    provider: item.provider,
+    type: item.type,
+    title: item.title,
+    image: item.image || fallbackImage,
+    banner: item.banner || "",
+    displayType: item.displayType,
+    format: item.format,
+    genres: item.genres,
+    total: item.total,
+    unit: item.unit,
+    isAdult: item.isAdult,
+    favoriteAt: Date.now(),
+  };
+}
+
+function isFavoriteItem(item) {
+  return Boolean(item?.id && state.favorites.some((favorite) => favorite.id === item.id));
+}
+
+function toggleFavoriteItem(item = state.current) {
+  if (!item?.id) return false;
+  const index = state.favorites.findIndex((favorite) => favorite.id === item.id);
+  if (index >= 0) {
+    state.favorites.splice(index, 1);
+    persistFavorites();
+    showToast("Removed from favorites.");
+    return false;
+  }
+  state.favorites = [compactFavoriteItem({ ...item, ...(state.library[item.id] || {}) }), ...state.favorites].slice(0, ACTIVITY_LIMIT);
+  persistFavorites();
+  showToast("Added to favorites.");
+  return true;
+}
+
 function saveActivity(items) {
   writeStoredArray(ACTIVITY_KEY, items.slice(0, ACTIVITY_LIMIT));
 }
@@ -4592,13 +4899,21 @@ function shouldUseSameOriginMangaApi(path) {
     const url = new URL(path, window.location.origin);
     if (!url.pathname.startsWith("/api/manga/")) return false;
     const providers = (url.searchParams.get("providers") || "").split(",");
+    const mangaId = url.searchParams.get("mangaId") || "";
     const chapterId = url.searchParams.get("chapterId") || "";
     const doujinProviders = DOUJIN_SOURCES.map((source) => source.id);
     return providers.some((provider) => doujinProviders.includes(provider))
+      || doujinProviders.some((provider) => mangaId.startsWith(`${provider}:`))
       || doujinProviders.some((provider) => chapterId.startsWith(`${provider}:`));
   } catch (error) {
     return false;
   }
+}
+
+async function fetchSameOriginJson(path) {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+  return response.json();
 }
 
 function isMangaApiPath(path) {
@@ -5201,7 +5516,7 @@ async function initPlayerPage() {
   const firstEpisode = targetButton || document.querySelector("[data-episode-item]");
   if (firstEpisode) firstEpisode.click();
   else {
-    document.querySelector("[data-video-player]").innerHTML = '<div class="player-loading"><p>No real episodes available.</p><p class="muted" style="font-size: 12px;">Use the details page source selector when a provider exposes episode entries.</p></div>';
+    document.querySelector("[data-video-player]").innerHTML = '<div class="player-loading"><p>No real episodes available.</p><p class="muted" style="font-size: 12px;">Use the source dropdown below the player when a provider exposes episode entries.</p></div>';
     document.querySelector("[data-streaming-sources]").innerHTML = '<div class="empty">No episode list was returned by AniList or the selected source.</div>';
   }
 }
@@ -5342,7 +5657,7 @@ function buildEpisodes(anime) {
 function renderEpisodesList(episodes, anime) {
   const container = document.querySelector("[data-episodes-list]");
   if (!episodes.length) {
-    container.innerHTML = '<div class="empty" style="min-width: 260px;">No real episode list is available for this title. Choose a source from the details page or use source search below.</div>';
+    container.innerHTML = '<div class="empty" style="min-width: 260px;">No real episode list is available for this title. Choose a source from the dropdown below the player.</div>';
     return;
   }
 
@@ -5391,6 +5706,7 @@ async function loadEpisode(anime, episode, episodeNumber) {
   description.innerHTML = `<p>${escapeHtml(episode.description)}</p>`;
   playerRuntime.currentEpisode = episode;
   playerRuntime.currentEpisodeNumber = String(episodeNumber);
+  markAnimeEpisodeWatched(anime, episodeNumber);
 
   // Show loading state
   videoPlayer.innerHTML = `
@@ -5450,25 +5766,23 @@ async function loadEpisode(anime, episode, episodeNumber) {
 
 function setupMarkWatchedButton(anime, episodeNumber) {
   document.querySelector("[data-mark-watched]").onclick = () => {
-    if (!state.current && anime) {
-      state.current = anime;
-    }
-    const progress = document.querySelector("[data-track-progress]");
-    if (progress) {
-      progress.value = episodeNumber;
-    }
-    state.library[anime.id] = state.library[anime.id] || anime;
-    state.library[anime.id].progress = Math.max(
-      state.library[anime.id].progress || 0,
-      Number(episodeNumber)
-    );
-    state.library[anime.id].status = "watching";
-    state.library[anime.id].updatedAt = Date.now();
-    recordActivity(state.library[anime.id], "updated");
-    persistLibrary();
-    document.querySelector(`[data-episode-item][data-episode-number="${episodeNumber}"]`)?.classList.add("watched");
+    markAnimeEpisodeWatched(anime, episodeNumber);
     showToast(`Marked Episode ${episodeNumber} as watched`);
   };
+}
+
+function markAnimeEpisodeWatched(anime, episodeNumber) {
+  if (!state.current && anime) state.current = anime;
+  const progress = document.querySelector("[data-track-progress]");
+  if (progress) progress.value = episodeNumber;
+  state.library[anime.id] = state.library[anime.id] || anime;
+  const selectedProgress = Number(episodeNumber) || 0;
+  state.library[anime.id].progress = Math.max(state.library[anime.id].progress || 0, selectedProgress);
+  state.library[anime.id].status = "watching";
+  state.library[anime.id].updatedAt = Date.now();
+  recordActivity({ ...state.library[anime.id], progress: selectedProgress }, "updated");
+  persistLibrary();
+  document.querySelector(`[data-episode-item][data-episode-number="${episodeNumber}"]`)?.classList.add("watched");
 }
 
 async function searchAniwavesAnime(animeTitle) {
@@ -5572,7 +5886,7 @@ function renderStreamingSources(container, anime, episodeNumber, aniwavesMatches
   bindAdultSourceButtons(container);
   document.querySelector("[data-video-player]").innerHTML = `
     <div class="player-loading">
-      <p>Select a source above</p>
+      <p>Select a stream below</p>
       <p class="muted" style="font-size: 12px;">Provider links may open externally when raw browser-playable streams are not available.</p>
     </div>
   `;
@@ -5768,6 +6082,7 @@ async function playHttpStream(url, tracks = [], options = {}) {
   destroyActiveStreamEngines();
   player.innerHTML = `
     <video data-active-video playsinline crossorigin="anonymous" preload="auto" style="width: 100%; height: 100%; background: #000;"></video>
+    <div class="player-ambient-backdrop" data-player-ambient-backdrop></div>
     <div class="player-buffering" data-player-buffering>
       <div class="spinner"></div>
       <span>Loading video...</span>
@@ -5797,6 +6112,7 @@ async function playHttpStream(url, tracks = [], options = {}) {
       <div class="player-check-row">
         <label class="player-check"><input data-player-auto-play type="checkbox"> Auto play</label>
         <label class="player-check"><input data-player-auto-next type="checkbox"> Auto next</label>
+        <label class="player-check"><input data-player-ambient-toggle type="checkbox"> Ambient mode</label>
       </div>
     </div>
   `;
@@ -5807,6 +6123,7 @@ async function playHttpStream(url, tracks = [], options = {}) {
   const currentIndex = Number.isFinite(Number(options.currentIndex)) ? Number(options.currentIndex) : Math.max(0, sourceOptions.findIndex((source) => source.url === url));
   setupCustomVideoControls(video);
   setupCustomSubtitles(video, tracks);
+  applyPlayerAmbientMode(video);
   setupPlayerSettingsControls(video, tracks, sourceOptions, currentIndex);
   setupVideoBufferingState(video, resumeState);
 
@@ -6181,6 +6498,7 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
   const audio = document.querySelector("[data-player-audio]");
   const autoPlay = document.querySelector("[data-player-auto-play]");
   const autoNext = document.querySelector("[data-player-auto-next]");
+  const ambient = document.querySelector("[data-player-ambient-toggle]");
 
   if (toggle && panel) {
     toggle.onclick = () => {
@@ -6266,6 +6584,27 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
       persistSettings();
     };
   }
+
+  if (ambient) {
+    ambient.checked = Boolean(state.settings.playerAmbient);
+    ambient.onchange = () => {
+      state.settings.playerAmbient = ambient.checked;
+      persistSettings();
+      applyPlayerAmbientMode(video);
+    };
+  }
+}
+
+function applyPlayerAmbientMode(video = document.querySelector("[data-active-video]")) {
+  const player = document.querySelector("[data-video-player]");
+  const backdrop = document.querySelector("[data-player-ambient-backdrop]");
+  if (!player || !backdrop) return;
+  const enabled = Boolean(state.settings.playerAmbient);
+  player.classList.toggle("ambient-on", enabled);
+  backdrop.hidden = !enabled;
+  const image = playerRuntime.currentEpisode?.image || playerRuntime.anime?.banner || playerRuntime.anime?.image || fallbackImage;
+  backdrop.style.backgroundImage = enabled ? `url("${String(image).replace(/"/g, "%22")}")` : "";
+  if (video) video.classList.toggle("ambient-video", enabled);
 }
 
 function animeDexAudioVersionsForCurrentEpisode() {
@@ -7322,7 +7661,7 @@ function markMangaChapterRead(manga, chapterNumber) {
   );
   state.library[manga.id].status = "reading";
   state.library[manga.id].updatedAt = Date.now();
-  recordActivity(state.library[manga.id], "updated");
+  recordActivity({ ...state.library[manga.id], progress: Number(chapterNumber) || 0 }, "updated");
   persistLibrary();
   document.querySelector(`[data-chapter-item][data-chapter-number="${chapterNumber}"]`)?.classList.add("read");
 }
