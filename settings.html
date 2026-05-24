@@ -5,17 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Customize your AniTrack experience." />
     <title>AniTrack | Settings</title>
-    <link rel="stylesheet" href="styles.css?v=library-status-edit-1" />
-    <script src="app.js?v=library-status-edit-1" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-match-1" />
+    <script src="app.js?v=site-match-1" defer></script>
   </head>
   <body data-page="settings">
-    <header class="topbar shell">
-      <a class="brand" href="index.html"><span>AT</span>AniTrack</a>
-      <nav class="nav" aria-label="Primary navigation">
+    <header class="topbar shell anilist-topbar">
+      <a class="brand anilist-brand" href="index.html" aria-label="AniTrack home"><span>AT</span><b>AniTrack</b></a>
+      <nav class="nav anilist-nav" aria-label="Primary navigation">
         <a href="index.html">Home</a>
-        <a href="anime.html">Anime</a>
-        <a href="manga.html">Manga</a>
-        <a href="doujin.html" data-adult-nav hidden>Doujin</a>
+        <a href="profile.html">Profile</a>
+        <a href="anime-library.html">Anime Library</a>
+        <a href="manga-library.html">Manga Library</a>
+        <a href="anime.html">Discover</a>
+        <a class="active" href="settings.html">Settings</a>
       </nav>
     </header>
 
@@ -934,6 +936,76 @@
           grid-template-columns: 1fr;
           gap: 6px;
         }
+      }
+
+      body[data-page="settings"] {
+        background: #0b1622;
+        color: #c9d7e8;
+        font-family: "Overpass", Inter, "Segoe UI", Arial, sans-serif;
+      }
+
+      .settings-sidebar,
+      .settings-section,
+      .form-group,
+      .theme-buttons,
+      .color-input-row,
+      .btn-compact,
+      .about-item,
+      .extension-card {
+        border-color: rgba(140, 165, 194, 0.18);
+        background: #151f2e;
+        box-shadow: 0 12px 26px rgba(0, 0, 0, 0.08);
+      }
+
+      .settings-nav-btn {
+        border-color: rgba(140, 165, 194, 0.14);
+        background: #101a28;
+        color: #8aa8c7;
+      }
+
+      .settings-nav-btn:hover,
+      .settings-nav-btn.active {
+        color: #e8f4ff;
+        background: linear-gradient(135deg, rgba(22, 168, 255, 0.22), rgba(185, 92, 255, 0.16));
+      }
+
+      .settings-nav-btn span {
+        border-color: rgba(140, 165, 194, 0.18);
+        color: #d46cff;
+        background: #162436;
+      }
+
+      .settings-section,
+      .settings-sidebar {
+        border-radius: 16px;
+        backdrop-filter: none;
+      }
+
+      .section-header {
+        border-color: rgba(140, 165, 194, 0.18);
+      }
+
+      .section-header h2,
+      .settings-sidebar h2,
+      .checkbox-label span {
+        color: #dce9f8;
+        letter-spacing: 0;
+      }
+
+      .section-header p,
+      .form-group label {
+        color: #7f97b2;
+      }
+
+      .form-group select,
+      .form-group input[type="url"],
+      .settings-section input,
+      .settings-section select,
+      .settings-section textarea {
+        border-color: rgba(140, 165, 194, 0.18);
+        color: #dce9f8;
+        background: #101a28;
+        box-shadow: none;
       }
     </style>
   </body>

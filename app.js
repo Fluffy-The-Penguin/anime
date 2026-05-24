@@ -5,6 +5,7 @@ const THEME_KEY = "anitrack-theme";
 const SETTINGS_KEY = "anitrack-settings-v1";
 const ACCOUNT_KEY = "anitrack-account-v1";
 const DETAIL_CACHE_KEY = "anitrack-last-detail";
+const NOTIFICATION_READ_KEY = "anitrack-notifications-read-at";
 const MANGA_CHAPTER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const MANGA_PAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const BROWSE_PAGE_SIZE = 28;
@@ -167,6 +168,10 @@ function injectChrome() {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 18.4a7.7 7.7 0 1 1 5.4-13.1 7.7 7.7 0 0 1 0 10.8l4.1 4.1-2 2-4.1-4.1a7.6 7.6 0 0 1-3.4.8Zm0-3a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Z"/></svg>
         </button>` : ""}
         <button class="icon-btn theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">${themeIcon()}</button>
+        <div class="notification-menu">
+          <button class="icon-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false"><span data-notification-count>0</span></button>
+          <div class="notification-popover" data-notification-popover></div>
+        </div>
         <div class="profile-menu">
           <button class="icon-btn profile-btn" data-profile-toggle type="button" aria-label="Open profile settings">${profileInitials()}</button>
           <div class="profile-popover" data-profile-popover>
@@ -202,7 +207,7 @@ function injectChrome() {
   if (!document.querySelector(".site-footer")) {
     document.body.insertAdjacentHTML(
       "beforeend",
-      `<footer class="site-footer shell"><strong>AniTrack</strong><p>Anime and manga discovery with local progress tracking. Powered by AniList data.</p></footer>`
+      `<footer class="site-footer shell"><strong>AniTrack</strong><p>Anime and manga discovery with local progress tracking and external metadata.</p></footer>`
     );
   }
 
@@ -221,16 +226,20 @@ function injectChrome() {
   document.querySelector("[data-reset-color]")?.addEventListener("click", resetThemeColor);
   document.querySelector("[data-theme-toggle]").addEventListener("click", toggleTheme);
   document.querySelector("[data-menu-toggle]").addEventListener("click", toggleMobileMenu);
+  document.querySelector("[data-notification-toggle]")?.addEventListener("click", toggleNotifications);
   document.querySelector("[data-browse-filter-toggle]")?.addEventListener("click", toggleBrowseFilters);
   initAccountControls();
   syncAdultControls();
+  renderNotifications();
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeMobileMenu();
     if (event.key === "Escape") closeAccountModal();
+    if (event.key === "Escape") closeNotifications();
   });
 
   document.addEventListener("click", (event) => {
     if (!event.target.closest(".profile-menu")) closeProfileMenu();
+    if (!event.target.closest(".notification-menu")) closeNotifications();
     if (!event.target.closest(".topbar")) closeMobileMenu();
   });
 }
@@ -2486,7 +2495,7 @@ function renderDetails(root, item, isTemporary = false) {
 }
 
 function renderDetailsError(root, message) {
-  root.innerHTML = `<div class="details-loading panel"><h2>Details unavailable</h2><p class="muted">${escapeHtml(message)}</p><a class="btn" href="anime.html">Browse Anime</a></div>`;
+  root.innerHTML = `<div class="details-loading panel"><h2>Details unavailable</h2><p class="muted">${escapeHtml(message)}</p><a class="btn" href="anime.html">Discover Anime</a></div>`;
 }
 
 function mergeFreshDetail(freshItem, trackedItem) {
@@ -3285,11 +3294,82 @@ function closeSearchOverlay() {
 
 function toggleProfileMenu(event) {
   event.stopPropagation();
+  closeNotifications();
   document.querySelector("[data-profile-popover]")?.classList.toggle("show");
 }
 
 function closeProfileMenu() {
   document.querySelector("[data-profile-popover]")?.classList.remove("show");
+}
+
+function toggleNotifications(event) {
+  event.stopPropagation();
+  closeProfileMenu();
+  const popover = document.querySelector("[data-notification-popover]");
+  const button = document.querySelector("[data-notification-toggle]");
+  if (!popover || !button) return;
+  const shouldOpen = !popover.classList.contains("show");
+  popover.classList.toggle("show", shouldOpen);
+  button.setAttribute("aria-expanded", String(shouldOpen));
+  if (shouldOpen) {
+    localStorage.setItem(NOTIFICATION_READ_KEY, String(Date.now()));
+    renderNotifications();
+    popover.classList.add("show");
+  }
+}
+
+function closeNotifications() {
+  document.querySelector("[data-notification-popover]")?.classList.remove("show");
+  document.querySelector("[data-notification-toggle]")?.setAttribute("aria-expanded", "false");
+}
+
+function renderNotifications() {
+  const popover = document.querySelector("[data-notification-popover]");
+  const count = document.querySelector("[data-notification-count]");
+  const button = document.querySelector("[data-notification-toggle]");
+  if (!popover || !count || !button) return;
+  const readAt = Number(localStorage.getItem(NOTIFICATION_READ_KEY) || 0);
+  const items = notificationItems();
+  const unread = items.filter((item) => Number(item.updatedAt || 0) > readAt).length;
+  count.textContent = unread > 99 ? "99+" : String(unread);
+  button.classList.toggle("has-unread", unread > 0);
+  button.setAttribute("aria-label", unread ? `Open notifications, ${unread} unread` : "Open notifications");
+  popover.innerHTML = `
+    <strong>Notifications</strong>
+    ${items.length ? items.map((item) => `
+      <button class="notification-row" data-id="${escapeAttr(item.id)}" type="button">
+        <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
+        <span>${escapeHtml(notificationText(item))}<small>${escapeHtml(relativeTime(item.updatedAt))}</small></span>
+      </button>
+    `).join("") : `<p class="notification-empty">No library activity yet.</p>`}
+  `;
+  popover.querySelectorAll("[data-id]").forEach((row) => row.addEventListener("click", () => {
+    const item = state.library[row.dataset.id];
+    if (item) goToDetails(item);
+  }));
+}
+
+function notificationItems() {
+  return Object.values(state.library)
+    .filter((item) => item?.updatedAt)
+    .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))
+    .slice(0, 8);
+}
+
+function notificationText(item) {
+  const action = item.status === "completed" ? "Completed" : item.status === "planning" ? "Planned" : item.type === "manga" ? "Reading" : "Watching";
+  return `${action} ${item.title}`;
+}
+
+function relativeTime(timestamp) {
+  const diff = Math.max(0, Date.now() - Number(timestamp || 0));
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 function toggleMobileMenu(event) {
@@ -3907,6 +3987,7 @@ function persistLibrary(sync = true) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.library));
     LEGACY_STORAGE_KEYS.forEach((key) => localStorage.setItem(key, JSON.stringify(state.library)));
     if (sync) scheduleAccountSync();
+    renderNotifications();
     return true;
   } catch (error) {
     return false;
