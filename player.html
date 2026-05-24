@@ -99,8 +99,7 @@
     </main>
 
     <style>
-      body[data-page="player"],
-      :root[data-theme="light"] body[data-page="player"] {
+      body[data-page="player"] {
         --bg: #05070b;
         --bg-2: #0a101a;
         --panel: rgba(12, 18, 29, 0.82);
@@ -122,6 +121,25 @@
         color: var(--text);
       }
 
+      :root[data-theme="light"] body[data-page="player"] {
+        --bg: #f4f7fb;
+        --bg-2: #eaf1f8;
+        --panel: rgba(255, 255, 255, 0.92);
+        --solid: #ffffff;
+        --soft: rgba(49, 76, 112, 0.08);
+        --line: rgba(61, 83, 112, 0.18);
+        --text: #172234;
+        --muted: #63758c;
+        --al-bg: #f4f7fb;
+        --al-bg-2: #eaf1f8;
+        --al-surface: #ffffff;
+        --al-surface-2: #f7faff;
+        --al-text: #172234;
+        --al-muted: #63758c;
+        background: linear-gradient(145deg, #eef4ff 0%, #fff6fb 54%, #f8fbff 100%) !important;
+        color: var(--text);
+      }
+
       body[data-page="player"] .mobile-bottom-nav,
       body[data-page="player"] .site-footer {
         display: none;
@@ -134,6 +152,27 @@
         padding: 10px clamp(10px, 1.2vw, 20px);
         border-bottom: 1px solid rgba(148, 163, 184, 0.13);
         background: rgba(5, 10, 18, 0.94) !important;
+      }
+
+      :root[data-theme="light"] body[data-page="player"] > .topbar.shell {
+        border-bottom-color: rgba(61, 83, 112, 0.14);
+        background: rgba(255, 255, 255, 0.94) !important;
+        box-shadow: 0 12px 28px rgba(36, 54, 82, 0.08);
+      }
+
+      :root[data-theme="light"] body[data-page="player"] > .topbar.shell .brand,
+      :root[data-theme="light"] body[data-page="player"] > .topbar.shell .nav,
+      :root[data-theme="light"] body[data-page="player"] > .topbar.shell .icon-btn:not(.profile-btn),
+      :root[data-theme="light"] body[data-page="player"] > .topbar.shell .brand span,
+      :root[data-theme="light"] body[data-page="player"] > .topbar.shell .brand b,
+      :root[data-theme="light"] body[data-page="player"] > .topbar.shell .nav a {
+        color: #26364c !important;
+      }
+
+      :root[data-theme="light"] body[data-page="player"] > .topbar.shell .nav a:hover,
+      :root[data-theme="light"] body[data-page="player"] > .topbar.shell .nav a.active {
+        color: #0f2238 !important;
+        background: rgba(22, 168, 255, 0.16) !important;
       }
 
       body[data-page="player"] > .topbar.shell .brand,
@@ -531,6 +570,15 @@
         backdrop-filter: blur(14px) saturate(130%);
       }
 
+      :root[data-theme="light"] .player-controls,
+      :root[data-theme="light"] .episode-card,
+      :root[data-theme="light"] .player-sidebar,
+      :root[data-theme="light"] .player-source-bar {
+        border-color: rgba(61, 83, 112, 0.16);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 18px 44px rgba(36, 54, 82, 0.12);
+      }
+
       .video-wrapper:fullscreen,
       .video-wrapper.player-fullscreen {
         width: 100vw;
@@ -627,6 +675,12 @@
         transition: opacity 180ms ease, transform 180ms ease;
       }
 
+      :root[data-theme="light"] .player-settings-panel {
+        border-color: rgba(61, 83, 112, 0.18);
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 18px 54px rgba(36, 54, 82, 0.18);
+      }
+
       .player-settings-panel[hidden] {
         display: none !important;
         pointer-events: none !important;
@@ -686,6 +740,28 @@
         background: linear-gradient(145deg, rgba(16, 24, 39, 0.88), rgba(10, 15, 24, 0.78));
         box-shadow: 0 18px 60px rgba(0, 0, 0, 0.18);
         backdrop-filter: blur(14px) saturate(130%);
+      }
+
+      :root[data-theme="light"] [data-episode-description],
+      :root[data-theme="light"] .player-info h2,
+      :root[data-theme="light"] .sidebar-head h3,
+      :root[data-theme="light"] .source-info h4,
+      :root[data-theme="light"] .episode-title {
+        color: #172234;
+      }
+
+      :root[data-theme="light"] .muted,
+      :root[data-theme="light"] .player-info p,
+      :root[data-theme="light"] .episode-meta span,
+      :root[data-theme="light"] .source-section-head span,
+      :root[data-theme="light"] .source-info p,
+      :root[data-theme="light"] .episode-air-date,
+      :root[data-theme="light"] .player-source-bar label,
+      :root[data-theme="light"] .player-settings-panel label,
+      :root[data-theme="light"] .player-source-bar span,
+      :root[data-theme="light"] .player-loading,
+      :root[data-theme="light"] .episodes-loading {
+        color: #63758c;
       }
 
       .episode-meta {
@@ -756,6 +832,23 @@
         border-radius: 12px;
         background: rgba(255, 255, 255, 0.1);
         transition: all 200ms ease;
+      }
+
+      :root[data-theme="light"] .source-item,
+      :root[data-theme="light"] .episode-item {
+        border-color: rgba(61, 83, 112, 0.14);
+        background: rgba(248, 251, 255, 0.88);
+      }
+
+      :root[data-theme="light"] .source-item:hover,
+      :root[data-theme="light"] .episode-item:hover {
+        border-color: rgba(22, 143, 255, 0.28);
+        background: rgba(239, 246, 255, 0.96);
+      }
+
+      :root[data-theme="light"] .episode-item.active {
+        border-color: rgba(22, 143, 255, 0.42);
+        background: linear-gradient(135deg, rgba(22, 143, 255, 0.14), rgba(185, 92, 255, 0.1));
       }
 
       .source-item:hover {
@@ -857,6 +950,15 @@
         font: inherit;
       }
 
+      :root[data-theme="light"] .player-source-bar select,
+      :root[data-theme="light"] .player-source-bar input,
+      :root[data-theme="light"] .episodes-search input,
+      :root[data-theme="light"] .player-settings-panel select {
+        border-color: rgba(61, 83, 112, 0.2);
+        color: #172234;
+        background: #f7faff !important;
+      }
+
       .player-source-bar span {
         font-size: 12px;
         padding-bottom: 8px;
@@ -954,6 +1056,11 @@
         font-size: 13px;
         color: var(--blue);
         font-weight: 700;
+      }
+
+      :root[data-theme="light"] .episode-number {
+        color: #168fff;
+        background: rgba(22, 143, 255, 0.1);
       }
 
       .episode-title {

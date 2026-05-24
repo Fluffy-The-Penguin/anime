@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Review your AniTrack library history." />
+    <title>AniTrack | History</title>
+    <link rel="stylesheet" href="styles.css?v=site-fix-11" />
+    <script src="app.js?v=site-fix-11" defer></script>
+  </head>
+  <body data-page="history">
+    <header class="topbar shell anilist-topbar">
+      <a class="brand anilist-brand" href="index.html" aria-label="AniTrack home"><span>AT</span><b>AniTrack</b></a>
+      <nav class="nav anilist-nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="anime.html">Anime</a>
+        <a href="manga.html">Manga / Manhwa</a>
+        <a href="doujin.html" data-adult-nav hidden>Doujin</a>
+        <a href="profile.html">Profile</a>
+      </nav>
+    </header>
+
+    <main class="shell history-page-main">
+      <section class="profile-subpage-hero">
+        <span class="eyebrow">Activity</span>
+        <h1>History</h1>
+        <p class="muted">Full local record of watched/read progress and library updates.</p>
+        <strong data-history-count>0 entries</strong>
+      </section>
+
+      <section class="history-page-panel">
+        <div class="history-page-list" data-history-list></div>
+      </section>
+    </main>
+
+    <style>
+      .history-page-main {
+        display: grid;
+        gap: 18px;
+        margin: 28px auto 42px;
+      }
+
+      .history-page-panel {
+        padding: clamp(14px, 2vw, 22px);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .history-page-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .history-page-row {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        width: 100%;
+        min-height: 78px;
+        padding: 10px;
+        border: 1px solid color-mix(in srgb, var(--text) 9%, transparent);
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--soft) 50%, transparent);
+        color: var(--text);
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .history-page-row:hover {
+        border-color: color-mix(in srgb, var(--theme-primary) 38%, var(--line));
+        background: color-mix(in srgb, var(--theme-primary) 12%, var(--soft));
+      }
+
+      .history-page-row img {
+        width: 58px;
+        height: 58px;
+        object-fit: cover;
+        border-radius: 12px;
+      }
+
+      .history-page-row span {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+      }
+
+      .history-page-row strong,
+      .history-page-row small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .history-page-row small,
+      .history-page-row em {
+        color: var(--muted);
+        font-size: 12px;
+        font-style: normal;
+      }
+
+      @media (max-width: 640px) {
+        .history-page-row {
+          grid-template-columns: 50px minmax(0, 1fr);
+        }
+
+        .history-page-row em {
+          display: none;
+        }
+      }
+    </style>
+  </body>
+</html>

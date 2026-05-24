@@ -29,6 +29,9 @@
             <button class="settings-nav-btn active" data-section="appearance" type="button">
               <span>UI</span> Looks
             </button>
+            <button class="settings-nav-btn" data-section="profile" type="button">
+              <span>PR</span> Profile
+            </button>
             <button class="settings-nav-btn" data-section="content" type="button">
               <span>CT</span> Content
             </button>
@@ -78,6 +81,36 @@
                   <input type="color" data-color-picker value="#48dbfb" aria-label="Choose accent color">
                   <button type="button" class="btn-compact" data-reset-color-btn>Reset</button>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Profile Section -->
+          <section class="settings-section" data-section-content="profile">
+            <div class="section-header">
+              <h2>Profile</h2>
+              <p class="muted">Customize your profile button, avatar, and banner</p>
+            </div>
+
+            <div class="settings-form">
+              <div class="profile-media-preview">
+                <span data-profile-banner-preview></span>
+                <img data-profile-avatar-preview alt="Profile avatar preview">
+              </div>
+
+              <div class="form-group">
+                <label>Avatar Image URL</label>
+                <input data-profile-avatar-url type="url" placeholder="https://example.com/avatar.jpg" autocomplete="off">
+              </div>
+
+              <div class="form-group">
+                <label>Banner Image URL</label>
+                <input data-profile-banner-url type="url" placeholder="https://example.com/banner.jpg" autocomplete="off">
+              </div>
+
+              <div class="form-group">
+                <label>Reset Images</label>
+                <button type="button" class="btn-compact" data-profile-media-reset>Use library images</button>
               </div>
             </div>
           </section>
@@ -559,6 +592,42 @@
         border: 1px solid var(--line);
         padding: 4px;
         cursor: pointer;
+      }
+
+      .profile-media-preview {
+        position: relative;
+        min-height: 190px;
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--theme-primary) 14%, var(--line));
+        border-radius: 18px;
+        background: #0f1724;
+      }
+
+      .profile-media-preview span {
+        position: absolute;
+        inset: 0;
+        background: var(--profile-bg) center / cover no-repeat;
+        filter: saturate(0.9) brightness(0.72);
+      }
+
+      .profile-media-preview::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(8, 14, 24, 0.12), rgba(8, 14, 24, 0.78));
+      }
+
+      .profile-media-preview img {
+        position: absolute;
+        left: 22px;
+        bottom: 18px;
+        z-index: 1;
+        width: 104px;
+        height: 104px;
+        object-fit: cover;
+        border: 3px solid rgba(255, 255, 255, 0.78);
+        border-radius: 12px;
+        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
       }
 
       .form-group select,
