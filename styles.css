@@ -9130,3 +9130,54 @@ body[data-page="profile"] .profile-hero h1 {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+/* Keep profile library cards compact on phones. */
+@media (max-width: 720px) {
+  body[data-page="library"] .profile-card-grid.library-list:not([data-library-view-mode="compact"]):not([data-library-view-mode="text"]) {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  body[data-page="library"] .profile-card-grid.library-list:not([data-library-view-mode="compact"]):not([data-library-view-mode="text"]) .library-item {
+    border-radius: 10px !important;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  body[data-page="library"] .profile-card-grid.library-list:not([data-library-view-mode="compact"]):not([data-library-view-mode="text"]) .library-item img {
+    aspect-ratio: 2 / 3;
+  }
+
+  body[data-page="library"] .profile-card-grid.library-list:not([data-library-view-mode="compact"]):not([data-library-view-mode="text"]) .library-card-overlay {
+    min-height: 48px;
+    gap: 3px;
+    padding: 18px 7px 7px;
+    background: linear-gradient(180deg, rgba(24, 29, 44, 0.12), rgba(24, 29, 44, 0.9));
+  }
+
+  body[data-page="library"] .profile-card-grid.library-list:not([data-library-view-mode="compact"]):not([data-library-view-mode="text"]) .library-card-overlay h3 {
+    -webkit-line-clamp: 2;
+    font-size: 11px;
+    line-height: 1.12;
+  }
+
+  body[data-page="library"] .profile-card-grid.library-list:not([data-library-view-mode="compact"]):not([data-library-view-mode="text"]) .library-card-overlay p {
+    font-size: 10px;
+    line-height: 1.1;
+  }
+}
+
+@media (max-width: 430px) {
+  body[data-page="library"] .profile-card-grid.library-list:not([data-library-view-mode="compact"]):not([data-library-view-mode="text"]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  body[data-page="library"] .profile-card-grid.library-list:not([data-library-view-mode="compact"]):not([data-library-view-mode="text"]) .library-card-overlay h3 {
+    font-size: 12px;
+  }
+
+  body[data-page="library"] .profile-card-grid.library-list:not([data-library-view-mode="compact"]):not([data-library-view-mode="text"]) .library-card-overlay p {
+    font-size: 11px;
+  }
+}
