@@ -14,6 +14,8 @@ const CHAPTER_SEEN_KEY = "anitrack-chapter-seen-v1";
 const ACTIVITY_KEY = "anitrack-activity-v1";
 const ACTIVITY_LIMIT = 500;
 const ACTIVITY_PAGE_SIZE = 8;
+const ACCOUNT_AUTO_SYNC_INTERVAL_MS = 45000;
+const ACCOUNT_AUTO_SYNC_MIN_MS = 10000;
 const MANGA_CHAPTER_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const MANGA_PAGE_CACHE_TTL_MS = 60 * 60 * 1000;
 const BROWSE_PAGE_SIZE = 28;
@@ -4733,8 +4735,10 @@ function initAccountControls() {
   document.querySelector("[data-account-logout]")?.addEventListener("click", () => {
     state.account = null;
     persistAccount();
+    stopAccountAutoSync();
     renderAccountState("Logged out. Local library is still on this device.");
   });
+  setupAccountAutoSync();
   if (state.account?.token) syncAccountNow(false);
 }
 
@@ -4765,6 +4769,7 @@ async function handleAccountSubmit(action) {
     persistAccount();
     applyAccountData(result.data || {});
     renderAccountState(action === "register" ? "Account created and synced." : "Logged in and synced.");
+    startAccountAutoSync();
     await syncAccountNow(false);
   } catch (error) {
     setAccountStatus(error.message || "Account request failed.");
@@ -4773,14 +4778,21 @@ async function handleAccountSubmit(action) {
 
 async function syncAccountNow(showStatus = false) {
   if (!state.account?.token) return;
+  if (syncAccountNow.inFlight) return;
   if (showStatus) setAccountStatus("Syncing...");
-  try {
+  syncAccountNow.inFlight = (async () => {
     const remote = await accountApi("/api/account/sync", "GET");
     applyAccountData(remote.data || {});
     await accountApi("/api/account/sync", "PUT", { data: accountSyncPayload() });
+    syncAccountNow.lastRun = Date.now();
     if (showStatus) setAccountStatus("Synced library, activity, preferences, and sources.");
+  })();
+  try {
+    await syncAccountNow.inFlight;
   } catch (error) {
     if (showStatus) setAccountStatus(error.message || "Sync failed.");
+  } finally {
+    syncAccountNow.inFlight = null;
   }
 }
 
@@ -4788,6 +4800,38 @@ function scheduleAccountSync() {
   if (!state.account?.token) return;
   clearTimeout(scheduleAccountSync.timer);
   scheduleAccountSync.timer = setTimeout(() => accountApi("/api/account/sync", "PUT", { data: accountSyncPayload() }).catch(() => null), 800);
+}
+
+function setupAccountAutoSync() {
+  if (setupAccountAutoSync.ready) {
+    startAccountAutoSync();
+    return;
+  }
+  setupAccountAutoSync.ready = true;
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) syncAccountWhenActive(true);
+  });
+  window.addEventListener("focus", () => syncAccountWhenActive(true));
+  window.addEventListener("online", () => syncAccountWhenActive(true));
+  startAccountAutoSync();
+}
+
+function startAccountAutoSync() {
+  stopAccountAutoSync();
+  if (!state.account?.token) return;
+  setupAccountAutoSync.timer = window.setInterval(() => syncAccountWhenActive(false), ACCOUNT_AUTO_SYNC_INTERVAL_MS);
+}
+
+function stopAccountAutoSync() {
+  if (!setupAccountAutoSync.timer) return;
+  window.clearInterval(setupAccountAutoSync.timer);
+  setupAccountAutoSync.timer = null;
+}
+
+function syncAccountWhenActive(force = false) {
+  if (!state.account?.token || document.hidden) return;
+  if (!force && Date.now() - Number(syncAccountNow.lastRun || 0) < ACCOUNT_AUTO_SYNC_MIN_MS) return;
+  syncAccountNow(false);
 }
 
 async function accountApi(path, method = "GET", body = null, requireToken = true) {
