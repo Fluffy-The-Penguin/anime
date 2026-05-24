@@ -7904,8 +7904,21 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
 :root[data-theme="light"] .anilist-topbar .icon-btn:not(.profile-btn) {
   border-color: transparent;
   color: #26364c;
-  background: transparent;
+  background: transparent !important;
   box-shadow: none;
+}
+
+:root[data-theme="light"] .anilist-topbar .menu-toggle,
+:root[data-theme="light"] .anilist-topbar .theme-toggle,
+:root[data-theme="light"] .anilist-topbar .notification-btn,
+:root[data-theme="light"] .anilist-topbar .history-btn,
+:root[data-theme="light"] .anilist-topbar .nav-search-toggle {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  color: #53677f;
+  background: transparent !important;
 }
 
 :root[data-theme="light"] .anilist-brand span {
@@ -7944,7 +7957,7 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
 :root[data-theme="light"] body[data-page="profile"] .anilist-nav.nav,
 :root[data-theme="light"] body[data-page="profile"] .anilist-topbar .icon-btn:not(.profile-btn) {
   color: #eef6ff;
-  background: rgba(8, 13, 22, 0.34);
+  background: rgba(8, 13, 22, 0.22) !important;
 }
 
 :root[data-theme="light"] body[data-page="details"] .anilist-brand span,
