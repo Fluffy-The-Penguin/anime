@@ -191,16 +191,16 @@ function init() {
 }
 
 function setupMobileNavMode() {
+  document.body.classList.remove("mobile-nav-floating");
   if (page === "reader") {
-    document.body.classList.remove("is-scrolled", "mobile-nav-floating", "primary-nav-collapsed");
+    document.body.classList.remove("is-scrolled", "primary-nav-collapsed");
     return;
   }
   const media = window.matchMedia?.("(max-width: 720px)");
   const update = () => {
-    const isMobile = media ? media.matches : window.innerWidth <= 720;
     const isScrolled = (window.scrollY || document.documentElement.scrollTop || 0) > 24;
     document.body.classList.toggle("is-scrolled", isScrolled);
-    document.body.classList.toggle("mobile-nav-floating", isMobile && isScrolled);
+    document.body.classList.remove("mobile-nav-floating");
     window.requestAnimationFrame(syncMenuToggleVisibility);
   };
   update();
