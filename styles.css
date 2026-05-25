@@ -4522,7 +4522,7 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
 }
 
 .mobile-bottom-nav {
-  display: none;
+  display: none !important;
 }
 
 @media (max-width: 720px) {
@@ -4554,7 +4554,7 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
     bottom: max(12px, env(safe-area-inset-bottom));
     left: 50%;
     z-index: 95;
-    display: grid;
+    display: none !important;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     width: min(420px, calc(100% - 24px));
     height: 48px;
@@ -8364,11 +8364,11 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
   }
 
   body[data-page].mobile-nav-floating {
-    padding-bottom: 76px !important;
+    padding-bottom: 0 !important;
   }
 
   body[data-page].mobile-nav-floating .mobile-bottom-nav {
-    display: grid !important;
+    display: none !important;
     grid-template-columns: repeat(auto-fit, minmax(56px, 1fr)) !important;
     align-items: center;
     gap: 6px;
@@ -9304,6 +9304,40 @@ body[data-detail-type="manga"] .details-side-rail a[href="manga.html"] {
   transform: translateY(-1px);
 }
 
+.details-rail-profile-menu {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  margin: 0 auto;
+}
+
+.details-rail-profile-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  color: #06101a;
+  background: linear-gradient(135deg, var(--blue), var(--pink));
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.details-rail-profile-btn:hover {
+  transform: translateY(-1px);
+}
+
+.details-rail-profile-menu .profile-popover {
+  top: 0;
+  right: auto;
+  left: calc(100% + 12px);
+  width: min(270px, calc(100vw - 24px));
+  color: var(--text);
+}
+
 .details-side-rail svg {
   width: 22px;
   height: 22px;
@@ -9950,6 +9984,19 @@ body.detail-poster-modal-open {
   .details-side-rail a {
     width: 42px;
     height: 42px;
+  }
+
+  .details-rail-profile-menu,
+  .details-rail-profile-btn {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .details-rail-profile-menu .profile-popover {
+    top: auto;
+    right: 0;
+    bottom: calc(100% + 12px);
+    left: auto;
   }
 
   body[data-page="details"] .detail-backdrop {
@@ -10672,6 +10719,16 @@ body[data-page="details"] .detail-episode-copy small {
     width: 34px !important;
     height: 34px !important;
     border-radius: 10px;
+  }
+
+  .details-rail-profile-menu,
+  .details-rail-profile-btn {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .details-rail-profile-btn {
+    border-radius: 10px !important;
   }
 
   .details-side-rail svg {
@@ -11594,7 +11651,18 @@ body {
   color: rgba(255, 255, 255, 0.74) !important;
 }
 
+.details-rail-profile-menu,
+.details-rail-profile-btn {
+  width: 40px !important;
+  height: 40px !important;
+}
+
+.details-rail-profile-btn {
+  border-radius: 11px !important;
+}
+
 .details-side-rail a:hover,
+.details-rail-profile-btn:hover,
 body[data-detail-type="anime"] .details-side-rail a[href="anime.html"],
 body[data-detail-type="manga"] .details-side-rail a[href="manga.html"],
 body[data-page="home"] .details-side-rail a[href="index.html"],
@@ -11602,7 +11670,8 @@ body[data-page="anime"] .details-side-rail a[href="anime.html"],
 body[data-page="manga"] .details-side-rail a[href="manga.html"],
 body[data-page="doujin"] .details-side-rail a[href="doujin.html"],
 body[data-page="doujin-preview"] .details-side-rail a[href="doujin.html"],
-body[data-page="profile"] .details-side-rail a[href="profile.html"] {
+body[data-page="profile"] .details-side-rail a[href="profile.html"],
+body[data-page="profile"] .details-rail-profile-btn {
   color: #f7f8fb !important;
   background: #191a1f !important;
 }

@@ -241,27 +241,9 @@ function injectChrome() {
           <button class="icon-btn history-btn" data-history-toggle type="button" aria-label="Open history" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-2.3-5.7L15 9h7V2l-2.9 2.9A10 10 0 0 0 12 2Zm-1 5v6l5 3 .9-1.6-3.9-2.3V7h-2Z"/></svg></button>
           <div class="history-popover" data-history-popover></div>
         </div>
-        <div class="profile-menu">
-          <button class="icon-btn profile-btn" data-profile-toggle type="button" aria-label="Open profile settings">${profileInitials()}</button>
-          <div class="profile-popover" data-profile-popover>
-            <strong>Profile</strong>
-            <div class="profile-account-card" data-account-panel>
-              <div class="account-status"><strong data-account-title>${state.account?.username ? `@${escapeHtml(state.account.username)}` : "Guest"}</strong><span data-account-status>${state.account?.username ? "Sync enabled" : "Local library only"}</span></div>
-              <button class="settings-row compact" data-account-open type="button">${state.account?.token ? "Manage Account" : "Log in / Register"}</button>
-            </div>
-            <button class="settings-row" data-profile-page-button type="button">Profile</button>
-            <button class="settings-row" data-library-button type="button">Library</button>
-            <button class="settings-row" data-settings-button type="button">Settings</button>
-            <label class="settings-toggle"><span>Show 18+ content</span><input data-adult-toggle type="checkbox" ${state.settings.allowAdult ? "checked" : ""}></label>
-          </div>
-        </div>
+        ${profileMenuHtml()}
       </div>`
     );
-  }
-
-  if (topbar && page !== "details" && !document.querySelector(".mobile-bottom-nav")) {
-    const nav = topbar.querySelector(".nav");
-    if (nav) document.body.insertAdjacentHTML("beforeend", `<nav class="mobile-bottom-nav" aria-label="Mobile navigation">${nav.innerHTML}</nav>`);
   }
 
   if (["anime", "manga", "doujin"].includes(page) && !document.querySelector(".browse-filter-fab")) {
@@ -271,6 +253,8 @@ function injectChrome() {
   if (["home", "anime", "manga", "doujin", "doujin-preview", "profile", "library", "history"].includes(page) && !document.querySelector(".details-side-rail")) {
     document.body.insertAdjacentHTML("afterbegin", cinematicSideRailHtml());
   }
+
+  enhanceCinematicSideRail();
 
   document.body.insertAdjacentHTML(
     "beforeend",
@@ -292,17 +276,17 @@ function injectChrome() {
     );
   }
 
-  document.querySelector("[data-profile-toggle]").addEventListener("click", toggleProfileMenu);
-  document.querySelector("[data-profile-page-button]").addEventListener("click", () => {
+  document.querySelectorAll("[data-profile-toggle]").forEach((button) => button.addEventListener("click", toggleProfileMenu));
+  document.querySelectorAll("[data-profile-page-button]").forEach((button) => button.addEventListener("click", () => {
     window.location.href = "profile.html";
-  });
-  document.querySelector("[data-library-button]").addEventListener("click", () => {
+  }));
+  document.querySelectorAll("[data-library-button]").forEach((button) => button.addEventListener("click", () => {
     window.location.href = "anime-library.html";
-  });
-  document.querySelector("[data-settings-button]").addEventListener("click", () => {
+  }));
+  document.querySelectorAll("[data-settings-button]").forEach((button) => button.addEventListener("click", () => {
     window.location.href = "settings.html";
-  });
-  document.querySelector("[data-adult-toggle]").addEventListener("change", updateAdultSetting);
+  }));
+  document.querySelectorAll("[data-adult-toggle]").forEach((input) => input.addEventListener("change", updateAdultSetting));
   document.querySelector("[data-theme-color]")?.addEventListener("input", updateThemeColor);
   document.querySelector("[data-reset-color]")?.addEventListener("click", resetThemeColor);
   document.querySelector("[data-theme-toggle]").addEventListener("click", toggleTheme);
@@ -353,6 +337,33 @@ function cinematicSideRailHtml() {
       </div>
     </nav>
   `;
+}
+
+function profileMenuHtml(buttonClass = "icon-btn profile-btn", menuClass = "") {
+  const className = menuClass ? `profile-menu ${menuClass}` : "profile-menu";
+  return `
+    <div class="${className}">
+      <button class="${buttonClass}" data-profile-toggle type="button" aria-label="Open profile settings" aria-expanded="false">${profileInitials()}</button>
+      <div class="profile-popover" data-profile-popover>
+        <strong>Profile</strong>
+        <div class="profile-account-card" data-account-panel>
+          <div class="account-status"><strong data-account-title>${state.account?.username ? `@${escapeHtml(state.account.username)}` : "Guest"}</strong><span data-account-status>${state.account?.username ? "Sync enabled" : "Local library only"}</span></div>
+          <button class="settings-row compact" data-account-open type="button">${state.account?.token ? "Manage Account" : "Log in / Register"}</button>
+        </div>
+        <button class="settings-row" data-profile-page-button type="button">Profile</button>
+        <button class="settings-row" data-library-button type="button">Library</button>
+        <button class="settings-row" data-settings-button type="button">Settings</button>
+        <label class="settings-toggle"><span>Show 18+ content</span><input data-adult-toggle type="checkbox" ${state.settings.allowAdult ? "checked" : ""}></label>
+      </div>
+    </div>
+  `;
+}
+
+function enhanceCinematicSideRail() {
+  const profileLink = document.querySelector('.details-side-rail .details-rail-main a[href="profile.html"]');
+  if (!profileLink || document.querySelector(".details-rail-profile-menu")) return;
+  profileLink.insertAdjacentHTML("afterend", profileMenuHtml("details-rail-profile-btn", "details-rail-profile-menu"));
+  profileLink.remove();
 }
 
 function searchOverlayHtml() {
@@ -3997,13 +4008,37 @@ function animeProviderEpisodeRow(episode, match) {
 
 function episodeDurationBadge(episode, anime) {
   const value = episode?.duration || episode?.runtime || anime?.duration || "";
-  if (typeof value === "number" && value > 0) return `${value} min`;
+  const minutes = durationValueToMinutes(value);
+  if (minutes) return `${minutes} min`;
   const text = String(value || "").trim();
-  if (/^\d+$/.test(text)) return `${text} min`;
   if (/\b\d+\s*(min|mins|minute|minutes|m)\b/i.test(text)) return text.replace(/minutes?/i, "min").replace(/mins/i, "min");
   const extraDuration = (anime?.extra || []).find((item) => /\b\d+\s*(min|mins|minute|minutes|m)\b/i.test(String(item)));
   if (extraDuration) return String(extraDuration).replace(/minutes?/i, "min").replace(/mins/i, "min");
   return "24 min";
+}
+
+function durationValueToMinutes(value) {
+  if (typeof value === "number" && value > 0) return normalizeDurationNumber(value);
+  const text = String(value || "").trim();
+  if (!text) return 0;
+  const seconds = /^([\d.]+)\s*(?:sec|secs|second|seconds|s)$/i.exec(text);
+  if (seconds) return Math.max(1, Math.round(Number(seconds[1]) / 60));
+  const minutes = /^([\d.]+)\s*(?:min|mins|minute|minutes|m)$/i.exec(text);
+  if (minutes) return Math.max(1, Math.round(Number(minutes[1])));
+  if (/^\d+(?:\.\d+)?$/.test(text)) return normalizeDurationNumber(Number(text));
+  const timestamp = /^(\d+):([0-5]\d)(?::([0-5]\d))?$/.exec(text);
+  if (timestamp) {
+    const hours = timestamp[3] ? Number(timestamp[1]) : 0;
+    const mins = timestamp[3] ? Number(timestamp[2]) : Number(timestamp[1]);
+    const secs = Number(timestamp[3] || timestamp[2]);
+    return Math.max(1, Math.round((hours * 3600 + mins * 60 + secs) / 60));
+  }
+  return 0;
+}
+
+function normalizeDurationNumber(value) {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.max(1, Math.round(value > 300 ? value / 60 : value));
 }
 
 function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches = [], pageNumber = 1, searchQuery = "") {
@@ -4465,11 +4500,18 @@ function toggleProfileMenu(event) {
   event.stopPropagation();
   closeNotifications();
   closeHistory();
-  document.querySelector("[data-profile-popover]")?.classList.toggle("show");
+  const menu = event.currentTarget.closest(".profile-menu");
+  const popover = menu?.querySelector("[data-profile-popover]");
+  if (!popover) return;
+  const shouldOpen = !popover.classList.contains("show");
+  closeProfileMenu();
+  popover.classList.toggle("show", shouldOpen);
+  event.currentTarget.setAttribute("aria-expanded", String(shouldOpen));
 }
 
 function closeProfileMenu() {
-  document.querySelector("[data-profile-popover]")?.classList.remove("show");
+  document.querySelectorAll("[data-profile-popover]").forEach((popover) => popover.classList.remove("show"));
+  document.querySelectorAll("[data-profile-toggle]").forEach((button) => button.setAttribute("aria-expanded", "false"));
 }
 
 function toggleNotifications(event) {
@@ -5017,10 +5059,10 @@ function profileInitials() {
 
 function initAccountControls() {
   const form = document.querySelector("[data-account-form]");
-  document.querySelector("[data-account-open]")?.addEventListener("click", () => {
+  document.querySelectorAll("[data-account-open]").forEach((button) => button.addEventListener("click", () => {
     closeProfileMenu();
     openAccountModal();
-  });
+  }));
   document.querySelectorAll("[data-account-close]").forEach((button) => button.addEventListener("click", closeAccountModal));
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -5258,9 +5300,12 @@ function renderAccountState(message) {
   document.querySelector("[data-account-form]")?.toggleAttribute("hidden", signedIn);
   document.querySelector("[data-account-actions]")?.toggleAttribute("hidden", !signedIn);
   setText("[data-account-title]", signedIn ? `@${state.account.username}` : "Guest");
-  document.querySelector("[data-profile-toggle]").textContent = profileInitials();
-  const accountOpen = document.querySelector("[data-account-open]");
-  if (accountOpen) accountOpen.textContent = signedIn ? "Manage Account" : "Log in / Register";
+  document.querySelectorAll("[data-profile-toggle]").forEach((button) => {
+    button.textContent = profileInitials();
+  });
+  document.querySelectorAll("[data-account-open]").forEach((button) => {
+    button.textContent = signedIn ? "Manage Account" : "Log in / Register";
+  });
   setAccountStatus(message || (signedIn ? "Sync enabled" : "Local library only"));
 }
 
