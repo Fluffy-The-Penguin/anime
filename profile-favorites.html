@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Your AniTrack favorite titles, doujin artists, and doujin groups." />
     <title>AniTrack | Favorites</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-39" />
-    <script src="app.js?v=site-fix-39" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-42" />
+    <script src="app.js?v=site-fix-42" defer></script>
   </head>
   <body data-page="profile">
     <header class="topbar shell anilist-topbar">
@@ -47,21 +47,26 @@
           <h2>Favorites</h2>
           <p>Filter favorite anime, manga, adult titles, artist pins, and group pins from one focused page.</p>
         </header>
-        <article class="profile-panel profile-control-panel" id="favorites">
-          <div class="profile-favorites-toolbar profile-filter-head">
-            <div>
-              <span class="eyebrow">Collection</span>
-              <h2>Favorites</h2>
-              <p>Search and sort your pinned titles, artists, and groups.</p>
-            </div>
-            <div class="profile-filter-tools">
-              <label class="profile-search-control"><span>Search</span><input data-profile-favorite-search type="search" placeholder="Search favorites" aria-label="Search favorites"></label>
-              <label><span>Filter</span><select data-profile-favorite-filter aria-label="Filter favorites"><option value="all">All favorites</option><option value="anime">Anime</option><option value="manga">Manga / Manhwa</option><option value="doujin">Doujin</option><option value="hentai">Hentai</option><option value="pornhwa">Pornhwa</option><option value="artists">Artists</option></select></label>
+        <div class="profile-list-layout profile-favorites-layout" id="favorites">
+          <aside class="profile-list-sidebar profile-favorites-sidebar">
+            <label class="profile-library-search profile-search-control">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 18.4a7.7 7.7 0 1 1 5.4-13.1 7.7 7.7 0 0 1 0 10.8l4.1 4.1-2 2-4.1-4.1a7.6 7.6 0 0 1-3.4.8Zm0-3a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Z"/></svg>
+              <input data-profile-favorite-search type="search" placeholder="Search favorites" aria-label="Search favorites">
+            </label>
+            <div class="profile-sidebar-block filters profile-filter-tools">
+              <span>Filters</span>
+              <label><span>Type</span><select data-profile-favorite-filter aria-label="Filter favorites"><option value="all">All favorites</option><option value="anime">Anime</option><option value="manga">Manga / Manhwa</option><option value="doujin">Doujin</option><option value="hentai">Hentai</option><option value="pornhwa">Pornhwa</option><option value="artists">Artists</option></select></label>
               <label><span>Sort</span><select data-profile-favorite-sort aria-label="Sort favorites"><option value="recent">Recently favorited</option><option value="title">Title A-Z</option><option value="type">Group by type</option></select></label>
             </div>
-          </div>
-          <div class="profile-favorites-list profile-favorites-page" data-profile-favorites></div>
-        </article>
+          </aside>
+          <article class="profile-panel profile-control-panel profile-library-content">
+            <div class="profile-library-head">
+              <h2>Favorites</h2>
+              <p class="muted">Search and sort your pinned titles, artists, and groups.</p>
+            </div>
+            <div class="profile-favorites-list profile-favorites-page" data-profile-favorites></div>
+          </article>
+        </div>
       </section>
     </main>
   </body>

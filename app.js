@@ -24,6 +24,12 @@ const API_BASE_KEY = "anitrack-api-base";
 const DEFAULT_API_BASE_URL = "https://anime-api-proxy.aryanpanwar.workers.dev";
 const LEGACY_API_BASE_URLS = ["http://localhost:3000", "http://fi10.bot-hosting.net:21204"];
 const DEFAULT_SUBTITLE_STYLE = { size: 28, color: "#ffffff", backgroundColor: "#081018", backgroundOpacity: 46, position: "bottom", offset: 58 };
+const ANILIST_DETAIL_MEDIA_FRAGMENT = `
+  fragment DetailMediaCard on Media {
+    id idMal type isAdult title { romaji english native } description(asHtml: false) episodes chapters volumes duration averageScore popularity seasonYear status format genres bannerImage
+    coverImage { extraLarge large color }
+  }
+`;
 const ANIME_SOURCES = [
   { id: "animedex", name: "AnimeDex", description: "Real anime episode lists with direct HLS streams from public AnimeDex APIs.", badge: "HLS" },
   { id: "anizone", name: "AniZone", description: "Anime episode lists with proxied direct HLS playback when available.", badge: "HLS" },
@@ -1330,16 +1336,17 @@ function initLibraryPage() {
 function setupLibraryFilterDrawer() {
   const sidebar = document.querySelector(".profile-list-sidebar");
   if (!sidebar) return;
+  const drawerLabel = document.querySelector(".profile-favorites-sidebar") ? "Favorite Filters" : "Library Filters";
   sidebar.setAttribute("data-library-filter-panel", "");
-  sidebar.setAttribute("aria-label", "Library filters");
+  sidebar.setAttribute("aria-label", drawerLabel);
   if (!document.querySelector("[data-library-filter-toggle]")) {
-    document.body.insertAdjacentHTML("beforeend", `<button class="library-filter-fab" data-library-filter-toggle type="button" aria-label="Open library filters" aria-expanded="false">Filters</button>`);
+    document.body.insertAdjacentHTML("beforeend", `<button class="library-filter-fab" data-library-filter-toggle type="button" aria-label="Open filters" aria-expanded="false">Filters</button>`);
   }
   if (!document.querySelector("[data-library-filter-overlay]")) {
-    document.body.insertAdjacentHTML("beforeend", `<button class="library-filter-overlay" data-library-filter-overlay type="button" aria-label="Close library filters"></button>`);
+    document.body.insertAdjacentHTML("beforeend", `<button class="library-filter-overlay" data-library-filter-overlay type="button" aria-label="Close filters"></button>`);
   }
   if (!sidebar.querySelector("[data-library-filter-close]")) {
-    sidebar.insertAdjacentHTML("afterbegin", `<div class="library-filter-drawer-head"><strong>Library Filters</strong><button data-library-filter-close type="button" aria-label="Close library filters">Close</button></div>`);
+    sidebar.insertAdjacentHTML("afterbegin", `<div class="library-filter-drawer-head"><strong>${drawerLabel}</strong><button data-library-filter-close type="button" aria-label="Close filters">Close</button></div>`);
   }
 
   const toggle = document.querySelector("[data-library-filter-toggle]");
@@ -1380,6 +1387,7 @@ function syncLibraryViewControls() {
 function initProfilePage() {
   hydrateProfileShell();
   setupProfileFavoriteFilter();
+  if (document.querySelector(".profile-favorites-sidebar")) setupLibraryFilterDrawer();
   renderProfileOverview();
 }
 
@@ -2153,12 +2161,15 @@ async function fetchAnimeDetails(apiId, apiSource = "") {
   const data = await anilistQuery(
     `query ($id: Int) {
       Media(${filter}) {
-        id idMal title { romaji english native } synonyms description(asHtml: false) episodes duration averageScore popularity seasonYear status format genres bannerImage
-        coverImage { extraLarge large color }
+        ...DetailMediaCard
+        synonyms
         studios(isMain: true) { nodes { name } }
         streamingEpisodes { title thumbnail site }
+        relations { edges { relationType(version: 2) node { ...DetailMediaCard } } }
+        recommendations(sort: RATING_DESC, perPage: 12) { nodes { rating mediaRecommendation { ...DetailMediaCard } } }
       }
-    }`,
+    }
+    ${ANILIST_DETAIL_MEDIA_FRAGMENT}`,
     { id: Number(apiId), source: apiSource }
   );
   return mapAniList(data.Media);
@@ -2227,11 +2238,14 @@ async function fetchMangaDetails(apiId, apiSource = "") {
   const data = await anilistQuery(
     `query ($id: Int) {
       Media(${filter}) {
-        id title { romaji english native } synonyms description(asHtml: false) chapters volumes averageScore popularity seasonYear status format genres bannerImage
-        coverImage { extraLarge large color }
+        ...DetailMediaCard
+        synonyms
         staff(perPage: 1) { nodes { name { full } } }
+        relations { edges { relationType(version: 2) node { ...DetailMediaCard } } }
+        recommendations(sort: RATING_DESC, perPage: 12) { nodes { rating mediaRecommendation { ...DetailMediaCard } } }
       }
-    }`,
+    }
+    ${ANILIST_DETAIL_MEDIA_FRAGMENT}`,
     { id: Number(apiId), source: apiSource }
   );
   return mapAniListManga(data.Media);
@@ -2281,6 +2295,23 @@ function assertOk(response) {
   if (!response.ok) throw new Error(`Request failed: ${response.status}`);
 }
 
+function mapAniListMedia(item) {
+  if (!item) return null;
+  return String(item.type || "").toLowerCase() === "manga" ? mapAniListManga(item) : mapAniList(item);
+}
+
+function mapAniListRelations(edges) {
+  return (edges || [])
+    .map((edge) => ({ relationType: edge?.relationType || "RELATED", media: mapAniListMedia(edge?.node) }))
+    .filter((entry) => entry.media && contentVisibleItem(entry.media));
+}
+
+function mapAniListRecommendations(nodes) {
+  return (nodes || [])
+    .map((node) => ({ rating: node?.rating || 0, media: mapAniListMedia(node?.mediaRecommendation) }))
+    .filter((entry) => entry.media && contentVisibleItem(entry.media));
+}
+
 function mapAniList(item) {
   const apiSource = item.dataSource === "jikan" || (item.idMal && Number(item.id) === Number(item.idMal)) ? "jikan" : "anilist";
   const englishTitle = item.title.english || "";
@@ -2303,14 +2334,16 @@ function mapAniList(item) {
     nativeTitle,
     alternativeTitles,
     description: clean(item.description) || "No synopsis available.",
-    image: item.coverImage.extraLarge || item.coverImage.large || fallbackImage,
+    image: item.coverImage?.extraLarge || item.coverImage?.large || fallbackImage,
     banner: item.bannerImage || "",
-    accent: item.coverImage.color || colorFromString(title || String(item.id)),
+    accent: item.coverImage?.color || colorFromString(title || String(item.id)),
     score: item.averageScore ? `${item.averageScore}%` : "N/A",
     year: item.seasonYear || "TBA",
     total: item.episodes || 0,
+    duration: item.duration || 0,
     unit: "eps",
     genres: item.genres || [],
+    isAdult: Boolean(item.isAdult),
     format: item.format || "Anime",
     statusText: item.status || "Unknown",
     extra: [item.duration ? `${item.duration} min` : "", item.popularity ? `${item.popularity.toLocaleString()} popular` : "", item.studios?.nodes?.[0]?.name || ""].filter(Boolean),
@@ -2319,6 +2352,8 @@ function mapAniList(item) {
       time: episode.site || "Episode",
       image: episode.thumbnail || "",
     })) || [],
+    relations: mapAniListRelations(item.relations?.edges),
+    recommendations: mapAniListRecommendations(item.recommendations?.nodes),
   };
 }
 
@@ -2333,6 +2368,7 @@ function mapAniListManga(item) {
     id: `manga-${item.id}`,
     apiId: item.id,
     apiSource,
+    malId: item.idMal || "",
     anilistId: apiSource === "anilist" ? item.id : "",
     source: apiSource === "jikan" ? "Jikan" : "AniList",
     type: "manga",
@@ -2343,17 +2379,20 @@ function mapAniListManga(item) {
     nativeTitle,
     alternativeTitles,
     description: clean(item.description) || "No synopsis available.",
-    image: item.coverImage.extraLarge || item.coverImage.large || fallbackImage,
+    image: item.coverImage?.extraLarge || item.coverImage?.large || fallbackImage,
     banner: item.bannerImage || "",
-    accent: item.coverImage.color || colorFromString(title),
+    accent: item.coverImage?.color || colorFromString(title),
     score: item.averageScore ? `${item.averageScore}%` : "N/A",
     year: item.seasonYear || "TBA",
     total: item.chapters || 0,
     unit: "ch",
     genres: item.genres || [],
+    isAdult: Boolean(item.isAdult),
     format: item.format || "Manga",
     statusText: item.status || "Unknown",
     extra: [item.volumes ? `${item.volumes} volumes` : "", item.popularity ? `${item.popularity.toLocaleString()} popular` : "", item.staff?.nodes?.[0]?.name?.full || ""].filter(Boolean),
+    relations: mapAniListRelations(item.relations?.edges),
+    recommendations: mapAniListRecommendations(item.recommendations?.nodes),
   };
 }
 
@@ -3206,6 +3245,144 @@ function detailActionIcon(type) {
   return icons[type] || "";
 }
 
+function detailTabsHtml(active, chapters) {
+  const primaryKey = active.type === "anime" ? "episodes" : "chapters";
+  const primaryLabel = active.type === "anime" ? "Episodes" : "Chapters";
+  return `
+    <section class="detail-episodes ${active.type === "anime" ? "detail-anime-episodes" : ""}">
+      <div class="detail-tab-strip" role="tablist" aria-label="Details sections">
+        ${detailTabButtonHtml(primaryKey, primaryLabel, true)}
+        ${detailTabButtonHtml("relations", "Relations")}
+        <button type="button" disabled>Threads</button>
+        <button type="button" disabled>Themes</button>
+        ${detailTabButtonHtml("recommendations", "Recommendations")}
+      </div>
+      ${active.type === "anime" ? detailAnimeEpisodesPanelHtml() : detailMangaChaptersPanelHtml(active, chapters)}
+      ${detailMediaPanelHtml(active, "relations")}
+      ${detailMediaPanelHtml(active, "recommendations")}
+    </section>`;
+}
+
+function detailTabButtonHtml(tab, label, active = false) {
+  return `<button class="${active ? "active" : ""}" type="button" role="tab" data-detail-tab="${escapeAttr(tab)}" aria-selected="${active}">${escapeHtml(label)}</button>`;
+}
+
+function detailAnimeEpisodesPanelHtml() {
+  return `
+    <div class="detail-tab-panel active" data-detail-panel="episodes">
+      <div class="detail-episode-head">
+        <h2>Episodes</h2>
+        <label class="detail-source-picker">Source <select data-detail-anime-source><option>Loading sources...</option></select></label>
+        <span data-detail-anime-source-count>Loading episodes...</span>
+        <label>Find source as <input data-detail-anime-query type="search" placeholder="Custom source title" autocomplete="off"></label>
+      </div>
+      <div class="chapter-list detail-chapter-list detail-anime-episode-list" data-detail-anime-episode-list><div class="empty">Choose a source to load real episodes.</div></div>
+    </div>`;
+}
+
+function detailMangaChaptersPanelHtml(active, chapters) {
+  return `
+    <div class="detail-tab-panel active" data-detail-panel="chapters">
+      <div class="detail-episode-head">
+        <h2>Chapters</h2>
+        <label class="detail-source-picker">Source <select data-detail-manga-source><option>Loading sources...</option></select></label>
+        <span data-detail-manga-source-count>Loading chapters...</span>
+        <span>${chapters.length ? "1" : "0"} / 1</span>
+      </div>
+      <form class="detail-source-search" data-detail-source-search>
+        <label>Find source as <input data-detail-source-query type="search" placeholder="Custom site title, e.g. Reveries of the Moonlight" autocomplete="off"></label>
+        <button class="btn secondary" type="submit">Add Source</button>
+        <span data-detail-source-search-status></span>
+      </form>
+      <div class="detail-list-filter">All ⌕ <span>|</span> ${escapeHtml(active.title)}</div>
+      <div class="detail-chapter-list detail-manga-card-grid" data-detail-chapter-list>${chapters.map((chapter, index) => detailMangaChapterCardHtml(chapter, active, index)).join("")}</div>
+    </div>`;
+}
+
+function detailMediaEntries(active, section) {
+  const source = section === "relations" ? active.relations : active.recommendations;
+  return (source || [])
+    .map((entry) => {
+      const media = entry?.media || entry?.item || (entry?.id ? entry : null);
+      return media && contentVisibleItem(media) ? { ...entry, media } : null;
+    })
+    .filter(Boolean);
+}
+
+function detailMediaPanelHtml(active, section) {
+  const entries = detailMediaEntries(active, section);
+  const isRelations = section === "relations";
+  const title = isRelations ? "Relations" : "Recommendations";
+  const eyebrow = isRelations ? "Connected timeline" : "More like this";
+  const description = isRelations ? "Sequels, prequels, side stories, and alternate versions from AniList." : "Community recommendations connected to this title.";
+  const empty = isRelations ? "No connected titles returned by AniList." : "No recommendations returned by AniList.";
+  return `
+    <div class="detail-tab-panel detail-media-panel" data-detail-panel="${escapeAttr(section)}" hidden>
+      <div class="detail-panel-heading">
+        <div><span>${escapeHtml(eyebrow)}</span><h2>${escapeHtml(title)}</h2></div>
+        <p>${escapeHtml(description)}</p>
+      </div>
+      ${entries.length ? `<div class="detail-related-grid">${entries.map((entry, index) => detailMediaCardHtml(entry, section, index)).join("")}</div>` : `<div class="empty detail-related-empty">${escapeHtml(empty)}</div>`}
+    </div>`;
+}
+
+function detailMediaCardHtml(entry, section, index) {
+  const media = entry.media;
+  const label = section === "relations" ? relationTypeLabel(entry.relationType) : recommendationLabel(entry.rating);
+  return `
+    <a class="detail-related-card" href="${escapeAttr(detailUrl(media))}" data-detail-media-section="${escapeAttr(section)}" data-detail-media-index="${index}">
+      <img src="${escapeAttr(media.image || fallbackImage)}" alt="${escapeAttr(media.title)} poster" loading="lazy">
+      <span class="detail-related-chip">${escapeHtml(label)}</span>
+      <div class="detail-related-copy">
+        <strong>${escapeHtml(media.title)}</strong>
+        <div class="meta">${metaHtml([mediaLabel(media), media.year, media.score, media.total ? `${media.total} ${media.unit}` : ""])}</div>
+      </div>
+    </a>`;
+}
+
+function relationTypeLabel(value) {
+  return String(value || "Related").toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function recommendationLabel(value) {
+  const rating = Number(value || 0);
+  return rating > 0 ? `${rating.toLocaleString()} likes` : "Recommended";
+}
+
+function bindDetailTabs(root) {
+  const tabs = [...root.querySelectorAll("[data-detail-tab]")];
+  const panels = [...root.querySelectorAll("[data-detail-panel]")];
+  tabs.forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = button.dataset.detailTab;
+      tabs.forEach((tab) => {
+        const active = tab.dataset.detailTab === target;
+        tab.classList.toggle("active", active);
+        tab.setAttribute("aria-selected", String(active));
+      });
+      panels.forEach((panel) => {
+        panel.hidden = panel.dataset.detailPanel !== target;
+        panel.classList.toggle("active", panel.dataset.detailPanel === target);
+      });
+    });
+  });
+}
+
+function bindDetailMediaLinks(root, active) {
+  const entries = {
+    relations: detailMediaEntries(active, "relations"),
+    recommendations: detailMediaEntries(active, "recommendations"),
+  };
+  root.querySelectorAll("[data-detail-media-section]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      const entry = entries[link.dataset.detailMediaSection]?.[Number(link.dataset.detailMediaIndex)];
+      if (!entry?.media) return;
+      event.preventDefault();
+      goToDetails(entry.media);
+    });
+  });
+}
+
 function renderDetails(root, item, isTemporary = false) {
   const tracked = state.library[item.id];
   const active = { ...item, ...tracked };
@@ -3287,44 +3464,7 @@ function renderDetails(root, item, isTemporary = false) {
           <div class="detail-genre-line">${detailTags.map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
         </main>
       </div>
-      ${active.type === "anime" ? `<section class="detail-episodes detail-anime-episodes">
-          <div class="detail-tab-strip" role="tablist" aria-label="Details sections">
-            <button class="active" type="button">Episodes</button>
-            <button type="button" disabled>Relations</button>
-            <button type="button" disabled>Threads</button>
-            <button type="button" disabled>Themes</button>
-            <button type="button" disabled>Recommendations</button>
-          </div>
-          <div class="detail-episode-head">
-            <h2>Episodes</h2>
-            <label class="detail-source-picker">Source <select data-detail-anime-source><option>Loading sources...</option></select></label>
-            <span data-detail-anime-source-count>Loading episodes...</span>
-            <label>Find source as <input data-detail-anime-query type="search" placeholder="Custom source title" autocomplete="off"></label>
-          </div>
-          <div class="chapter-list detail-chapter-list detail-anime-episode-list" data-detail-anime-episode-list><div class="empty">Choose a source to load real episodes.</div></div>
-        </section>` : ""}
-      ${active.type === "manga" ? `<section class="detail-episodes">
-          <div class="detail-tab-strip" role="tablist" aria-label="Details sections">
-            <button class="active" type="button">Chapters</button>
-            <button type="button" disabled>Relations</button>
-            <button type="button" disabled>Threads</button>
-            <button type="button" disabled>Themes</button>
-            <button type="button" disabled>Recommendations</button>
-          </div>
-          <div class="detail-episode-head">
-            <h2>Chapters</h2>
-          <label class="detail-source-picker">Source <select data-detail-manga-source><option>Loading sources...</option></select></label>
-          <span data-detail-manga-source-count>Loading chapters...</span>
-          <span>${chapters.length ? "1" : "0"} / 1</span>
-        </div>
-        <form class="detail-source-search" data-detail-source-search>
-          <label>Find source as <input data-detail-source-query type="search" placeholder="Custom site title, e.g. Reveries of the Moonlight" autocomplete="off"></label>
-          <button class="btn secondary" type="submit">Add Source</button>
-          <span data-detail-source-search-status></span>
-        </form>
-        <div class="detail-list-filter">All ⌕ <span>|</span> ${escapeHtml(active.title)}</div>
-        <div class="detail-chapter-list detail-manga-card-grid" data-detail-chapter-list>${chapters.map((chapter, index) => detailMangaChapterCardHtml(chapter, active, index)).join("")}</div>
-      </section>` : ""}
+      ${detailTabsHtml(active, chapters)}
       <div class="detail-poster-modal" data-detail-poster-modal hidden>
         <button class="detail-poster-modal-backdrop" data-detail-poster-close type="button" aria-label="Close poster preview"></button>
         <figure class="detail-poster-modal-card">
@@ -3360,6 +3500,8 @@ function renderDetails(root, item, isTemporary = false) {
     }
   });
   bindDetailsPosterLightbox(root);
+  bindDetailTabs(root);
+  bindDetailMediaLinks(root, active);
   root.querySelector("[data-watch-button]")?.addEventListener("click", () => {
     openPlayerForResume(active);
   });
@@ -3841,7 +3983,19 @@ function animeProviderEpisodeRow(episode, match) {
     episodeId: episode.id,
     episodeUrl: episode.url,
     audio: episode.audio || "",
+    duration: episode.duration || episode.runtime || "",
   };
+}
+
+function episodeDurationBadge(episode, anime) {
+  const value = episode?.duration || episode?.runtime || anime?.duration || "";
+  if (typeof value === "number" && value > 0) return `${value} min`;
+  const text = String(value || "").trim();
+  if (/^\d+$/.test(text)) return `${text} min`;
+  if (/\b\d+\s*(min|mins|minute|minutes|m)\b/i.test(text)) return text.replace(/minutes?/i, "min").replace(/mins/i, "min");
+  const extraDuration = (anime?.extra || []).find((item) => /\b\d+\s*(min|mins|minute|minutes|m)\b/i.test(String(item)));
+  if (extraDuration) return String(extraDuration).replace(/minutes?/i, "min").replace(/mins/i, "min");
+  return "24 min";
 }
 
 function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sourceMatches = [], pageNumber = 1, searchQuery = "") {
@@ -3879,12 +4033,13 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
         const displayTitle = stripLeadingEpisodeNumber(title, number);
         const image = episode.image || anime.banner || anime.image || fallbackImage;
         const meta = [episode.airDate || episode.date || episode.time, episodeAudioLabel(episode.audio)].filter(Boolean).join(" / ") || "Source episode";
+        const durationBadge = episodeDurationBadge(episode, anime);
         const description = episode.description || `${providerLabel(sourceId)} episode source.`;
         return `
           <button type="button" class="chapter-row detail-chapter-row detail-anime-episode-row" data-detail-watch-episode data-episode-index="${episodeIndex}">
             <figure class="detail-episode-art">
               <img class="detail-episode-thumb" src="${escapeAttr(image)}" alt="${escapeAttr(title)} thumbnail" loading="lazy">
-              <span>${escapeHtml(meta.split(" /")[0] || "25m")}</span>
+              <span>${escapeHtml(durationBadge)}</span>
             </figure>
             <div class="detail-chapter-text detail-episode-copy">
               <strong>${escapeHtml(number)}. ${escapeHtml(displayTitle)}</strong>
