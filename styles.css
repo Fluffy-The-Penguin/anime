@@ -12203,6 +12203,303 @@ body[data-page="details"] .detail-relation-copy small span {
   font-weight: 800;
 }
 
+body[data-page="details"] .detail-relation-modes {
+  display: grid;
+  gap: 16px;
+}
+
+body[data-page="details"] .detail-relation-mode-toggle {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 4px;
+  background: rgba(9, 10, 13, 0.86);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.26);
+}
+
+body[data-page="details"] .detail-relation-mode-toggle button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 14px;
+  color: rgba(255, 255, 255, 0.64);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+body[data-page="details"] .detail-relation-mode-toggle button.active {
+  color: #051012;
+  background: linear-gradient(135deg, rgba(var(--detail-accent-rgb), 0.95), #f4fbff);
+}
+
+body[data-page="details"] .detail-relation-mode-toggle span {
+  margin-left: 6px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  color: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-page="details"] .detail-relation-mode-toggle button.active span {
+  color: rgba(5, 16, 18, 0.76);
+  background: rgba(5, 16, 18, 0.12);
+}
+
+body[data-page="details"] .detail-relation-view[hidden] {
+  display: none !important;
+}
+
+body[data-page="details"] .detail-relation-nested-tree {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 52px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  padding: clamp(18px, 3vw, 34px);
+  background:
+    radial-gradient(circle at 16% 18%, rgba(var(--detail-accent-rgb), 0.18), transparent 20rem),
+    linear-gradient(135deg, #06070a, #101217 58%, #06070a);
+}
+
+body[data-page="details"] .detail-relation-nested-tree::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: clamp(250px, 25vw, 330px);
+  width: clamp(36px, 5vw, 78px);
+  border-top: 1px dashed rgba(var(--detail-accent-rgb), 0.66);
+  transform: translateY(-50%);
+}
+
+body[data-page="details"] .detail-relation-nested-root,
+body[data-page="details"] .detail-relation-nested-branch-wrap {
+  position: relative;
+  z-index: 1;
+}
+
+body[data-page="details"] .detail-relation-nested-root {
+  align-self: start;
+}
+
+body[data-page="details"] .detail-relation-nested-root-card {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  border: 1px solid rgba(var(--detail-accent-rgb), 0.44);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(19, 21, 27, 0.92);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+}
+
+body[data-page="details"] .detail-relation-nested-root-card img {
+  width: 74px;
+  height: 104px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+body[data-page="details"] .detail-relation-nested-root-card strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 950;
+  line-height: 1.12;
+}
+
+body[data-page="details"] .detail-relation-nested-root-card span {
+  display: block;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+body[data-page="details"] .detail-relation-nested-branch-wrap {
+  min-width: 0;
+}
+
+body[data-page="details"] .detail-relation-nested-list {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0 0 0 30px;
+  list-style: none;
+}
+
+body[data-page="details"] .detail-relation-nested-list::before {
+  content: "";
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  left: 0;
+  border-left: 1px dashed rgba(var(--detail-accent-rgb), 0.56);
+}
+
+body[data-page="details"] .detail-relation-nested-item {
+  position: relative;
+  display: grid;
+  gap: 10px;
+}
+
+body[data-page="details"] .detail-relation-nested-item::before {
+  content: "";
+  position: absolute;
+  top: 54px;
+  left: -30px;
+  width: 30px;
+  border-top: 1px dashed rgba(var(--detail-accent-rgb), 0.56);
+}
+
+body[data-page="details"] .detail-relation-nested-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  min-height: 104px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 3px solid rgba(var(--detail-accent-rgb), 0.72);
+  border-radius: 16px;
+  padding: 10px 82px 10px 10px;
+  color: inherit;
+  background: rgba(18, 20, 25, 0.9);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+  text-decoration: none;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+body[data-page="details"] .detail-relation-nested-card:hover {
+  transform: translateX(4px);
+  border-color: rgba(var(--detail-accent-rgb), 0.54);
+  background: rgba(29, 32, 39, 0.94);
+}
+
+body[data-page="details"] .detail-relation-nested-card img {
+  width: 70px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 11px;
+}
+
+body[data-page="details"] .detail-relation-nested-type {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  max-width: 66px;
+  border: 1px solid rgba(var(--detail-accent-rgb), 0.42);
+  border-radius: 999px;
+  padding: 6px 8px;
+  color: #fff;
+  background: rgba(var(--detail-accent-rgb), 0.16);
+  font-size: 9px;
+  font-weight: 950;
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+body[data-page="details"] .detail-relation-nested-item > .detail-relation-nested-list {
+  margin: 0 0 0 22px;
+}
+
+body[data-page="details"] .detail-relation-nested-item[data-relation-depth="2"] .detail-relation-nested-card,
+body[data-page="details"] .detail-relation-nested-item[data-relation-depth="3"] .detail-relation-nested-card {
+  min-height: 92px;
+  background: rgba(12, 14, 18, 0.92);
+}
+
+body[data-page="details"] .detail-relation-nested-item[data-relation-depth="2"] .detail-relation-nested-card img,
+body[data-page="details"] .detail-relation-nested-item[data-relation-depth="3"] .detail-relation-nested-card img {
+  width: 58px;
+  height: 82px;
+}
+
+body[data-page="details"] .detail-relation-nested-note {
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+@media (max-width: 860px) {
+  body[data-page="details"] .detail-relation-nested-tree {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  body[data-page="details"] .detail-relation-nested-tree::before {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  body[data-page="details"] .detail-relation-mode-toggle {
+    width: 100%;
+  }
+
+  body[data-page="details"] .detail-relation-mode-toggle button {
+    flex: 1 1 0;
+    padding: 0 10px;
+  }
+
+  body[data-page="details"] .detail-relation-nested-root-card,
+  body[data-page="details"] .detail-relation-nested-card {
+    grid-template-columns: 58px minmax(0, 1fr);
+  }
+
+  body[data-page="details"] .detail-relation-nested-root-card img,
+  body[data-page="details"] .detail-relation-nested-card img,
+  body[data-page="details"] .detail-relation-nested-item[data-relation-depth="2"] .detail-relation-nested-card img,
+  body[data-page="details"] .detail-relation-nested-item[data-relation-depth="3"] .detail-relation-nested-card img {
+    width: 58px;
+    height: 82px;
+  }
+
+  body[data-page="details"] .detail-relation-nested-card {
+    min-height: 94px;
+    padding-right: 10px;
+  }
+
+  body[data-page="details"] .detail-relation-nested-type {
+    position: static;
+    grid-column: 1 / -1;
+    justify-self: start;
+    max-width: 100%;
+    order: -1;
+  }
+
+  body[data-page="details"] .detail-relation-nested-list {
+    padding-left: 22px;
+  }
+
+  body[data-page="details"] .detail-relation-nested-item::before {
+    left: -22px;
+    width: 22px;
+  }
+
+  body[data-page="details"] .detail-relation-nested-item > .detail-relation-nested-list {
+    margin-left: 8px;
+  }
+}
+
 body[data-page="details"] .detail-related-card {
   position: relative;
   display: flex;
@@ -13597,37 +13894,6 @@ body[data-page="profile"] .profile-settings-tab {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 
-.details-side-rail [data-settings-rail] {
-  color: #031014 !important;
-  background: linear-gradient(135deg, #8fc9cf, #f2fbfc) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
-}
-
-.details-side-rail [data-settings-rail] {
-  width: 56px !important;
-  height: 52px !important;
-  grid-template-rows: 22px auto;
-  gap: 2px;
-  border-radius: 16px !important;
-}
-
-.details-side-rail .details-rail-label {
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  font-size: 9px;
-  font-weight: 950;
-  letter-spacing: -0.03em;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.details-side-rail [data-settings-rail]:hover {
-  color: #031014 !important;
-  transform: translateY(-1px);
-}
-
 @media (max-width: 820px) {
   body[data-page="profile"] .profile-settings-cta {
     top: 18px;
@@ -13637,15 +13903,6 @@ body[data-page="profile"] .profile-settings-tab {
     font-size: 12px;
   }
 
-  .details-side-rail [data-settings-rail] {
-    width: 58px !important;
-    height: 46px !important;
-    border-radius: 14px !important;
-  }
-
-  .details-side-rail .details-rail-label {
-    font-size: 8px;
-  }
 }
 
 body[data-page="details"] .detail-backdrop {
@@ -13672,50 +13929,6 @@ body[data-page="profile"] .profile-hero::after {
   background:
     linear-gradient(90deg, rgba(0, 0, 0, 0.5) 0, rgba(0, 0, 0, 0.22) 30%, rgba(0, 0, 0, 0.04) 68%, rgba(0, 0, 0, 0.42) 100%),
     linear-gradient(180deg, rgba(0, 0, 0, 0.01), rgba(0, 0, 0, 0.52) 100%) !important;
-}
-
-.details-side-rail [data-settings-rail] {
-  width: 52px !important;
-  height: 50px !important;
-  grid-template-rows: 20px auto !important;
-  gap: 3px !important;
-  border: 1px solid rgba(143, 201, 207, 0.3) !important;
-  border-radius: 15px !important;
-  padding: 5px 3px 4px !important;
-  color: #d8fbff !important;
-  background: rgba(18, 21, 27, 0.98) !important;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
-}
-
-.details-side-rail [data-settings-rail] svg {
-  width: 20px !important;
-  height: 20px !important;
-}
-
-.details-side-rail [data-settings-rail] .details-rail-label {
-  color: #d8fbff;
-  font-size: 8.5px;
-  font-weight: 850;
-  letter-spacing: 0;
-}
-
-.details-side-rail [data-settings-rail]:hover {
-  color: #ffffff !important;
-  background: rgba(31, 35, 44, 0.98) !important;
-}
-
-@media (max-width: 820px) {
-  .details-side-rail [data-settings-rail] {
-    width: 54px !important;
-    height: 44px !important;
-    grid-template-rows: 18px auto !important;
-    padding: 4px 3px 3px !important;
-  }
-
-  .details-side-rail [data-settings-rail] svg {
-    width: 18px !important;
-    height: 18px !important;
-  }
 }
 
 /* Cinematic settings command center. */
@@ -15091,6 +15304,203 @@ body[data-page="doujin"] .browse-title {
   body[data-page="doujin"] .browse-title {
     padding-right: 104px !important;
   }
+}
+
+@media (max-width: 390px) {
+  body[data-page="anime"] .genre-filter.open .genre-menu,
+  body[data-page="manga"] .genre-filter.open .genre-menu,
+  body[data-page="doujin"] .doujin-tag-filter.open .doujin-tag-menu {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+body[data-page="anime"].browse-filters-open .browse-toolbar,
+body[data-page="manga"].browse-filters-open .browse-toolbar,
+body[data-page="doujin"].browse-filters-open .browse-toolbar {
+  transform: translate(-50%, 0) scale(1) !important;
+}
+
+@media (max-width: 640px) {
+  body[data-page="anime"] .browse-toolbar,
+  body[data-page="manga"] .browse-toolbar,
+  body[data-page="doujin"] .browse-toolbar {
+    top: max(68px, calc(env(safe-area-inset-top) + 68px)) !important;
+    right: max(10px, env(safe-area-inset-right)) !important;
+    left: max(10px, env(safe-area-inset-left)) !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100vh - 114px) !important;
+    max-height: calc(100dvh - 114px) !important;
+    gap: 10px !important;
+    border-radius: 18px !important;
+    padding: 12px !important;
+    transform: translateY(0) scale(1) !important;
+  }
+
+  body[data-page="anime"]:not(.browse-filters-open) .browse-toolbar,
+  body[data-page="manga"]:not(.browse-filters-open) .browse-toolbar,
+  body[data-page="doujin"]:not(.browse-filters-open) .browse-toolbar {
+    transform: translateY(-8px) scale(0.98) !important;
+  }
+
+  body[data-page="anime"].browse-filters-open .browse-toolbar,
+  body[data-page="manga"].browse-filters-open .browse-toolbar,
+  body[data-page="doujin"].browse-filters-open .browse-toolbar {
+    transform: translateY(0) scale(1) !important;
+  }
+
+  body[data-page="anime"] .browse-filter-fab,
+  body[data-page="manga"] .browse-filter-fab,
+  body[data-page="doujin"] .browse-filter-fab {
+    top: max(12px, env(safe-area-inset-top)) !important;
+    right: max(10px, env(safe-area-inset-right)) !important;
+    min-height: 44px !important;
+    padding: 0 14px !important;
+  }
+
+  body[data-page="anime"] .genre-filter,
+  body[data-page="manga"] .genre-filter,
+  body[data-page="doujin"] .doujin-tag-filter,
+  body[data-page="anime"] .browse-toolbar > label:not(.browse-search),
+  body[data-page="manga"] .browse-toolbar > label:not(.browse-search) {
+    border-radius: 13px !important;
+    padding: 8px !important;
+  }
+
+  body[data-page="anime"] .browse-toolbar input,
+  body[data-page="manga"] .browse-toolbar input,
+  body[data-page="doujin"] .browse-toolbar input,
+  body[data-page="anime"] .browse-toolbar select,
+  body[data-page="manga"] .browse-toolbar select,
+  body[data-page="doujin"] .browse-toolbar select,
+  body[data-page="anime"] .genre-toggle,
+  body[data-page="manga"] .genre-toggle,
+  body[data-page="doujin"] .genre-toggle {
+    min-height: 44px !important;
+    height: 44px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* Settings uses the cinematic rail, not the legacy horizontal topbar. */
+body[data-page="settings"] > .topbar.shell.anilist-topbar,
+body[data-page="settings"] .mobile-bottom-nav {
+  display: none !important;
+}
+
+body[data-page="settings"] .settings-page-shell {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 32px 52px 72px 120px !important;
+}
+
+body[data-page="settings"] .settings-hero {
+  margin-top: 0 !important;
+}
+
+@media (max-width: 820px) {
+  body[data-page="settings"] .settings-page-shell {
+    width: 100% !important;
+    padding: 18px 14px 96px !important;
+  }
+}
+
+/* Settings rail and filter dropdown corrections. */
+.details-side-rail [data-settings-rail],
+body[data-page="settings"] .details-side-rail [data-settings-rail] {
+  display: grid !important;
+  grid-template-rows: 1fr !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  margin: 0 auto !important;
+  border: 0 !important;
+  border-radius: 11px !important;
+  padding: 0 !important;
+  color: rgba(255, 255, 255, 0.74) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.details-side-rail [data-settings-rail] svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+.details-side-rail [data-settings-rail] .details-rail-label {
+  display: none !important;
+}
+
+.details-side-rail [data-settings-rail]:hover,
+body[data-page="settings"] .details-side-rail [data-settings-rail] {
+  color: #f7f8fb !important;
+  background: #191a1f !important;
+}
+
+body[data-page="anime"] .genre-filter,
+body[data-page="manga"] .genre-filter,
+body[data-page="doujin"] .doujin-tag-filter {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+body[data-page="anime"] .genre-menu,
+body[data-page="manga"] .genre-menu,
+body[data-page="doujin"] .doujin-tag-menu {
+  position: absolute !important;
+  top: calc(100% - 2px) !important;
+  right: 10px !important;
+  left: 10px !important;
+  z-index: 6 !important;
+  width: auto !important;
+  max-height: min(236px, 34vh) !important;
+  max-height: min(236px, 34dvh) !important;
+  margin-top: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 14px !important;
+  padding: 8px !important;
+  background: rgba(4, 5, 7, 0.98) !important;
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.58) !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 201, 207, 0.46) transparent;
+}
+
+body[data-page="anime"] .genre-menu::-webkit-scrollbar,
+body[data-page="manga"] .genre-menu::-webkit-scrollbar,
+body[data-page="doujin"] .doujin-tag-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+body[data-page="anime"] .genre-menu::-webkit-scrollbar-thumb,
+body[data-page="manga"] .genre-menu::-webkit-scrollbar-thumb,
+body[data-page="doujin"] .doujin-tag-menu::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(143, 201, 207, 0.46);
+}
+
+body[data-page="anime"] .genre-filter.open,
+body[data-page="manga"] .genre-filter.open,
+body[data-page="doujin"] .doujin-tag-filter.open {
+  z-index: 8 !important;
+}
+
+body[data-page="anime"] .genre-filter.open .genre-menu,
+body[data-page="manga"] .genre-filter.open .genre-menu,
+body[data-page="doujin"] .doujin-tag-filter.open .doujin-tag-menu {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+}
+
+body[data-page="anime"] .browse-toolbar,
+body[data-page="manga"] .browse-toolbar,
+body[data-page="doujin"] .browse-toolbar {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 
 @media (max-width: 390px) {

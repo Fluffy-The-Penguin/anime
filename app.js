@@ -30,6 +30,22 @@ const ANILIST_DETAIL_MEDIA_FRAGMENT = `
     coverImage { extraLarge large color }
   }
 `;
+const ANILIST_DETAIL_RELATIONS_SELECTION = `
+  relations {
+    edges {
+      relationType(version: 2)
+      node {
+        ...DetailMediaCard
+        relations {
+          edges {
+            relationType(version: 2)
+            node { ...DetailMediaCard }
+          }
+        }
+      }
+    }
+  }
+`;
 const ANIME_SOURCES = [
   { id: "animedex", name: "AnimeDex", description: "Real anime episode lists with direct HLS streams from public AnimeDex APIs.", badge: "HLS" },
   { id: "anizone", name: "AniZone", description: "Anime episode lists with proxied direct HLS playback when available.", badge: "HLS" },
@@ -254,7 +270,7 @@ function injectChrome() {
     document.body.insertAdjacentHTML("beforeend", `<button class="browse-filter-overlay" data-browse-filter-overlay type="button" aria-label="Close filters"></button>`);
   }
 
-  if (["home", "anime", "manga", "doujin", "doujin-preview", "profile", "library", "history"].includes(page) && !document.querySelector(".details-side-rail")) {
+  if (["home", "anime", "manga", "doujin", "doujin-preview", "profile", "library", "history", "settings"].includes(page) && !document.querySelector(".details-side-rail")) {
     document.body.insertAdjacentHTML("afterbegin", cinematicSideRailHtml());
   }
 
@@ -352,7 +368,7 @@ function cinematicSideRailHtml() {
 }
 
 function settingsRailLinkHtml() {
-  return `<a href="settings.html" data-settings-rail aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.7 7.7 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.7 7.7 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.7 7.7 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.7 7.7 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg><span class="details-rail-label">Settings</span></a>`;
+  return `<a href="settings.html" data-settings-rail aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.7 7.7 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.7 7.7 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.7 7.7 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.7 7.7 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg></a>`;
 }
 
 function profileMenuHtml(buttonClass = "icon-btn profile-btn", menuClass = "") {
@@ -2203,7 +2219,7 @@ async function fetchAnimeDetails(apiId, apiSource = "") {
         synonyms
         studios(isMain: true) { nodes { name } }
         streamingEpisodes { title thumbnail site }
-        relations { edges { relationType(version: 2) node { ...DetailMediaCard } } }
+        ${ANILIST_DETAIL_RELATIONS_SELECTION}
         recommendations(sort: RATING_DESC, perPage: 12) { nodes { rating mediaRecommendation { ...DetailMediaCard } } }
       }
     }
@@ -2280,7 +2296,7 @@ async function fetchMangaDetails(apiId, apiSource = "") {
         ...DetailMediaCard
         synonyms
         staff(perPage: 1) { nodes { name { full } } }
-        relations { edges { relationType(version: 2) node { ...DetailMediaCard } } }
+        ${ANILIST_DETAIL_RELATIONS_SELECTION}
         recommendations(sort: RATING_DESC, perPage: 12) { nodes { rating mediaRecommendation { ...DetailMediaCard } } }
       }
     }
@@ -3360,7 +3376,23 @@ function detailMediaPanelHtml(active, section) {
         <div><span>${escapeHtml(eyebrow)}</span><h2>${escapeHtml(title)}</h2></div>
         <p>${escapeHtml(description)}</p>
       </div>
-      ${entries.length ? (isRelations ? detailRelationTreeHtml(active, entries) : `<div class="detail-related-grid">${entries.map((entry, index) => detailMediaCardHtml(entry, section, index)).join("")}</div>`) : `<div class="empty detail-related-empty">${escapeHtml(empty)}</div>`}
+      ${entries.length ? (isRelations ? detailRelationModesHtml(active, entries) : `<div class="detail-related-grid">${entries.map((entry, index) => detailMediaCardHtml(entry, section, index)).join("")}</div>`) : `<div class="empty detail-related-empty">${escapeHtml(empty)}</div>`}
+    </div>`;
+}
+
+function detailRelationModesHtml(active, entries) {
+  return `
+    <div class="detail-relation-modes" data-relation-modes>
+      <div class="detail-relation-mode-toggle" role="group" aria-label="Relation view mode">
+        <button class="active" type="button" data-relation-mode="normal" aria-pressed="true">Normal</button>
+        <button type="button" data-relation-mode="nested" aria-pressed="false">Nested tree <span>Test</span></button>
+      </div>
+      <div class="detail-relation-view active" data-relation-view="normal">
+        ${detailRelationTreeHtml(active, entries)}
+      </div>
+      <div class="detail-relation-view" data-relation-view="nested" hidden>
+        ${detailNestedRelationTreeHtml(active, entries)}
+      </div>
     </div>`;
 }
 
@@ -3398,6 +3430,74 @@ function detailRelationBranchHtml(entry, index) {
         </span>
       </span>
     </a>`;
+}
+
+function detailNestedRelationTreeHtml(active, entries) {
+  const orderedEntries = orderRelationEntries(entries);
+  const rootKey = detailRelationMediaKey(active);
+  const hasNestedBranches = orderedEntries.some(({ entry }) => {
+    const mediaKey = detailRelationMediaKey(entry.media);
+    return detailNestedRelationChildren(entry.media, new Set([rootKey, mediaKey].filter(Boolean))).length;
+  });
+  return `
+    <div class="detail-relation-nested-tree" aria-label="Nested relation tree">
+      <div class="detail-relation-nested-root">
+        <span class="detail-relation-origin-kicker">Tree root</span>
+        <div class="detail-relation-nested-root-card">
+          <img src="${escapeAttr(active.image || fallbackImage)}" alt="${escapeAttr(active.title)} poster" loading="lazy">
+          <div>
+            <strong>${escapeHtml(active.title)}</strong>
+            <span>${escapeHtml([active.format || mediaLabel(active), active.year, active.total ? `${active.total} ${active.unit}` : ""].filter(Boolean).join(" / "))}</span>
+          </div>
+        </div>
+      </div>
+      <div class="detail-relation-nested-branch-wrap">
+        <ol class="detail-relation-nested-list detail-relation-nested-list-root">
+          ${orderedEntries.map(({ entry, index }) => detailNestedRelationItemHtml(entry, { depth: 1, index, ancestors: new Set([rootKey].filter(Boolean)) })).join("")}
+        </ol>
+        <p class="detail-relation-nested-note">${escapeHtml(hasNestedBranches ? "Nested view follows each connected title's own AniList relations." : "AniList only returned direct links for this title so far.")}</p>
+      </div>
+    </div>`;
+}
+
+function detailNestedRelationItemHtml(entry, options = {}) {
+  const { depth = 1, index = -1, ancestors = new Set() } = options;
+  const media = entry.media;
+  if (!media) return "";
+  const mediaKey = detailRelationMediaKey(media);
+  const nextAncestors = new Set(ancestors);
+  if (mediaKey) nextAncestors.add(mediaKey);
+  const children = depth >= 3 ? [] : detailNestedRelationChildren(media, nextAncestors);
+  const dataAttrs = depth === 1 && index >= 0 ? ` data-detail-media-section="relations" data-detail-media-index="${index}"` : "";
+  return `
+    <li class="detail-relation-nested-item" data-relation-depth="${depth}">
+      <a class="detail-relation-nested-card" href="${escapeAttr(detailUrl(media))}"${dataAttrs}>
+        <span class="detail-relation-nested-type">${escapeHtml(relationTypeLabel(entry.relationType))}</span>
+        <img src="${escapeAttr(media.image || fallbackImage)}" alt="${escapeAttr(media.title)} poster" loading="lazy">
+        <span class="detail-relation-copy">
+          <strong>${escapeHtml(media.title)}</strong>
+          <small>${metaHtml([mediaLabel(media), media.year, media.score, media.total ? `${media.total} ${media.unit}` : ""])}</small>
+        </span>
+      </a>
+      ${children.length ? `<ol class="detail-relation-nested-list">${children.map(({ entry: childEntry }) => detailNestedRelationItemHtml(childEntry, { depth: depth + 1, ancestors: nextAncestors })).join("")}</ol>` : ""}
+    </li>`;
+}
+
+function detailNestedRelationChildren(media, ancestors) {
+  const seen = new Set();
+  return orderRelationEntries(detailMediaEntries(media || {}, "relations"))
+    .filter(({ entry }) => {
+      const key = detailRelationMediaKey(entry.media);
+      if (!key || ancestors.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 8);
+}
+
+function detailRelationMediaKey(media) {
+  if (!media) return "";
+  return [media.type || "media", media.apiSource || "", media.apiId || media.anilistId || media.malId || media.id || media.title || ""].join(":");
 }
 
 function orderRelationEntries(entries) {
@@ -3456,6 +3556,28 @@ function bindDetailTabs(root) {
       panels.forEach((panel) => {
         panel.hidden = panel.dataset.detailPanel !== target;
         panel.classList.toggle("active", panel.dataset.detailPanel === target);
+      });
+    });
+  });
+}
+
+function bindDetailRelationModes(root) {
+  root.querySelectorAll("[data-relation-modes]").forEach((wrapper) => {
+    const buttons = [...wrapper.querySelectorAll("[data-relation-mode]")];
+    const views = [...wrapper.querySelectorAll("[data-relation-view]")];
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const mode = button.dataset.relationMode;
+        buttons.forEach((item) => {
+          const active = item.dataset.relationMode === mode;
+          item.classList.toggle("active", active);
+          item.setAttribute("aria-pressed", String(active));
+        });
+        views.forEach((view) => {
+          const active = view.dataset.relationView === mode;
+          view.hidden = !active;
+          view.classList.toggle("active", active);
+        });
       });
     });
   });
@@ -3601,6 +3723,7 @@ function renderDetails(root, item, isTemporary = false) {
   });
   bindDetailsPosterLightbox(root);
   bindDetailTabs(root);
+  bindDetailRelationModes(root);
   bindDetailMediaLinks(root, active);
   root.querySelector("[data-watch-button]")?.addEventListener("click", () => {
     openPlayerForResume(active);
