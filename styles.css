@@ -9230,3 +9230,8 @@ body[data-page="details"] .anilist-topbar .icon-btn:not(.profile-btn) {
 :root[data-theme="light"] body[data-page="details"] .anilist-topbar .icon-btn:not(.profile-btn) {
   background: rgba(8, 13, 22, 0.22) !important;
 }
+
+:root[data-theme="light"] body[data-page="details"] .detail-backdrop,
+:root[data-theme="light"] body[data-page="details"] > .topbar.shell.anilist-topbar {
+  border-bottom: 0 !important;
+}

@@ -7,6 +7,7 @@ const ANIMEDEX_BASE_URL = "https://animedex.pp.ua";
 const ANIZONE_BASE_URL = "https://anizone.to";
 const ANILIBRIA_BASE_URL = "https://anilibria.top";
 const TOKYOINSIDER_BASE_URL = "https://www.tokyoinsider.com";
+const JIMAKU_BASE_URL = "https://jimaku.cc";
 const REQUEST_TIMEOUT_MS = 15000;
 
 module.exports = async function handler(req, res) {
@@ -45,7 +46,7 @@ async function handleAnimeRoute(req, res, backendUrl) {
       return;
     }
     if (route === "animedex/streams") {
-      res.json(await getAnimeDexStreams(cleanQuery(req.query.episodeId || req.query.id)));
+      res.json(await getAnimeDexStreams(cleanQuery(req.query.episodeId || req.query.id), subtitleContextFromRequest(req)));
       return;
     }
     if (route === "animedex/proxy") {
@@ -61,7 +62,7 @@ async function handleAnimeRoute(req, res, backendUrl) {
       return;
     }
     if (route === "anizone/streams") {
-      res.json(await getAniZoneStreams(validateHttpUrl(req.query.episodeUrl || req.query.url)));
+      res.json(await getAniZoneStreams(validateHttpUrl(req.query.episodeUrl || req.query.url), subtitleContextFromRequest(req)));
       return;
     }
     if (route === "anizone/proxy") {
@@ -77,7 +78,7 @@ async function handleAnimeRoute(req, res, backendUrl) {
       return;
     }
     if (route === "anilibria/streams") {
-      res.json(await getAniLibriaStreams(cleanQuery(req.query.releaseId || req.query.animeId), cleanQuery(req.query.episodeId || req.query.id)));
+      res.json(await getAniLibriaStreams(cleanQuery(req.query.releaseId || req.query.animeId), cleanQuery(req.query.episodeId || req.query.id), subtitleContextFromRequest(req)));
       return;
     }
     if (route === "anilibria/proxy") {
@@ -93,11 +94,15 @@ async function handleAnimeRoute(req, res, backendUrl) {
       return;
     }
     if (route === "tokyoinsider/streams") {
-      res.json(await getTokyoInsiderStreams(validateTokyoInsiderPageUrl(req.query.episodeUrl || req.query.url)));
+      res.json(await getTokyoInsiderStreams(validateTokyoInsiderPageUrl(req.query.episodeUrl || req.query.url), subtitleContextFromRequest(req)));
       return;
     }
     if (route === "tokyoinsider/proxy") {
       await proxyTokyoInsiderMedia(req, res);
+      return;
+    }
+    if (route === "jimaku/proxy") {
+      await proxyJimakuSubtitle(req, res);
       return;
     }
   } catch (error) {
@@ -274,10 +279,10 @@ function animeDexEpisodeRow(episode, index) {
   };
 }
 
-async function getAnimeDexStreams(episodeId) {
+async function getAnimeDexStreams(episodeId, subtitleContext = {}) {
   if (!episodeId) return { provider: "animedex", sources: [], tracks: [] };
   const data = await postJson(`${ANIMEDEX_BASE_URL}/api/stream/sources`, { action: "sources", episodeId });
-  const tracks = normalizeTrackList(data.subtitles);
+  const tracks = await mergeExternalSubtitleTracks(normalizeTrackList(data.subtitles), subtitleContext);
   return {
     provider: "animedex",
     sources: asArray(data.sources).filter((source) => source?.url && (source.isHLS || String(source.url).includes(".m3u8"))).map((source, index) => ({
@@ -394,17 +399,17 @@ async function getAniZoneEpisodes(animeId) {
   return links.sort((a, b) => a.number - b.number);
 }
 
-async function getAniZoneStreams(episodeUrl) {
+async function getAniZoneStreams(episodeUrl, subtitleContext = {}) {
   if (!episodeUrl || !episodeUrl.startsWith(`${ANIZONE_BASE_URL}/anime/`)) return { provider: "anizone", sources: [], tracks: [] };
   const html = await fetchText(episodeUrl, { headers: { Referer: ANIZONE_BASE_URL } });
   const streamUrl = firstMatch(html, /<media-player\b[^>]*\bsrc="([^"]+\.m3u8[^"]*)"/i);
   if (!streamUrl) return { provider: "anizone", sources: [], tracks: [] };
-  const tracks = [...html.matchAll(/<track\b[^>]*src=([^\s>]+)[^>]*label="([^"]+)"[^>]*srclang="([^"]+)"/gi)].map((match) => ({
+  const tracks = await mergeExternalSubtitleTracks([...html.matchAll(/<track\b[^>]*src=([^\s>]+)[^>]*label="([^"]+)"[^>]*srclang="([^"]+)"/gi)].map((match) => ({
     kind: "subtitles",
     label: cleanHtml(match[2]),
     srclang: match[3],
     url: proxyAniZoneUrl(decodeXml(match[1].replace(/^['"]|['"]$/g, ""))),
-  }));
+  })), subtitleContext);
   return { provider: "anizone", sources: [{ name: "AniZone HLS", quality: "auto", type: "application/vnd.apple.mpegurl", url: proxyAniZoneUrl(streamUrl), isHLS: true, tracks }], tracks };
 }
 
@@ -526,10 +531,11 @@ async function getAniLibriaEpisodes(releaseId) {
   }).sort((a, b) => Number(a.number) - Number(b.number));
 }
 
-async function getAniLibriaStreams(releaseId, episodeId) {
+async function getAniLibriaStreams(releaseId, episodeId, subtitleContext = {}) {
   const release = await getAniLibriaRelease(releaseId);
   const episode = asArray(release?.episodes).find((item) => String(item.id) === String(episodeId) || String(item.ordinal) === String(episodeId) || String(item.sort_order) === String(episodeId));
   if (!episode) return { provider: "anilibria", sources: [], tracks: [] };
+  const tracks = await mergeExternalSubtitleTracks([], subtitleContext);
   const sources = [
     ["1080p", episode.hls_1080],
     ["720p", episode.hls_720],
@@ -540,9 +546,9 @@ async function getAniLibriaStreams(releaseId, episodeId) {
     type: "application/vnd.apple.mpegurl",
     url: proxyAniLibriaUrl(url),
     isHLS: true,
-    tracks: [],
+    tracks,
   }));
-  return { provider: "anilibria", sources, tracks: [] };
+  return { provider: "anilibria", sources, tracks };
 }
 
 async function getAniLibriaRelease(releaseId) {
@@ -698,9 +704,10 @@ async function getTokyoInsiderEpisodes(animeId) {
   return (episodeOnly.length ? episodeOnly : episodes).sort((a, b) => a.number - b.number);
 }
 
-async function getTokyoInsiderStreams(episodeUrl) {
+async function getTokyoInsiderStreams(episodeUrl, subtitleContext = {}) {
   if (!episodeUrl) return { provider: "tokyoinsider", sources: [], tracks: [] };
   const html = await fetchText(episodeUrl, { headers: { Referer: TOKYOINSIDER_BASE_URL } });
+  const tracks = await mergeExternalSubtitleTracks([], subtitleContext);
   const seen = new Set();
   const sources = [];
   const linkRegex = /href="(https:\/\/media\.tokyoinsider\.com:8080\/dl\/[^"]+\.mp4(?:\?[^"]*)?)"[^>]*>([\s\S]*?)<\/a>/gi;
@@ -717,11 +724,11 @@ async function getTokyoInsiderStreams(episodeUrl) {
       type: "video/mp4",
       url: proxyTokyoInsiderUrl(mediaUrl),
       isHLS: false,
-      tracks: [],
+      tracks,
     });
   }
   sources.sort((a, b) => qualityRank(b.quality) - qualityRank(a.quality));
-  return { provider: "tokyoinsider", sources, tracks: [] };
+  return { provider: "tokyoinsider", sources, tracks };
 }
 
 async function proxyTokyoInsiderMedia(req, res) {
@@ -877,7 +884,7 @@ function cleanHtml(value) {
 }
 
 function decodeXml(value) {
-  return String(value || "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  return String(value || "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#34;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 }
 
 function firstMatch(text, regex) {
@@ -920,6 +927,152 @@ function normalizeTrackList(tracks) {
   }));
 }
 
+function subtitleContextFromRequest(req) {
+  return {
+    anilistId: cleanQuery(req.query.anilistId || req.query.aniListId),
+    title: cleanQuery(req.query.title),
+    episode: cleanQuery(req.query.episode || req.query.episodeNumber),
+  };
+}
+
+async function mergeExternalSubtitleTracks(tracks, context = {}) {
+  const baseTracks = normalizeTrackList(tracks);
+  const externalTracks = await getJimakuSubtitleTracks(context).catch(() => []);
+  if (!externalTracks.length) return baseTracks;
+
+  const seen = new Set(baseTracks.map((track) => String(track.url || "")));
+  return [...baseTracks, ...externalTracks.filter((track) => {
+    const key = String(track.url || "");
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  })];
+}
+
+async function getJimakuSubtitleTracks({ anilistId, title, episode } = {}) {
+  const entry = await findJimakuEntry({ anilistId, title });
+  if (!entry?.id) return [];
+
+  const html = await fetchText(`${JIMAKU_BASE_URL}/entry/${entry.id}`);
+  const episodeNumber = Number.parseFloat(episode);
+  const files = [];
+  const linkRegex = /<a\b[^>]*href="(\/entry\/\d+\/download\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = linkRegex.exec(html))) {
+    const name = cleanHtml(match[2]);
+    if (!/\.(?:ass|ssa|srt|vtt)$/i.test(name)) continue;
+    const score = jimakuEpisodeScore(name, episodeNumber);
+    if (Number.isFinite(episodeNumber) && score <= 0) continue;
+    files.push({ name, score, url: absolutizeUrl(match[1], JIMAKU_BASE_URL) });
+  }
+
+  return files
+    .sort((a, b) => b.score - a.score || jimakuSubtitleRank(a.name) - jimakuSubtitleRank(b.name))
+    .slice(0, 6)
+    .map((file) => {
+      const language = jimakuSubtitleLanguage(file.name);
+      return {
+        kind: "subtitles",
+        label: `Jimaku ${language.label}`,
+        srclang: language.code,
+        url: proxyJimakuUrl(file.url),
+      };
+    });
+}
+
+async function findJimakuEntry({ anilistId, title } = {}) {
+  const id = Number.parseInt(anilistId, 10);
+  const queryTitle = cleanHtml(title);
+  if (!id && !queryTitle) return null;
+
+  const html = await fetchText(`${JIMAKU_BASE_URL}/`);
+  const entryRegex = /<div\s+class="entry"\s+data-extra="([^"]+)"[\s\S]*?<a\s+href="\/entry\/(\d+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  let best = null;
+  while ((match = entryRegex.exec(html))) {
+    const metadata = parseJimakuEntryMetadata(match[1]);
+    const entryId = match[2];
+    const entryTitle = cleanHtml(metadata.name || match[3]);
+    if (id && Number(metadata.anilist_id) === id) return { id: entryId, title: entryTitle };
+    if (!id && queryTitle) {
+      const score = Math.max(
+        titleScore(queryTitle, entryTitle),
+        titleScore(queryTitle, metadata.english_name || ""),
+        titleScore(queryTitle, metadata.japanese_name || ""),
+      );
+      if (score > (best?.score || 0)) best = { id: entryId, title: entryTitle, score };
+    }
+  }
+
+  return best?.score >= 0.86 ? best : null;
+}
+
+function parseJimakuEntryMetadata(value) {
+  try {
+    return JSON.parse(decodeXml(value));
+  } catch (error) {
+    return {};
+  }
+}
+
+function jimakuEpisodeScore(name, episodeNumber) {
+  if (!Number.isFinite(episodeNumber)) return 1;
+  const number = Math.trunc(episodeNumber);
+  const padded = String(number).padStart(2, "0");
+  const text = String(name || "");
+  if (new RegExp(`s\\d{1,2}e0*${number}(?!\\d)`, "i").test(text)) return 5;
+  if (new RegExp(`(?:^|[^a-z0-9])e(?:p(?:isode)?)?\\s*0*${number}(?!\\d)`, "i").test(text)) return 4;
+  if (new RegExp(`(?:^|[^\\d])${padded}(?:[^\\d]|$)`).test(text)) return 2;
+  if (new RegExp(`(?:^|[^\\d])${number}(?:[^\\d]|$)`).test(text)) return 1;
+  return 0;
+}
+
+function jimakuSubtitleRank(name) {
+  const text = String(name || "").toLowerCase();
+  if (text.endsWith(".ass") || text.endsWith(".ssa")) return 0;
+  if (text.endsWith(".srt")) return 1;
+  return 2;
+}
+
+function jimakuSubtitleLanguage(name) {
+  const text = String(name || "").toLowerCase();
+  if (/(?:^|[.\[\]() _-])(en|eng)(?:[.\[\]() _-]|$)/.test(text)) return { code: "en", label: "English" };
+  return { code: "ja", label: "Japanese" };
+}
+
+async function proxyJimakuSubtitle(req, res) {
+  const target = validateHttpUrl(req.query.url);
+  if (!target || !isAllowedJimakuUrl(target)) {
+    res.status(400).json({ error: "valid Jimaku subtitle url is required" });
+    return;
+  }
+
+  const response = await fetchWithTimeout(target, { headers: { Accept: "text/plain,*/*", Referer: `${JIMAKU_BASE_URL}/` } });
+  if (!response.ok) {
+    res.status(response.status).send(await response.text().catch(() => response.statusText));
+    return;
+  }
+
+  res.status(response.status);
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Content-Type", contentTypeForUrl(target));
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(await response.text());
+}
+
+function proxyJimakuUrl(url) {
+  return `/api/anime/jimaku/proxy?url=${encodeURIComponent(url)}`;
+}
+
+function isAllowedJimakuUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === "jimaku.cc" && /^\/entry\/\d+\/download\//.test(parsed.pathname);
+  } catch (error) {
+    return false;
+  }
+}
+
 function contentTypeForUrl(url) {
   const path = new URL(url).pathname.toLowerCase();
   if (path.endsWith(".mp4")) return "video/mp4";
@@ -928,6 +1081,8 @@ function contentTypeForUrl(url) {
   if (path.endsWith(".m4s")) return "video/iso.segment";
   if (path.endsWith(".key")) return "application/octet-stream";
   if (path.endsWith(".vtt")) return "text/vtt";
+  if (path.endsWith(".srt")) return "application/x-subrip; charset=utf-8";
+  if (path.endsWith(".ass") || path.endsWith(".ssa")) return "text/plain; charset=utf-8";
   return "application/octet-stream";
 }
 

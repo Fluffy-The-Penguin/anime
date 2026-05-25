@@ -1766,7 +1766,7 @@ function homeProgressVisibleItem(item) {
 function homeProgressBucket(item) {
   if (isDoujinLibraryItem(item)) return "doujin";
   if (isPornhwaLibraryItem(item)) return "pornhwa";
-  if (isHentaiAnimeItem(item)) return "hentai";
+  if (isHentaiLibraryItem(item)) return "hentai";
   if (item?.type === "anime") return "anime";
   if (item?.type === "manga") return "manga";
   return "";
@@ -6498,13 +6498,14 @@ async function loadEpisode(anime, episode, episodeNumber) {
 
   if (["animedex", "anizone", "anilibria", "tokyoinsider"].includes(episode.source)) {
     try {
+      const subtitleParams = animeStreamSubtitleParams(anime, episodeNumber);
       const data = episode.source === "animedex"
-        ? await fetchApiJson(`/api/anime/animedex/streams?episodeId=${encodeURIComponent(episode.episodeId || episode.id || "")}`)
+        ? await fetchApiJson(`/api/anime/animedex/streams?episodeId=${encodeURIComponent(episode.episodeId || episode.id || "")}${subtitleParams}`)
         : episode.source === "tokyoinsider"
-          ? await fetchApiJson(`/api/anime/tokyoinsider/streams?episodeUrl=${encodeURIComponent(episode.episodeUrl || episode.id || "")}`)
+          ? await fetchApiJson(`/api/anime/tokyoinsider/streams?episodeUrl=${encodeURIComponent(episode.episodeUrl || episode.id || "")}${subtitleParams}`)
           : episode.source === "anilibria"
-            ? await fetchApiJson(`/api/anime/anilibria/streams?releaseId=${encodeURIComponent(episode.providerId || "")}&episodeId=${encodeURIComponent(episode.episodeId || episode.id || "")}`)
-          : await fetchApiJson(`/api/anime/anizone/streams?episodeUrl=${encodeURIComponent(episode.episodeUrl || episode.id || "")}`);
+            ? await fetchApiJson(`/api/anime/anilibria/streams?releaseId=${encodeURIComponent(episode.providerId || "")}&episodeId=${encodeURIComponent(episode.episodeId || episode.id || "")}${subtitleParams}`)
+          : await fetchApiJson(`/api/anime/anizone/streams?episodeUrl=${encodeURIComponent(episode.episodeUrl || episode.id || "")}${subtitleParams}`);
       renderDirectAnimeStreams(sources, data, episode.source, playerAutoPlayEnabled());
     } catch (error) {
       sources.innerHTML = `<div class="empty">Could not load ${escapeHtml(animeSourceLabel(episode.source))} streams for this episode.</div>`;
@@ -6534,6 +6535,16 @@ async function loadEpisode(anime, episode, episodeNumber) {
     `;
   }
 
+}
+
+function animeStreamSubtitleParams(anime, episodeNumber) {
+  const params = new URLSearchParams();
+  const anilistId = anime?.anilistId || (/^\d+$/.test(String(anime?.id || "")) ? anime.id : "");
+  if (anilistId) params.set("anilistId", anilistId);
+  if (anime?.title) params.set("title", anime.title);
+  if (episodeNumber) params.set("episode", episodeNumber);
+  const query = params.toString();
+  return query ? `&${query}` : "";
 }
 
 function setupMarkWatchedButton(anime, episodeNumber) {
@@ -6845,12 +6856,39 @@ function savePreferredQualityFromSource(source) {
   persistSettings();
 }
 
+function sortSubtitleTracks(tracks = []) {
+  const seen = new Set();
+  return tracks
+    .filter((track) => track?.url)
+    .map((track, index) => ({ track, index, score: subtitleTrackPreferenceScore(track) }))
+    .filter((item) => {
+      const key = String(item.track.url || "");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .map((item) => item.track);
+}
+
+function subtitleTrackPreferenceScore(track) {
+  const preference = state.settings.subtitleLanguage || "english";
+  if (preference === "both") return 0;
+  const code = String(track?.srclang || track?.lang || "").toLowerCase();
+  const label = String(track?.label || "").toLowerCase();
+  const isEnglish = /^(en|eng|english)$/.test(code) || /english|\beng\b/.test(label);
+  const isNative = /^(ja|jp|jpn|japanese)$/.test(code) || /japanese|\bjp\b|\bjpn\b/.test(label);
+  if (preference === "native") return isNative ? 0 : isEnglish ? 1 : 2;
+  return isEnglish ? 0 : isNative ? 2 : 1;
+}
+
 function playerAutoPlayEnabled() {
   return state.settings.autoPlay !== false;
 }
 
 async function playHttpStream(url, tracks = [], options = {}) {
   const player = document.querySelector("[data-video-player]");
+  const subtitleTracks = sortSubtitleTracks(tracks);
   const resumeState = options.resumeState || playerRuntime.resumeState || null;
   playerRuntime.resumeState = null;
   const streamToken = ++playerRuntime.streamToken;
@@ -6894,12 +6932,12 @@ async function playHttpStream(url, tracks = [], options = {}) {
   setSubtitleToggleAvailable(false);
   const video = player.querySelector("[data-active-video]");
   const shouldAutoplay = !resumeState?.paused;
-  const sourceOptions = Array.isArray(options.sources) ? options.sources : [{ url, name: "Current stream", tracks }];
+  const sourceOptions = Array.isArray(options.sources) ? options.sources : [{ url, name: "Current stream", tracks: subtitleTracks }];
   const currentIndex = Number.isFinite(Number(options.currentIndex)) ? Number(options.currentIndex) : Math.max(0, sourceOptions.findIndex((source) => source.url === url));
   setupCustomVideoControls(video);
-  setupCustomSubtitles(video, tracks);
+  setupCustomSubtitles(video, subtitleTracks);
   applyPlayerAmbientMode(video);
-  setupPlayerSettingsControls(video, tracks, sourceOptions, currentIndex);
+  setupPlayerSettingsControls(video, subtitleTracks, sourceOptions, currentIndex);
   setupVideoBufferingState(video, resumeState);
 
   video.addEventListener("error", () => {
@@ -7619,7 +7657,7 @@ function setSubtitleToggleAvailable(available, enabled = true, keepHandler = fal
 }
 
 function parseSubtitleCues(text, url = "") {
-  return String(url).toLowerCase().endsWith(".ass") || /^\s*\[Script Info\]/i.test(text)
+  return /\.(?:ass|ssa)(?:$|[?#])/i.test(String(url)) || /^\s*\[Script Info\]/i.test(text)
     ? parseAssCues(text)
     : parseVttCues(text);
 }
@@ -7686,7 +7724,7 @@ function isDrawingSubtitleText(value) {
 }
 
 function parseVttTime(value) {
-  const parts = String(value || "").split(":");
+  const parts = String(value || "").replace(",", ".").split(":");
   const seconds = Number(parts.pop());
   const minutes = Number(parts.pop() || 0);
   const hours = Number(parts.pop() || 0);
