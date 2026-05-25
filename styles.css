@@ -12790,6 +12790,257 @@ body[data-page="details"] .detail-relation-nested-note {
   }
 }
 
+/* Zoomable relation tree canvas. */
+body[data-page="details"] .detail-relation-view[data-relation-view="nested"] {
+  overflow: visible !important;
+  padding-bottom: 0 !important;
+}
+
+body[data-page="details"] .detail-relation-zoom-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 12px;
+  background: rgba(6, 7, 10, 0.92);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42), inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+}
+
+body[data-page="details"] .detail-relation-zoom-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 2px 2px 0;
+}
+
+body[data-page="details"] .detail-relation-zoom-toolbar > strong {
+  color: #f5fbff;
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body[data-page="details"] .detail-relation-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+body[data-page="details"] .detail-relation-zoom-controls button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 36px;
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 0 12px;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+body[data-page="details"] .detail-relation-zoom-controls button:hover {
+  color: #031014;
+  background: linear-gradient(135deg, rgba(var(--detail-accent-rgb), 0.96), #effdff);
+}
+
+body[data-page="details"] .detail-relation-zoom-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-page="details"] .detail-relation-zoom-controls input[type="range"] {
+  width: min(180px, 34vw);
+  accent-color: rgb(var(--detail-accent-rgb));
+}
+
+body[data-page="details"] .detail-relation-zoom-controls [data-relation-zoom-value] {
+  min-width: 46px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 900;
+  text-align: right;
+}
+
+body[data-page="details"] .detail-relation-viewport {
+  position: relative;
+  height: clamp(430px, 58vh, 720px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 20px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    radial-gradient(circle at 50% 0, rgba(var(--detail-accent-rgb), 0.18), transparent 24rem),
+    #050609;
+  background-size: 36px 36px, 36px 36px, auto, auto;
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.42);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--detail-accent-rgb), 0.5) rgba(255, 255, 255, 0.04);
+}
+
+body[data-page="details"] .detail-relation-viewport::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+body[data-page="details"] .detail-relation-viewport::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(var(--detail-accent-rgb), 0.5);
+}
+
+body[data-page="details"] .detail-relation-canvas {
+  --relation-zoom: 1;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: max(100%, calc(var(--relation-tree-width, 880px) * var(--relation-zoom)));
+  min-height: 100%;
+  padding: calc(30px * var(--relation-zoom)) calc(24px * var(--relation-zoom)) calc(38px * var(--relation-zoom));
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-tree {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-root {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  padding-bottom: calc(42px * var(--relation-zoom)) !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-root::after {
+  height: calc(42px * var(--relation-zoom)) !important;
+  border-left-width: 2px !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-branch-wrap {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-list {
+  position: relative;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  width: max-content !important;
+  min-width: 0 !important;
+  margin: 0 auto !important;
+  padding: calc(42px * var(--relation-zoom)) 0 0 !important;
+  gap: 0 !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-list-root {
+  width: 100% !important;
+  min-width: 100% !important;
+  padding-top: 0 !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-item {
+  position: relative;
+  display: block !important;
+  flex: 0 0 auto;
+  min-width: calc(156px * var(--relation-zoom)) !important;
+  padding: calc(42px * var(--relation-zoom)) calc(10px * var(--relation-zoom)) 0 !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-item::before,
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-item::after {
+  top: 0 !important;
+  height: calc(42px * var(--relation-zoom)) !important;
+  border-top-width: 2px !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-item > .detail-relation-nested-list {
+  margin: 0 auto !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-item > .detail-relation-nested-list::before {
+  height: calc(42px * var(--relation-zoom)) !important;
+  border-left-width: 2px !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-card,
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-item[data-relation-depth] .detail-relation-nested-card {
+  width: calc(130px * var(--relation-zoom)) !important;
+  margin: 0 auto;
+  gap: max(5px, calc(8px * var(--relation-zoom))) !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-poster {
+  width: calc(86px * var(--relation-zoom)) !important;
+  height: calc(86px * var(--relation-zoom)) !important;
+  min-width: 48px;
+  min-height: 48px;
+  max-width: 124px;
+  max-height: 124px;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-card-root .detail-relation-nested-poster {
+  width: calc(106px * var(--relation-zoom)) !important;
+  height: calc(106px * var(--relation-zoom)) !important;
+  min-width: 64px;
+  min-height: 64px;
+  max-width: 144px;
+  max-height: 144px;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-card strong {
+  font-size: max(10px, calc(13px * var(--relation-zoom))) !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-card small {
+  font-size: max(8px, calc(10px * var(--relation-zoom))) !important;
+}
+
+body[data-page="details"] .detail-relation-canvas .detail-relation-nested-type {
+  top: calc(-10px * var(--relation-zoom)) !important;
+  max-width: calc(104px * var(--relation-zoom)) !important;
+  font-size: max(7px, calc(9px * var(--relation-zoom))) !important;
+}
+
+@media (max-width: 620px) {
+  body[data-page="details"] .detail-relation-zoom-controls {
+    width: 100%;
+  }
+
+  body[data-page="details"] .detail-relation-zoom-controls label {
+    flex: 1 1 150px;
+  }
+
+  body[data-page="details"] .detail-relation-zoom-controls input[type="range"] {
+    width: 100%;
+  }
+
+  body[data-page="details"] .detail-relation-viewport {
+    height: 520px;
+  }
+}
+
 body[data-page="details"] .detail-related-card {
   position: relative;
   display: flex;

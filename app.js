@@ -3433,39 +3433,47 @@ function detailRelationBranchHtml(entry, index) {
 }
 
 function detailNestedRelationTreeHtml(active, entries) {
-  const orderedEntries = orderRelationEntries(entries);
   const rootKey = detailRelationMediaKey(active);
-  const hasNestedBranches = orderedEntries.some(({ entry }) => {
-    const mediaKey = detailRelationMediaKey(entry.media);
-    return detailNestedRelationChildren(entry.media, new Set([rootKey, mediaKey].filter(Boolean))).length;
-  });
+  const nodes = detailNestedRelationNodes(entries, { seen: new Set([rootKey].filter(Boolean)), includeIndexes: true });
+  const hasNestedBranches = nodes.some((node) => node.children.length);
+  const treeWidth = Math.max(760, detailNestedRelationLeafCount(nodes) * 158);
   return `
-    <div class="detail-relation-nested-tree" aria-label="Nested relation tree">
-      <div class="detail-relation-nested-root">
-        <span class="detail-relation-origin-kicker">Tree root</span>
-        <div class="detail-relation-nested-card detail-relation-nested-card-root">
-          <span class="detail-relation-nested-poster"><img src="${escapeAttr(active.image || fallbackImage)}" alt="${escapeAttr(active.title)} poster" loading="lazy"></span>
-          <strong>${escapeHtml(active.title)}</strong>
-          <small>${escapeHtml([active.format || mediaLabel(active), active.year, active.total ? `${active.total} ${active.unit}` : ""].filter(Boolean).join(" / "))}</small>
+    <div class="detail-relation-zoom-panel" data-relation-zoom-panel>
+      <div class="detail-relation-zoom-toolbar">
+        <strong>Nested tree</strong>
+        <div class="detail-relation-zoom-controls" aria-label="Tree zoom controls">
+          <button type="button" data-relation-zoom-out aria-label="Zoom out">−</button>
+          <label>Zoom <input data-relation-zoom type="range" min="65" max="145" step="5" value="100"></label>
+          <button type="button" data-relation-zoom-in aria-label="Zoom in">+</button>
+          <button type="button" data-relation-zoom-reset>Reset</button>
+          <span data-relation-zoom-value>100%</span>
         </div>
       </div>
-      <div class="detail-relation-nested-branch-wrap">
-        <ol class="detail-relation-nested-list detail-relation-nested-list-root">
-          ${orderedEntries.map(({ entry, index }) => detailNestedRelationItemHtml(entry, { depth: 1, index, ancestors: new Set([rootKey].filter(Boolean)) })).join("")}
-        </ol>
-        <p class="detail-relation-nested-note">${escapeHtml(hasNestedBranches ? "Nested view follows each connected title's own AniList relations." : "AniList only returned direct links for this title so far.")}</p>
+      <div class="detail-relation-viewport" data-relation-viewport tabindex="0" aria-label="Zoomable nested relation tree">
+        <div class="detail-relation-canvas" data-relation-canvas style="--relation-tree-width: ${treeWidth}px; --relation-zoom: 1;">
+          <div class="detail-relation-nested-tree" aria-label="Nested relation tree">
+            <div class="detail-relation-nested-root">
+              <span class="detail-relation-origin-kicker">Tree root</span>
+              <div class="detail-relation-nested-card detail-relation-nested-card-root">
+                <span class="detail-relation-nested-poster"><img src="${escapeAttr(active.image || fallbackImage)}" alt="${escapeAttr(active.title)} poster" loading="lazy"></span>
+                <strong>${escapeHtml(active.title)}</strong>
+                <small>${escapeHtml([active.format || mediaLabel(active), active.year, active.total ? `${active.total} ${active.unit}` : ""].filter(Boolean).join(" / "))}</small>
+              </div>
+            </div>
+            <div class="detail-relation-nested-branch-wrap">
+              ${nodes.length ? `<ol class="detail-relation-nested-list detail-relation-nested-list-root">${nodes.map((node) => detailNestedRelationItemHtml(node, 1)).join("")}</ol>` : `<div class="empty detail-related-empty">No unique relation branches to show.</div>`}
+            </div>
+          </div>
+        </div>
       </div>
+      <p class="detail-relation-nested-note">${escapeHtml(hasNestedBranches ? "Repeated titles are hidden after their first branch. Use zoom controls or scroll inside the grid to explore." : "AniList only returned direct links for this title so far. Repeated titles are hidden.")}</p>
     </div>`;
 }
 
-function detailNestedRelationItemHtml(entry, options = {}) {
-  const { depth = 1, index = -1, ancestors = new Set() } = options;
+function detailNestedRelationItemHtml(node, depth = 1) {
+  const { entry, index = -1, children = [] } = node;
   const media = entry.media;
   if (!media) return "";
-  const mediaKey = detailRelationMediaKey(media);
-  const nextAncestors = new Set(ancestors);
-  if (mediaKey) nextAncestors.add(mediaKey);
-  const children = depth >= 3 ? [] : detailNestedRelationChildren(media, nextAncestors);
   const dataAttrs = depth === 1 && index >= 0 ? ` data-detail-media-section="relations" data-detail-media-index="${index}"` : "";
   return `
     <li class="detail-relation-nested-item" data-relation-depth="${depth}">
@@ -3475,20 +3483,27 @@ function detailNestedRelationItemHtml(entry, options = {}) {
         <strong>${escapeHtml(media.title)}</strong>
         <small>${metaHtml([mediaLabel(media), media.year, media.score, media.total ? `${media.total} ${media.unit}` : ""])}</small>
       </a>
-      ${children.length ? `<ol class="detail-relation-nested-list">${children.map(({ entry: childEntry }) => detailNestedRelationItemHtml(childEntry, { depth: depth + 1, ancestors: nextAncestors })).join("")}</ol>` : ""}
+      ${children.length ? `<ol class="detail-relation-nested-list">${children.map((child) => detailNestedRelationItemHtml(child, depth + 1)).join("")}</ol>` : ""}
     </li>`;
 }
 
-function detailNestedRelationChildren(media, ancestors) {
-  const seen = new Set();
-  return orderRelationEntries(detailMediaEntries(media || {}, "relations"))
-    .filter(({ entry }) => {
-      const key = detailRelationMediaKey(entry.media);
-      if (!key || ancestors.has(key) || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, 8);
+function detailNestedRelationNodes(entries, options = {}) {
+  const { depth = 1, maxDepth = 3, seen = new Set(), includeIndexes = false } = options;
+  const nodes = [];
+  for (const { entry, index } of orderRelationEntries(entries)) {
+    if (nodes.length >= 8) break;
+    const media = entry?.media;
+    const key = detailRelationMediaKey(media);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const children = depth >= maxDepth ? [] : detailNestedRelationNodes(detailMediaEntries(media || {}, "relations"), { depth: depth + 1, maxDepth, seen });
+    nodes.push({ entry, index: includeIndexes ? index : -1, children });
+  }
+  return nodes;
+}
+
+function detailNestedRelationLeafCount(nodes) {
+  return Math.max(1, nodes.reduce((total, node) => total + (node.children.length ? detailNestedRelationLeafCount(node.children) : 1), 0));
 }
 
 function detailRelationMediaKey(media) {
@@ -3574,8 +3589,53 @@ function bindDetailRelationModes(root) {
           view.hidden = !active;
           view.classList.toggle("active", active);
         });
+        if (mode === "nested") centerRelationViewport(wrapper.querySelector("[data-relation-viewport]"));
       });
     });
+  });
+}
+
+function bindDetailRelationZoom(root) {
+  root.querySelectorAll("[data-relation-zoom-panel]").forEach((panel) => {
+    const viewport = panel.querySelector("[data-relation-viewport]");
+    const canvas = panel.querySelector("[data-relation-canvas]");
+    const input = panel.querySelector("[data-relation-zoom]");
+    const value = panel.querySelector("[data-relation-zoom-value]");
+    if (!viewport || !canvas || !input) return;
+    const min = Number(input.min || 65);
+    const max = Number(input.max || 145);
+    const step = Number(input.step || 5);
+    const setZoom = (nextValue) => {
+      const currentWidth = Math.max(1, viewport.scrollWidth);
+      const centerRatio = (viewport.scrollLeft + viewport.clientWidth / 2) / currentWidth;
+      const zoom = Math.min(max, Math.max(min, Math.round(Number(nextValue || 100) / step) * step));
+      input.value = zoom;
+      canvas.style.setProperty("--relation-zoom", String(zoom / 100));
+      if (value) value.textContent = `${zoom}%`;
+      requestAnimationFrame(() => {
+        viewport.scrollLeft = Math.max(0, centerRatio * viewport.scrollWidth - viewport.clientWidth / 2);
+      });
+    };
+    input.addEventListener("input", () => setZoom(input.value));
+    panel.querySelector("[data-relation-zoom-out]")?.addEventListener("click", () => setZoom(Number(input.value) - step));
+    panel.querySelector("[data-relation-zoom-in]")?.addEventListener("click", () => setZoom(Number(input.value) + step));
+    panel.querySelector("[data-relation-zoom-reset]")?.addEventListener("click", () => {
+      setZoom(100);
+      centerRelationViewport(viewport);
+    });
+    viewport.addEventListener("wheel", (event) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      setZoom(Number(input.value) + (event.deltaY < 0 ? step : -step));
+    }, { passive: false });
+    centerRelationViewport(viewport);
+  });
+}
+
+function centerRelationViewport(viewport) {
+  if (!viewport) return;
+  requestAnimationFrame(() => {
+    viewport.scrollLeft = Math.max(0, (viewport.scrollWidth - viewport.clientWidth) / 2);
   });
 }
 
@@ -3720,6 +3780,7 @@ function renderDetails(root, item, isTemporary = false) {
   bindDetailsPosterLightbox(root);
   bindDetailTabs(root);
   bindDetailRelationModes(root);
+  bindDetailRelationZoom(root);
   bindDetailMediaLinks(root, active);
   root.querySelector("[data-watch-button]")?.addEventListener("click", () => {
     openPlayerForResume(active);
