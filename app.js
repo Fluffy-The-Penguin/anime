@@ -4712,6 +4712,7 @@ function enabledDoujinProviderIds() {
 }
 
 function persistSettings(sync = true) {
+  if (sync) state.settings.updatedAt = Date.now();
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
   if (sync) scheduleAccountSync();
 }
@@ -4942,14 +4943,20 @@ function mergeFavoriteRemovals(localRemovals, remoteRemovals) {
 
 function mergeSettingsData(local, remote) {
   const defaults = defaultSettings();
+  const localData = local || {};
+  const remoteData = remote || {};
+  const localUpdated = Number(localData.updatedAt || 0);
+  const remoteUpdated = Number(remoteData.updatedAt || 0);
+  const base = remoteUpdated > localUpdated ? remoteData : localData;
+  const fallback = remoteUpdated > localUpdated ? localData : remoteData;
   return {
     ...defaults,
-    ...(local || {}),
-    ...(remote || {}),
-    animeSources: { ...defaults.animeSources, ...((local || {}).animeSources || {}), ...((remote || {}).animeSources || {}) },
-    mangaSources: { ...defaults.mangaSources, ...((local || {}).mangaSources || {}), ...((remote || {}).mangaSources || {}) },
-    doujinSources: { ...defaults.doujinSources, ...((local || {}).doujinSources || {}), ...((remote || {}).doujinSources || {}) },
-    subtitleStyle: { ...defaults.subtitleStyle, ...((local || {}).subtitleStyle || {}), ...((remote || {}).subtitleStyle || {}) },
+    ...fallback,
+    ...base,
+    animeSources: { ...defaults.animeSources, ...(fallback.animeSources || {}), ...(base.animeSources || {}) },
+    mangaSources: { ...defaults.mangaSources, ...(fallback.mangaSources || {}), ...(base.mangaSources || {}) },
+    doujinSources: { ...defaults.doujinSources, ...(fallback.doujinSources || {}), ...(base.doujinSources || {}) },
+    subtitleStyle: { ...defaults.subtitleStyle, ...(fallback.subtitleStyle || {}), ...(base.subtitleStyle || {}) },
   };
 }
 

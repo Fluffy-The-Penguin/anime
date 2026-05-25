@@ -9202,4 +9202,31 @@ body[data-page="profile"] .profile-hero h1 {
     left: 0 !important;
     margin: 0 !important;
   }
+
+  body[data-page].mobile-nav-floating .mobile-bottom-nav {
+    transform: translateX(-50%) !important;
+    animation: none !important;
+  }
+}
+
+/* Match details page navbar treatment with the shared banner navbar. */
+body[data-page="details"] > .topbar.shell.anilist-topbar {
+  z-index: 80;
+  border-bottom: 1px solid rgba(232, 244, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(9, 15, 25, 0.88), rgba(9, 15, 25, 0.42) 72%, rgba(9, 15, 25, 0)) !important;
+  box-shadow: none;
+  backdrop-filter: blur(12px) saturate(130%);
+}
+
+body[data-page="details"] .anilist-brand.brand,
+body[data-page="details"] .anilist-nav.nav,
+body[data-page="details"] .anilist-topbar .icon-btn:not(.profile-btn) {
+  background: transparent !important;
+}
+
+:root[data-theme="light"] body[data-page="details"] .anilist-brand.brand,
+:root[data-theme="light"] body[data-page="details"] .anilist-nav.nav,
+:root[data-theme="light"] body[data-page="details"] .anilist-topbar .icon-btn:not(.profile-btn) {
+  background: rgba(8, 13, 22, 0.22) !important;
 }
