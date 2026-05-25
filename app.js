@@ -258,7 +258,7 @@ function injectChrome() {
     if (nav) document.body.insertAdjacentHTML("beforeend", `<nav class="mobile-bottom-nav" aria-label="Mobile navigation">${nav.innerHTML}</nav>`);
   }
 
-  if (["home", "anime", "manga", "doujin", "doujin-preview", "profile"].includes(page) && !document.querySelector(".details-side-rail")) {
+  if (["home", "anime", "manga", "doujin", "doujin-preview", "profile", "library", "history"].includes(page) && !document.querySelector(".details-side-rail")) {
     document.body.insertAdjacentHTML("afterbegin", cinematicSideRailHtml());
   }
 
