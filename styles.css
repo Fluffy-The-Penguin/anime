@@ -12816,11 +12816,25 @@ body[data-page="details"] .detail-relation-zoom-toolbar {
 }
 
 body[data-page="details"] .detail-relation-zoom-toolbar > strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   color: #f5fbff;
   font-size: 13px;
   font-weight: 950;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+body[data-page="details"] .detail-relation-zoom-toolbar > strong span {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 10px;
+  letter-spacing: 0.06em;
 }
 
 body[data-page="details"] .detail-relation-zoom-controls {
@@ -12875,9 +12889,11 @@ body[data-page="details"] .detail-relation-zoom-controls [data-relation-zoom-val
 
 body[data-page="details"] .detail-relation-viewport {
   position: relative;
-  height: clamp(430px, 58vh, 720px);
+  height: clamp(520px, 66vh, 860px);
   overflow: auto;
   overscroll-behavior: contain;
+  cursor: grab;
+  touch-action: none;
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 20px;
   background:
@@ -12889,6 +12905,11 @@ body[data-page="details"] .detail-relation-viewport {
   box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.42);
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--detail-accent-rgb), 0.5) rgba(255, 255, 255, 0.04);
+}
+
+body[data-page="details"] .detail-relation-viewport.panning {
+  cursor: grabbing;
+  user-select: none;
 }
 
 body[data-page="details"] .detail-relation-viewport::-webkit-scrollbar {

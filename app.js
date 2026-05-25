@@ -30,22 +30,22 @@ const ANILIST_DETAIL_MEDIA_FRAGMENT = `
     coverImage { extraLarge large color }
   }
 `;
-const ANILIST_DETAIL_RELATIONS_SELECTION = `
+const ANILIST_RELATION_TREE_DEPTH = 4;
+const ANILIST_DETAIL_RELATIONS_SELECTION = anilistRelationsSelection(ANILIST_RELATION_TREE_DEPTH);
+function anilistRelationsSelection(depth) {
+  if (depth <= 0) return "";
+  return `
   relations {
     edges {
       relationType(version: 2)
       node {
         ...DetailMediaCard
-        relations {
-          edges {
-            relationType(version: 2)
-            node { ...DetailMediaCard }
-          }
-        }
+        ${anilistRelationsSelection(depth - 1)}
       }
     }
   }
 `;
+}
 const ANIME_SOURCES = [
   { id: "animedex", name: "AnimeDex", description: "Real anime episode lists with direct HLS streams from public AnimeDex APIs.", badge: "HLS" },
   { id: "anizone", name: "AniZone", description: "Anime episode lists with proxied direct HLS playback when available.", badge: "HLS" },
@@ -3434,23 +3434,25 @@ function detailRelationBranchHtml(entry, index) {
 
 function detailNestedRelationTreeHtml(active, entries) {
   const rootKey = detailRelationMediaKey(active);
-  const nodes = detailNestedRelationNodes(entries, { seen: new Set([rootKey].filter(Boolean)), includeIndexes: true });
+  const nodes = detailNestedRelationNodes(entries, { seen: new Set([rootKey].filter(Boolean)), includeIndexes: true, maxDepth: ANILIST_RELATION_TREE_DEPTH });
+  const treeStats = detailNestedRelationStats(nodes);
   const hasNestedBranches = nodes.some((node) => node.children.length);
-  const treeWidth = Math.max(760, detailNestedRelationLeafCount(nodes) * 158);
+  const treeWidth = Math.max(960, treeStats.leaves * 172);
   return `
     <div class="detail-relation-zoom-panel" data-relation-zoom-panel>
       <div class="detail-relation-zoom-toolbar">
-        <strong>Nested tree</strong>
+        <strong>Nested tree <span>${treeStats.nodeCount} nodes / ${treeStats.maxDepth + 1} levels</span></strong>
         <div class="detail-relation-zoom-controls" aria-label="Tree zoom controls">
           <button type="button" data-relation-zoom-out aria-label="Zoom out">−</button>
-          <label>Zoom <input data-relation-zoom type="range" min="65" max="145" step="5" value="100"></label>
+          <label>Zoom <input data-relation-zoom type="range" min="35" max="180" step="5" value="100"></label>
           <button type="button" data-relation-zoom-in aria-label="Zoom in">+</button>
+          <button type="button" data-relation-zoom-fit>Fit</button>
           <button type="button" data-relation-zoom-reset>Reset</button>
           <span data-relation-zoom-value>100%</span>
         </div>
       </div>
       <div class="detail-relation-viewport" data-relation-viewport tabindex="0" aria-label="Zoomable nested relation tree">
-        <div class="detail-relation-canvas" data-relation-canvas style="--relation-tree-width: ${treeWidth}px; --relation-zoom: 1;">
+        <div class="detail-relation-canvas" data-relation-canvas data-relation-base-width="${treeWidth}" style="--relation-tree-width: ${treeWidth}px; --relation-zoom: 1;">
           <div class="detail-relation-nested-tree" aria-label="Nested relation tree">
             <div class="detail-relation-nested-root">
               <div class="detail-relation-nested-card detail-relation-nested-card-root">
@@ -3465,7 +3467,7 @@ function detailNestedRelationTreeHtml(active, entries) {
           </div>
         </div>
       </div>
-      <p class="detail-relation-nested-note">${escapeHtml(hasNestedBranches ? "Repeated titles are hidden after their first branch. Use zoom controls or scroll inside the grid to explore." : "AniList only returned direct links for this title so far. Repeated titles are hidden.")}</p>
+      <p class="detail-relation-nested-note">${escapeHtml(hasNestedBranches ? `Showing ${treeStats.nodeCount} unique relations across ${treeStats.maxDepth + 1} levels. Repeated titles are hidden after their first branch.` : `Showing ${treeStats.nodeCount} unique direct relations. Repeated titles are hidden.`)}</p>
     </div>`;
 }
 
@@ -3487,7 +3489,7 @@ function detailNestedRelationItemHtml(node, depth = 1) {
 }
 
 function detailNestedRelationNodes(entries, options = {}) {
-  const { depth = 1, maxDepth = 3, seen = new Set(), includeIndexes = false } = options;
+  const { depth = 1, maxDepth = ANILIST_RELATION_TREE_DEPTH, seen = new Set(), includeIndexes = false } = options;
   const nodes = [];
   const levelSeen = new Set();
   for (const { entry, index } of orderRelationEntries(entries)) {
@@ -3506,8 +3508,15 @@ function detailNestedRelationNodes(entries, options = {}) {
   return nodes;
 }
 
-function detailNestedRelationLeafCount(nodes) {
-  return Math.max(1, nodes.reduce((total, node) => total + (node.children.length ? detailNestedRelationLeafCount(node.children) : 1), 0));
+function detailNestedRelationStats(nodes, depth = 1) {
+  if (!nodes.length) return { leaves: 1, maxDepth: 0, nodeCount: 0 };
+  return nodes.reduce((stats, node) => {
+    const childStats = detailNestedRelationStats(node.children, depth + 1);
+    stats.leaves += node.children.length ? childStats.leaves : 1;
+    stats.maxDepth = Math.max(stats.maxDepth, depth, childStats.maxDepth);
+    stats.nodeCount += 1 + childStats.nodeCount;
+    return stats;
+  }, { leaves: 0, maxDepth: depth, nodeCount: 0 });
 }
 
 function detailRelationMediaKey(media) {
@@ -3623,10 +3632,17 @@ function bindDetailRelationZoom(root) {
     input.addEventListener("input", () => setZoom(input.value));
     panel.querySelector("[data-relation-zoom-out]")?.addEventListener("click", () => setZoom(Number(input.value) - step));
     panel.querySelector("[data-relation-zoom-in]")?.addEventListener("click", () => setZoom(Number(input.value) + step));
+    panel.querySelector("[data-relation-zoom-fit]")?.addEventListener("click", () => {
+      const baseWidth = Number(canvas.dataset.relationBaseWidth || 960);
+      const fitZoom = Math.floor(((viewport.clientWidth - 48) / Math.max(1, baseWidth)) * 100 / step) * step;
+      setZoom(Math.min(max, Math.max(min, fitZoom)));
+      centerRelationViewport(viewport);
+    });
     panel.querySelector("[data-relation-zoom-reset]")?.addEventListener("click", () => {
       setZoom(100);
       centerRelationViewport(viewport);
     });
+    bindRelationViewportPanning(viewport);
     viewport.addEventListener("wheel", (event) => {
       if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
@@ -3634,6 +3650,31 @@ function bindDetailRelationZoom(root) {
     }, { passive: false });
     centerRelationViewport(viewport);
   });
+}
+
+function bindRelationViewportPanning(viewport) {
+  if (viewport.__relationPanBound) return;
+  viewport.__relationPanBound = true;
+  let drag = null;
+  viewport.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target.closest("a, button, input, label")) return;
+    drag = { x: event.clientX, y: event.clientY, left: viewport.scrollLeft, top: viewport.scrollTop };
+    viewport.classList.add("panning");
+    viewport.setPointerCapture?.(event.pointerId);
+  });
+  viewport.addEventListener("pointermove", (event) => {
+    if (!drag) return;
+    viewport.scrollLeft = drag.left - (event.clientX - drag.x);
+    viewport.scrollTop = drag.top - (event.clientY - drag.y);
+  });
+  const stop = (event) => {
+    if (!drag) return;
+    drag = null;
+    viewport.classList.remove("panning");
+    viewport.releasePointerCapture?.(event.pointerId);
+  };
+  viewport.addEventListener("pointerup", stop);
+  viewport.addEventListener("pointercancel", stop);
 }
 
 function centerRelationViewport(viewport) {
