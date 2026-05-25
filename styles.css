@@ -12500,24 +12500,6 @@ body[data-page="details"] .detail-relation-nested-note {
   }
 }
 
-/* Experimental relation tree diagram. */
-body[data-page="details"] .detail-relation-view[data-relation-view="nested"] {
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--detail-accent-rgb), 0.5) transparent;
-}
-
-body[data-page="details"] .detail-relation-view[data-relation-view="nested"]::-webkit-scrollbar {
-  height: 8px;
-}
-
-body[data-page="details"] .detail-relation-view[data-relation-view="nested"]::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(var(--detail-accent-rgb), 0.5);
-}
-
 body[data-page="details"] .detail-relation-nested-tree {
   display: block !important;
   min-width: min(1040px, 100%);
@@ -12791,7 +12773,8 @@ body[data-page="details"] .detail-relation-nested-note {
 }
 
 /* Zoomable relation tree canvas. */
-body[data-page="details"] .detail-relation-view[data-relation-view="nested"] {
+body[data-page="details"] .detail-relation-view[data-relation-view="direct"],
+body[data-page="details"] .detail-relation-view[data-relation-view="detailed"] {
   overflow: visible !important;
   padding-bottom: 0 !important;
 }

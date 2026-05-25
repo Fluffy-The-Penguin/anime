@@ -3384,14 +3384,14 @@ function detailRelationModesHtml(active, entries) {
   return `
     <div class="detail-relation-modes" data-relation-modes>
       <div class="detail-relation-mode-toggle" role="group" aria-label="Relation view mode">
-        <button class="active" type="button" data-relation-mode="normal" aria-pressed="true">Normal</button>
-        <button type="button" data-relation-mode="nested" aria-pressed="false">Nested tree <span>Test</span></button>
+        <button class="active" type="button" data-relation-mode="direct" aria-pressed="true">Direct</button>
+        <button type="button" data-relation-mode="detailed" aria-pressed="false">Detailed</button>
       </div>
-      <div class="detail-relation-view active" data-relation-view="normal">
-        ${detailRelationTreeHtml(active, entries)}
+      <div class="detail-relation-view active" data-relation-view="direct">
+        ${detailRelationTreeCanvasHtml(active, entries, { title: "Direct relations", maxDepth: 1 })}
       </div>
-      <div class="detail-relation-view" data-relation-view="nested" hidden>
-        ${detailNestedRelationTreeHtml(active, entries)}
+      <div class="detail-relation-view" data-relation-view="detailed" hidden>
+        ${detailRelationTreeCanvasHtml(active, entries, { title: "Detailed tree", maxDepth: ANILIST_RELATION_TREE_DEPTH })}
       </div>
     </div>`;
 }
@@ -3432,16 +3432,17 @@ function detailRelationBranchHtml(entry, index) {
     </a>`;
 }
 
-function detailNestedRelationTreeHtml(active, entries) {
+function detailRelationTreeCanvasHtml(active, entries, options = {}) {
+  const { title = "Relation tree", maxDepth = ANILIST_RELATION_TREE_DEPTH } = options;
   const rootKey = detailRelationMediaKey(active);
-  const nodes = detailNestedRelationNodes(entries, { seen: new Set([rootKey].filter(Boolean)), includeIndexes: true, maxDepth: ANILIST_RELATION_TREE_DEPTH });
+  const nodes = detailNestedRelationNodes(entries, { seen: new Set([rootKey].filter(Boolean)), includeIndexes: true, maxDepth });
   const treeStats = detailNestedRelationStats(nodes);
   const hasNestedBranches = nodes.some((node) => node.children.length);
   const treeWidth = Math.max(960, treeStats.leaves * 172);
   return `
     <div class="detail-relation-zoom-panel" data-relation-zoom-panel>
       <div class="detail-relation-zoom-toolbar">
-        <strong>Nested tree <span>${treeStats.nodeCount} nodes / ${treeStats.maxDepth + 1} levels</span></strong>
+        <strong>${escapeHtml(title)} <span>${treeStats.nodeCount} nodes / ${treeStats.maxDepth + 1} levels</span></strong>
         <div class="detail-relation-zoom-controls" aria-label="Tree zoom controls">
           <button type="button" data-relation-zoom-out aria-label="Zoom out">−</button>
           <label>Zoom <input data-relation-zoom type="range" min="35" max="180" step="5" value="100"></label>
@@ -3467,7 +3468,7 @@ function detailNestedRelationTreeHtml(active, entries) {
           </div>
         </div>
       </div>
-      <p class="detail-relation-nested-note">${escapeHtml(hasNestedBranches ? `Showing ${treeStats.nodeCount} unique relations across ${treeStats.maxDepth + 1} levels. Repeated titles are hidden after their first branch.` : `Showing ${treeStats.nodeCount} unique direct relations. Repeated titles are hidden.`)}</p>
+      <p class="detail-relation-nested-note">${escapeHtml(hasNestedBranches ? `Showing ${treeStats.nodeCount} unique relations across ${treeStats.maxDepth + 1} levels. Repeated titles are hidden after their first branch.` : `Showing ${treeStats.nodeCount} unique direct relations.`)}</p>
     </div>`;
 }
 
@@ -3602,7 +3603,7 @@ function bindDetailRelationModes(root) {
           view.hidden = !active;
           view.classList.toggle("active", active);
         });
-        if (mode === "nested") centerRelationViewport(wrapper.querySelector("[data-relation-viewport]"));
+        centerRelationViewport(views.find((view) => view.dataset.relationView === mode)?.querySelector("[data-relation-viewport]"));
       });
     });
   });
