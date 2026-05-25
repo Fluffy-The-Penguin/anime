@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Customize your AniTrack experience." />
     <title>AniTrack | Settings</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-56" />
-    <script src="app.js?v=site-fix-56" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-58" />
+    <script src="app.js?v=site-fix-58" defer></script>
   </head>
   <body data-page="settings">
     <header class="topbar shell anilist-topbar">
@@ -21,32 +21,59 @@
       </nav>
     </header>
 
-    <main class="shell">
+    <main class="shell settings-page-shell">
+      <section class="settings-hero" aria-labelledby="settings-title">
+        <div class="settings-hero-copy">
+          <span class="settings-kicker">Control Room</span>
+          <h1 id="settings-title">Tune AniTrack for how you watch and read.</h1>
+          <p>One cinematic command center for appearance, profile media, adult visibility, playback, providers, backups, and backend routing.</p>
+        </div>
+        <div class="settings-hero-panel" aria-label="Settings highlights">
+          <div>
+            <span>01</span>
+            <strong>Playback</strong>
+            <small>Quality, subtitles, ambient glow, and source priority.</small>
+          </div>
+          <div>
+            <span>02</span>
+            <strong>Libraries</strong>
+            <small>Adult visibility, default views, exports, and imports.</small>
+          </div>
+          <div>
+            <span>03</span>
+            <strong>Providers</strong>
+            <small>Anime, manga, pornhwa, and doujin source switches.</small>
+          </div>
+        </div>
+      </section>
+
       <div class="settings-layout">
-        <!-- Sidebar Navigation -->
         <aside class="settings-sidebar">
-          <h2>Settings</h2>
-          <nav class="settings-nav">
+          <div class="settings-sidebar-head">
+            <span>Settings</span>
+            <strong>Control center</strong>
+          </div>
+          <nav class="settings-nav" aria-label="Settings sections">
             <button class="settings-nav-btn active" data-section="appearance" type="button">
-              <span>UI</span> Looks
+              <span>UI</span> Appearance
             </button>
             <button class="settings-nav-btn" data-section="profile" type="button">
-              <span>PR</span> Profile
+              <span>ID</span> Profile
             </button>
             <button class="settings-nav-btn" data-section="content" type="button">
-              <span>CT</span> Content
+              <span>18</span> Content
             </button>
             <button class="settings-nav-btn" data-section="streaming" type="button">
-              <span>ST</span> Stream
+              <span>PL</span> Player
             </button>
             <button class="settings-nav-btn" data-section="anime-sources" type="button">
-              <span>AN</span> Anime
+              <span>AN</span> Anime Sources
             </button>
             <button class="settings-nav-btn" data-section="extensions-manga" type="button">
-              <span>MG</span> Manga
+              <span>MG</span> Manga Sources
             </button>
             <button class="settings-nav-btn" data-section="doujin-sources" type="button">
-              <span>DJ</span> Doujin
+              <span>DJ</span> Doujin Sources
             </button>
             <button class="settings-nav-btn" data-section="data" type="button">
               <span>DB</span> Data
@@ -57,13 +84,11 @@
           </nav>
         </aside>
 
-        <!-- Settings Content -->
         <div class="settings-content">
-          <!-- Appearance Section -->
           <section class="settings-section active" data-section-content="appearance">
             <div class="section-header">
               <h2>Appearance</h2>
-              <p class="muted">Customize how AniTrack looks</p>
+              <p class="muted">Customize how AniTrack looks.</p>
             </div>
 
             <div class="settings-form">
@@ -86,11 +111,10 @@
             </div>
           </section>
 
-          <!-- Profile Section -->
           <section class="settings-section" data-section-content="profile">
             <div class="section-header">
               <h2>Profile</h2>
-              <p class="muted">Customize your profile button, avatar, and banner</p>
+              <p class="muted">Customize your profile button, avatar, and banner.</p>
             </div>
 
             <div class="settings-form">
@@ -116,11 +140,10 @@
             </div>
           </section>
 
-          <!-- Content Section -->
           <section class="settings-section" data-section-content="content">
             <div class="section-header">
               <h2>Content</h2>
-              <p class="muted">Manage content visibility and filters</p>
+              <p class="muted">Manage content visibility and filters.</p>
             </div>
 
             <div class="settings-form">
@@ -152,11 +175,10 @@
             </div>
           </section>
 
-          <!-- Streaming Section -->
           <section class="settings-section" data-section-content="streaming">
             <div class="section-header">
-              <h2>Streaming</h2>
-              <p class="muted">Configure streaming preferences</p>
+              <h2>Player</h2>
+              <p class="muted">Configure streaming, subtitles, sources, and backend routing.</p>
             </div>
 
             <div class="settings-form">
@@ -200,7 +222,7 @@
                   <input type="checkbox" data-player-autoplay-toggle aria-label="Auto-play episodes">
                   <span>Auto-play Episodes</span>
                 </label>
-                <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Automatically start the selected source when opening an episode.</p>
+                <p class="settings-help">Automatically start the selected source when opening an episode.</p>
               </div>
 
               <div class="form-group">
@@ -225,7 +247,7 @@
                   <option value="tokyoinsider">TokyoInsider</option>
                   <option value="hstream">hstream.moe (+18)</option>
                 </select>
-                <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Used first on anime detail pages when no per-title source is saved.</p>
+                <p class="settings-help">Used first on anime detail pages when no per-title source is saved.</p>
               </div>
 
               <div class="form-group">
@@ -233,7 +255,7 @@
                 <select data-default-hentai-source aria-label="Default hentai source">
                   <option value="hstream">hstream.moe</option>
                 </select>
-                <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Used first for adult anime when 18+ content is enabled.</p>
+                <p class="settings-help">Used first for adult anime when 18+ content is enabled.</p>
               </div>
 
               <div class="form-group">
@@ -249,7 +271,7 @@
                   <option value="manhwaz">ManhwaZ</option>
                   <option value="toonily">Toonily</option>
                 </select>
-                <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Used first on manga/manhwa pages when no per-title source is saved.</p>
+                <p class="settings-help">Used first on manga/manhwa pages when no per-title source is saved.</p>
               </div>
 
               <div class="form-group">
@@ -260,7 +282,7 @@
                   <option value="hentai20">Hentai20</option>
                   <option value="hentai18">Hentai18</option>
                 </select>
-                <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Used first for pornhwa/adult manhwa when 18+ content is enabled.</p>
+                <p class="settings-help">Used first for pornhwa/adult manhwa when 18+ content is enabled.</p>
               </div>
 
               <div class="form-group">
@@ -274,16 +296,15 @@
                 <label>Backend API URL</label>
                 <input type="url" data-api-base-url placeholder="https://your-backend.example.com" aria-label="Backend API URL">
                 <button class="btn secondary" data-api-test-btn type="button">Test Backend</button>
-                <p class="muted" style="font-size: 12px; margin: 0;">Default: https://anime-api-proxy.aryanpanwar.workers.dev. Anime playback providers still use same-origin Vercel routes until backend provider playback is fixed.</p>
+                <p class="settings-help">Default: https://anime-api-proxy.aryanpanwar.workers.dev. Anime playback providers still use same-origin Vercel routes until backend provider playback is fixed.</p>
               </div>
             </div>
           </section>
 
-          <!-- Anime Sources Section -->
           <section class="settings-section" data-section-content="anime-sources">
             <div class="section-header">
               <h2>Anime Sources</h2>
-              <p class="muted">Choose which anime sources AniTrack searches in the player</p>
+              <p class="muted">Choose which anime sources AniTrack searches in the player.</p>
             </div>
 
             <div class="extensions-grid source-settings-grid" data-anime-sources>
@@ -291,11 +312,10 @@
             </div>
           </section>
 
-          <!-- Manga Sources Section -->
           <section class="settings-section" data-section-content="extensions-manga">
             <div class="section-header">
               <h2>Manga Sources</h2>
-              <p class="muted">Choose which real manga providers AniTrack should search</p>
+              <p class="muted">Choose which real manga providers AniTrack should search.</p>
             </div>
 
             <div class="extensions-grid" data-manga-extensions>
@@ -306,7 +326,7 @@
           <section class="settings-section" data-section-content="doujin-sources">
             <div class="section-header">
               <h2>Doujin Sources</h2>
-              <p class="muted">Choose which English adult gallery providers appear on the Doujin page</p>
+              <p class="muted">Choose which English adult gallery providers appear on the Doujin page.</p>
             </div>
 
             <div class="extensions-grid" data-doujin-sources>
@@ -314,31 +334,29 @@
             </div>
           </section>
 
-          <!-- Data Section -->
           <section class="settings-section" data-section-content="data">
             <div class="section-header">
               <h2>Data Management</h2>
-              <p class="muted">Backup and restore your library</p>
+              <p class="muted">Backup and restore your library.</p>
             </div>
 
             <div class="settings-form">
               <div class="button-group">
-                <button type="button" class="btn-compact" data-export-btn>📥 Export Library</button>
-                <button type="button" class="btn-compact" data-import-btn>📤 Import Library</button>
+                <button type="button" class="btn-compact" data-export-btn>Export Library</button>
+                <button type="button" class="btn-compact" data-import-btn>Import Library</button>
               </div>
 
               <div class="danger-zone">
                 <h3>Danger Zone</h3>
-                <button type="button" class="btn-compact danger" data-clear-btn>🗑 Clear All Data</button>
+                <button type="button" class="btn-compact danger" data-clear-btn>Clear All Data</button>
               </div>
             </div>
           </section>
 
-          <!-- About Section -->
           <section class="settings-section" data-section-content="about">
             <div class="section-header">
               <h2>About AniTrack</h2>
-              <p class="muted">Information and credits</p>
+              <p class="muted">Information and credits.</p>
             </div>
 
             <div class="about-content">
@@ -363,827 +381,5 @@
         </div>
       </div>
     </main>
-
-    <style>
-      body[data-page="settings"] {
-        background: linear-gradient(145deg, #000 0%, var(--bg-2) 54%, #000 100%);
-      }
-
-      .settings-layout {
-        display: grid;
-        grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
-        gap: clamp(18px, 3vw, 32px);
-        margin: 28px 0 40px;
-        align-items: start;
-        min-width: 0;
-      }
-
-      .settings-sidebar {
-        position: sticky;
-        top: 100px;
-        max-height: calc(100vh - 120px);
-        overflow-y: auto;
-        padding: 16px;
-        border: 1px solid color-mix(in srgb, var(--theme-primary) 22%, var(--line));
-        border-radius: 22px;
-        background: color-mix(in srgb, var(--solid) 92%, var(--panel));
-        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
-      }
-
-      .settings-sidebar::-webkit-scrollbar {
-        width: 4px;
-      }
-
-      .settings-sidebar::-webkit-scrollbar-thumb {
-        background: rgba(72, 219, 251, 0.3);
-        border-radius: 2px;
-      }
-
-      .settings-sidebar h2 {
-        margin: 0 0 16px;
-        padding: 0 10px 14px;
-        border-bottom: 1px solid var(--line);
-        font-size: 18px;
-      }
-
-      .settings-nav {
-        display: grid;
-        gap: 6px;
-      }
-
-      .settings-nav-btn {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        width: 100%;
-        min-height: 44px;
-        padding: 10px 12px;
-        border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
-        border-radius: 12px;
-        background: color-mix(in srgb, var(--soft) 42%, transparent);
-        color: var(--muted);
-        font-size: 13px;
-        font-weight: 800;
-        cursor: pointer;
-        transition: all 150ms ease;
-        text-align: left;
-      }
-
-      .settings-nav-btn:hover {
-        background: color-mix(in srgb, var(--soft) 90%, var(--solid));
-        color: var(--text);
-      }
-
-      .settings-nav-btn.active {
-        border-color: color-mix(in srgb, var(--blue) 44%, var(--line));
-        background: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.26), rgba(var(--theme-secondary-rgb), 0.14));
-        color: var(--text);
-      }
-
-      .settings-nav-btn span {
-        display: inline-grid;
-        width: 28px;
-        height: 28px;
-        place-items: center;
-        border: 1px solid var(--line);
-        border-radius: 9px;
-        color: var(--blue);
-        background: color-mix(in srgb, var(--soft) 92%, var(--solid));
-        font-size: 10px;
-        font-weight: 950;
-        letter-spacing: 0.04em;
-      }
-
-      .settings-content {
-        display: grid;
-        gap: 24px;
-        min-width: 0;
-      }
-
-      .settings-section {
-        display: none;
-        border: 1px solid color-mix(in srgb, var(--theme-primary) 18%, var(--line));
-        background: var(--panel);
-        box-shadow: var(--shadow);
-        backdrop-filter: blur(20px);
-        border-radius: 24px;
-        padding: clamp(18px, 3vw, 28px);
-        min-width: 0;
-        overflow: hidden;
-      }
-
-      .settings-section.active {
-        display: block;
-        animation: fadeIn 200ms ease;
-      }
-
-      .subtitle-style-controls {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        min-width: 0;
-      }
-
-      .subtitle-style-controls label {
-        display: grid;
-        gap: 6px;
-        min-width: 0;
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 800;
-      }
-
-      .subtitle-style-controls input,
-      .subtitle-style-controls select,
-      .subtitle-style-controls .btn {
-        max-width: 100%;
-        min-width: 0;
-      }
-
-      .subtitle-style-controls input[type="range"] {
-        width: 100%;
-      }
-
-      .subtitle-style-controls span {
-        color: var(--text);
-      }
-
-      .subtitle-style-controls .btn {
-        align-self: end;
-      }
-
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-          transform: translateY(8px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .section-header {
-        display: flex;
-        align-items: end;
-        justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 24px;
-        padding-bottom: 18px;
-        border-bottom: 1px solid color-mix(in srgb, var(--blue) 16%, var(--line));
-      }
-
-      .section-header h2 {
-        margin: 0 0 6px;
-        font-size: 22px;
-      }
-
-      .section-header p {
-        margin: 0;
-        font-size: 13px;
-      }
-
-      .settings-form {
-        display: grid;
-        gap: 16px;
-        min-width: 0;
-      }
-
-      .form-group {
-        display: grid;
-        grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
-        gap: 14px;
-        align-items: center;
-        padding: 14px 16px;
-        border: 1px solid color-mix(in srgb, var(--theme-primary) 14%, var(--line));
-        border-radius: 16px;
-        background: linear-gradient(135deg, color-mix(in srgb, var(--soft) 58%, transparent), color-mix(in srgb, var(--solid) 42%, transparent));
-        min-width: 0;
-      }
-
-      .form-group label {
-        display: block;
-        min-width: 0;
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .theme-buttons {
-        display: inline-grid;
-        grid-template-columns: repeat(3, minmax(76px, 1fr));
-        gap: 4px;
-        width: min(330px, 100%);
-        padding: 4px;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--solid) 70%, transparent);
-      }
-
-      .theme-btn {
-        min-height: 34px;
-        padding: 7px 12px;
-        border: 0;
-        border-radius: 999px;
-        background: transparent;
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 900;
-        cursor: pointer;
-        transition: all 150ms ease;
-      }
-
-      .theme-btn:hover {
-        background: color-mix(in srgb, var(--soft) 72%, transparent);
-      }
-
-      .theme-btn.active {
-        background: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.32), rgba(var(--theme-secondary-rgb), 0.14));
-        color: var(--text);
-        box-shadow: 0 8px 22px rgba(var(--theme-primary-rgb), 0.18);
-      }
-
-      .color-input-row {
-        display: inline-flex;
-        gap: 10px;
-        align-items: center;
-        width: max-content;
-        max-width: 100%;
-        padding: 6px;
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        background: color-mix(in srgb, var(--solid) 58%, transparent);
-      }
-
-      .color-input-row input {
-        width: 50px;
-        height: 38px;
-        border-radius: 8px;
-        border: 1px solid var(--line);
-        padding: 4px;
-        cursor: pointer;
-      }
-
-      .profile-media-preview {
-        position: relative;
-        min-height: 190px;
-        overflow: hidden;
-        border: 1px solid color-mix(in srgb, var(--theme-primary) 14%, var(--line));
-        border-radius: 18px;
-        background: #0f1724;
-      }
-
-      .profile-media-preview span {
-        position: absolute;
-        inset: 0;
-        background: var(--profile-bg) center / cover no-repeat;
-        filter: saturate(0.9) brightness(0.72);
-      }
-
-      .profile-media-preview::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(180deg, rgba(8, 14, 24, 0.12), rgba(8, 14, 24, 0.78));
-      }
-
-      .profile-media-preview img {
-        position: absolute;
-        left: 22px;
-        bottom: 18px;
-        z-index: 1;
-        width: 104px;
-        height: 104px;
-        object-fit: cover;
-        border: 3px solid rgba(255, 255, 255, 0.78);
-        border-radius: 12px;
-        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
-      }
-
-      .form-group select,
-      .form-group input[type="url"] {
-        width: min(100%, 390px);
-        max-width: 100%;
-        min-width: 0;
-        min-height: 44px;
-        padding: 8px 12px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: color-mix(in srgb, var(--solid) 60%, transparent);
-        color: var(--text);
-        font-size: 13px;
-        font-weight: 600;
-      }
-
-      .subtitle-style-controls,
-      .ambient-style-controls {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
-        gap: 10px;
-        min-width: 0;
-      }
-
-      .subtitle-style-controls label,
-      .ambient-style-controls label:not(.checkbox-label) {
-        display: grid;
-        gap: 6px;
-        min-width: 0;
-        padding: 10px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: color-mix(in srgb, var(--solid) 48%, transparent);
-      }
-
-      .subtitle-style-controls input,
-      .subtitle-style-controls select,
-      .ambient-style-controls input[type="range"] {
-        width: 100%;
-      }
-
-      .ambient-enable {
-        grid-column: 1 / -1;
-      }
-
-      .checkbox-label {
-        display: inline-flex;
-        align-items: center;
-        justify-content: flex-start;
-        flex-direction: row;
-        gap: 12px;
-        width: max-content;
-        max-width: 100%;
-        min-height: 0;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        cursor: pointer;
-        transition: all 150ms ease;
-      }
-
-      .form-group:has(> .checkbox-label) {
-        grid-template-columns: 1fr;
-        width: max-content;
-        max-width: 100%;
-        padding: 14px 18px;
-      }
-
-      .checkbox-label:hover {
-        color: var(--text);
-      }
-
-      .checkbox-label input {
-        width: 22px;
-        height: 22px;
-        min-height: 0;
-        accent-color: var(--blue);
-        cursor: pointer;
-      }
-
-      .checkbox-label span {
-        color: var(--text);
-        font-size: 13px;
-        font-weight: 800;
-        white-space: normal;
-      }
-
-      .button-group {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-
-      .btn-compact {
-        min-height: 42px;
-        padding: 10px 14px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        background: color-mix(in srgb, var(--soft) 60%, transparent);
-        color: var(--text);
-        font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 150ms ease;
-      }
-
-      .btn-compact:hover {
-        border-color: color-mix(in srgb, var(--blue) 50%, var(--line));
-        background: color-mix(in srgb, var(--soft) 80%, transparent);
-      }
-
-      .btn-compact.danger {
-        border-color: rgba(255, 107, 107, 0.3);
-        background: rgba(255, 107, 107, 0.1);
-        color: #ff9b9b;
-      }
-
-      .btn-compact.danger:hover {
-        border-color: rgba(255, 107, 107, 0.5);
-        background: rgba(255, 107, 107, 0.2);
-      }
-
-      .danger-zone {
-        margin-top: 18px;
-        padding-top: 18px;
-        border-top: 1px solid rgba(255, 107, 107, 0.2);
-      }
-
-      .danger-zone h3 {
-        margin: 0 0 12px;
-        font-size: 14px;
-        color: #ff9b9b;
-      }
-
-      .extensions-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
-        gap: 14px;
-      }
-
-      .source-settings-grid {
-        grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
-      }
-
-      .extensions-browser {
-        display: grid;
-        gap: 14px;
-      }
-
-      .extensions-toolbar {
-        display: grid;
-        grid-template-columns: minmax(180px, 1fr) 150px auto;
-        gap: 10px;
-        align-items: center;
-      }
-
-      .extensions-toolbar input[type="search"],
-      .extensions-toolbar select {
-        min-height: 38px;
-        padding: 8px 12px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: color-mix(in srgb, var(--solid) 60%, transparent);
-        color: var(--text);
-        font-size: 13px;
-      }
-
-      .extensions-nsfw-toggle {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-height: 38px;
-        padding: 8px 10px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        color: var(--muted);
-        font-size: 12px;
-        white-space: nowrap;
-      }
-
-      .extensions-summary {
-        color: var(--muted);
-        font-size: 12px;
-      }
-
-      .extensions-pagination {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-      }
-
-      .extensions-pagination span {
-        min-width: 96px;
-        text-align: center;
-        color: var(--muted);
-        font-size: 12px;
-      }
-
-      .extensions-pagination button:disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
-      }
-
-      .extension-card {
-        display: grid;
-        gap: 10px;
-        min-height: 132px;
-        padding: 16px;
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        background: color-mix(in srgb, var(--soft) 84%, var(--solid));
-        transition: all 150ms ease;
-      }
-
-      .extension-card:hover {
-        border-color: color-mix(in srgb, var(--blue) 50%, var(--line));
-        background: color-mix(in srgb, var(--soft) 96%, var(--solid));
-      }
-
-      .extension-card h4 {
-        margin: 0;
-        font-size: 13px;
-        color: var(--text);
-        font-weight: 700;
-      }
-
-      .extension-card p {
-        margin: 0;
-        font-size: 11px;
-        color: var(--muted);
-        line-height: 1.4;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-
-      .extension-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        margin-top: 6px;
-      }
-
-      .source-setting-head {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 14px;
-        align-items: start;
-      }
-
-      .source-note {
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 700;
-      }
-
-      .adult-source-card {
-        border-color: color-mix(in srgb, var(--pink) 32%, var(--line));
-      }
-
-      .extension-version {
-        display: inline-block;
-        padding: 2px 6px;
-        border-radius: 4px;
-        background: rgba(72, 219, 251, 0.15);
-        color: var(--blue);
-        font-size: 10px;
-        font-weight: 700;
-      }
-
-      .extension-nsfw {
-        display: inline-block;
-        margin-left: 6px;
-        padding: 2px 5px;
-        border-radius: 999px;
-        background: rgba(255, 107, 107, 0.14);
-        color: #ff9b9b;
-        font-size: 9px;
-        vertical-align: middle;
-      }
-
-      .extension-toggle {
-        width: 44px;
-        height: 24px;
-        accent-color: var(--blue);
-      }
-
-      .loading-state {
-        padding: 24px;
-        text-align: center;
-        color: var(--muted);
-        font-size: 13px;
-      }
-
-      .about-content {
-        display: grid;
-        gap: 12px;
-      }
-
-      .about-item {
-        display: grid;
-        grid-template-columns: 100px 1fr;
-        gap: 16px;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid var(--line);
-      }
-
-      .about-item:last-child {
-        border-bottom: none;
-      }
-
-      .about-item .label {
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-
-      .about-item strong {
-        color: var(--text);
-        font-size: 13px;
-      }
-
-      @media (max-width: 900px) {
-        .settings-layout {
-          grid-template-columns: minmax(160px, 200px) minmax(0, 1fr);
-          gap: 20px;
-        }
-
-        .extensions-grid {
-          grid-template-columns: 1fr;
-        }
-
-        .extensions-toolbar {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      @media (max-width: 720px) {
-        .settings-layout {
-          grid-template-columns: 1fr;
-          gap: 12px;
-          margin-top: 12px;
-        }
-
-        .settings-sidebar {
-          position: static;
-          z-index: 20;
-          max-height: none;
-          overflow: visible;
-          margin: 0;
-          padding: 0;
-          border: 0;
-          border-radius: 0;
-          background: transparent;
-          box-shadow: none;
-          backdrop-filter: none;
-        }
-
-        .settings-sidebar h2 {
-          display: none;
-        }
-
-        .settings-nav {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 8px;
-          min-width: 0;
-        }
-
-        .settings-nav-btn {
-          justify-content: center;
-          gap: 6px;
-          width: auto;
-          min-height: 52px;
-          font-size: 11px;
-          padding: 8px 6px;
-          flex-direction: column;
-          text-align: center;
-          white-space: normal;
-          background: color-mix(in srgb, var(--soft) 35%, transparent);
-        }
-
-        .settings-nav-btn span {
-          width: 24px;
-          height: 24px;
-          border-radius: 8px;
-          font-size: 9px;
-        }
-
-        .settings-nav-btn.active {
-          border-left: none;
-          padding-left: 6px;
-          border-bottom: 2px solid var(--blue);
-        }
-
-        .settings-section {
-          border-radius: 14px;
-        }
-
-        .form-group {
-          grid-template-columns: 1fr;
-          gap: 10px;
-          padding: 12px;
-        }
-
-        .form-group > * {
-          min-width: 0;
-        }
-
-        .section-header {
-          display: block;
-        }
-
-        .section-header {
-          margin-bottom: 16px;
-        }
-
-        .section-header h2 {
-          font-size: 18px;
-        }
-
-        .theme-buttons {
-          width: 100%;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-
-        .button-group {
-          display: flex;
-        }
-
-        .extensions-pagination,
-        .extension-footer,
-        .color-input-row {
-          flex-wrap: wrap;
-        }
-
-        .about-item {
-          grid-template-columns: 1fr;
-          gap: 6px;
-        }
-      }
-
-      @media (max-width: 420px) {
-        .subtitle-style-controls {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      body[data-page="settings"] {
-        background: #0b1622;
-        color: #c9d7e8;
-        font-family: "Overpass", Inter, "Segoe UI", Arial, sans-serif;
-      }
-
-      .settings-sidebar,
-      .settings-section,
-      .form-group,
-      .theme-buttons,
-      .color-input-row,
-      .btn-compact,
-      .about-item,
-      .extension-card {
-        border-color: rgba(140, 165, 194, 0.18);
-        background: #151f2e;
-        box-shadow: 0 12px 26px rgba(0, 0, 0, 0.08);
-      }
-
-      .settings-nav-btn {
-        border-color: rgba(140, 165, 194, 0.14);
-        background: #101a28;
-        color: #8aa8c7;
-      }
-
-      .settings-nav-btn:hover,
-      .settings-nav-btn.active {
-        color: #e8f4ff;
-        background: linear-gradient(135deg, rgba(22, 168, 255, 0.22), rgba(185, 92, 255, 0.16));
-      }
-
-      .settings-nav-btn span {
-        border-color: rgba(140, 165, 194, 0.18);
-        color: #d46cff;
-        background: #162436;
-      }
-
-      .settings-section,
-      .settings-sidebar {
-        border-radius: 16px;
-        backdrop-filter: none;
-      }
-
-      .section-header {
-        border-color: rgba(140, 165, 194, 0.18);
-      }
-
-      .section-header h2,
-      .settings-sidebar h2,
-      .checkbox-label span {
-        color: #dce9f8;
-        letter-spacing: 0;
-      }
-
-      .section-header p,
-      .form-group label {
-        color: #7f97b2;
-      }
-
-      .form-group select,
-      .form-group input[type="url"],
-      .settings-section input,
-      .settings-section select,
-      .settings-section textarea {
-        border-color: rgba(140, 165, 194, 0.18);
-        color: #dce9f8;
-        background: #101a28;
-        box-shadow: none;
-      }
-    </style>
   </body>
 </html>
