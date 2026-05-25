@@ -3281,7 +3281,6 @@ function detailTabsHtml(active, chapters) {
       <div class="detail-tab-strip" role="tablist" aria-label="Details sections">
         ${detailTabButtonHtml(primaryKey, primaryLabel, true)}
         ${detailTabButtonHtml("relations", "Relations")}
-        <button type="button" disabled>Threads</button>
         <button type="button" disabled>Themes</button>
         ${detailTabButtonHtml("recommendations", "Recommendations")}
       </div>
@@ -3350,8 +3349,63 @@ function detailMediaPanelHtml(active, section) {
         <div><span>${escapeHtml(eyebrow)}</span><h2>${escapeHtml(title)}</h2></div>
         <p>${escapeHtml(description)}</p>
       </div>
-      ${entries.length ? `<div class="detail-related-grid">${entries.map((entry, index) => detailMediaCardHtml(entry, section, index)).join("")}</div>` : `<div class="empty detail-related-empty">${escapeHtml(empty)}</div>`}
+      ${entries.length ? (isRelations ? detailRelationTreeHtml(active, entries) : `<div class="detail-related-grid">${entries.map((entry, index) => detailMediaCardHtml(entry, section, index)).join("")}</div>`) : `<div class="empty detail-related-empty">${escapeHtml(empty)}</div>`}
     </div>`;
+}
+
+function detailRelationTreeHtml(active, entries) {
+  const orderedEntries = orderRelationEntries(entries);
+  return `
+    <div class="detail-relation-tree" aria-label="Relation tree">
+      <div class="detail-relation-origin">
+        <span class="detail-relation-origin-kicker">Current title</span>
+        <div class="detail-relation-origin-card">
+          <img src="${escapeAttr(active.image || fallbackImage)}" alt="${escapeAttr(active.title)} poster" loading="lazy">
+          <div>
+            <strong>${escapeHtml(active.title)}</strong>
+            <span>${escapeHtml([active.format || mediaLabel(active), active.year, active.total ? `${active.total} ${active.unit}` : ""].filter(Boolean).join(" / "))}</span>
+          </div>
+        </div>
+      </div>
+      <div class="detail-relation-branches">
+        ${orderedEntries.map(({ entry, index }) => detailRelationBranchHtml(entry, index)).join("")}
+      </div>
+    </div>`;
+}
+
+function detailRelationBranchHtml(entry, index) {
+  const media = entry.media;
+  const label = relationTypeLabel(entry.relationType);
+  return `
+    <a class="detail-relation-branch" href="${escapeAttr(detailUrl(media))}" data-detail-media-section="relations" data-detail-media-index="${index}">
+      <span class="detail-relation-connector"><b>${escapeHtml(label)}</b></span>
+      <span class="detail-relation-node">
+        <img src="${escapeAttr(media.image || fallbackImage)}" alt="${escapeAttr(media.title)} poster" loading="lazy">
+        <span class="detail-relation-copy">
+          <strong>${escapeHtml(media.title)}</strong>
+          <small>${metaHtml([mediaLabel(media), media.year, media.score, media.total ? `${media.total} ${media.unit}` : ""])}</small>
+        </span>
+      </span>
+    </a>`;
+}
+
+function orderRelationEntries(entries) {
+  const priority = {
+    PREQUEL: 0,
+    PARENT: 1,
+    ADAPTATION: 2,
+    SOURCE: 3,
+    SEQUEL: 4,
+    SIDE_STORY: 5,
+    SPIN_OFF: 6,
+    ALTERNATIVE: 7,
+    SUMMARY: 8,
+    CHARACTER: 9,
+    OTHER: 10,
+  };
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => (priority[a.entry.relationType] ?? 20) - (priority[b.entry.relationType] ?? 20));
 }
 
 function detailMediaCardHtml(entry, section, index) {
