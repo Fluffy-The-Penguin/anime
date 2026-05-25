@@ -250,6 +250,10 @@ function injectChrome() {
     document.body.insertAdjacentHTML("beforeend", `<button class="browse-filter-fab" data-browse-filter-toggle type="button" aria-label="Show search and filters" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm3 5h10v2H7v-2Zm3 5h4v2h-4v-2Z"/></svg><span>Filters</span></button>`);
   }
 
+  if (["anime", "manga", "doujin"].includes(page) && !document.querySelector("[data-browse-filter-overlay]")) {
+    document.body.insertAdjacentHTML("beforeend", `<button class="browse-filter-overlay" data-browse-filter-overlay type="button" aria-label="Close filters"></button>`);
+  }
+
   if (["home", "anime", "manga", "doujin", "doujin-preview", "profile", "library", "history"].includes(page) && !document.querySelector(".details-side-rail")) {
     document.body.insertAdjacentHTML("afterbegin", cinematicSideRailHtml());
   }
@@ -294,6 +298,7 @@ function injectChrome() {
   document.querySelector("[data-notification-toggle]")?.addEventListener("click", toggleNotifications);
   document.querySelector("[data-history-toggle]")?.addEventListener("click", toggleHistory);
   document.querySelectorAll("[data-browse-filter-toggle]").forEach((button) => button.addEventListener("click", toggleBrowseFilters));
+  document.querySelector("[data-browse-filter-overlay]")?.addEventListener("click", closeBrowseFilters);
   document.querySelector("[data-search-toggle]")?.addEventListener("click", toggleSearchOverlay);
   document.querySelector("[data-overlay-search-form]")?.addEventListener("submit", handleOverlaySearch);
   document.querySelector("[data-search-close]")?.addEventListener("click", closeSearchOverlay);
@@ -3571,6 +3576,13 @@ function renderDetails(root, item, isTemporary = false) {
     editorPanel.hidden = !isHidden;
     editorToggle.setAttribute("aria-expanded", String(isHidden));
   });
+  if (root.__detailLibraryOutsideHandler) root.removeEventListener("click", root.__detailLibraryOutsideHandler);
+  root.__detailLibraryOutsideHandler = (event) => {
+    if (editorPanel?.hidden || event.target.closest(".detail-library-popover-wrap")) return;
+    editorPanel.hidden = true;
+    editorToggle?.setAttribute("aria-expanded", "false");
+  };
+  root.addEventListener("click", root.__detailLibraryOutsideHandler);
   root.querySelector("[data-save-track]").addEventListener("click", () => saveCurrent());
   root.querySelector("[data-favorite-toggle]")?.addEventListener("click", () => {
     const activeFavorite = toggleFavoriteItem(state.current);

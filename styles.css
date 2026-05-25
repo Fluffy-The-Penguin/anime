@@ -14662,3 +14662,441 @@ body[data-page="settings"] .about-item strong {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Details library popover and browse filter drawer cleanup. */
+body[data-page="details"] .detail-pro-top {
+  z-index: 40 !important;
+}
+
+body[data-page="details"] .detail-episodes {
+  z-index: 3 !important;
+}
+
+body[data-page="details"] .detail-library-inline {
+  position: relative !important;
+  z-index: 45 !important;
+  max-width: min(100%, 860px);
+  gap: 8px !important;
+}
+
+body[data-page="details"] .detail-library-popover-wrap {
+  position: relative !important;
+  z-index: 60 !important;
+}
+
+body[data-page="details"] .detail-library-popover {
+  z-index: 7000 !important;
+  width: min(540px, calc(100vw - 32px)) !important;
+  max-height: min(640px, calc(100vh - 120px));
+  overflow: auto;
+  gap: 12px !important;
+  border-radius: 18px !important;
+  padding: 14px !important;
+  background: rgba(11, 12, 15, 0.98) !important;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(255, 255, 255, 0.04) inset !important;
+  overscroll-behavior: contain;
+}
+
+body[data-page="details"] .detail-tracker-head {
+  gap: 12px !important;
+}
+
+body[data-page="details"] .detail-progress-ring {
+  width: 54px !important;
+  height: 54px !important;
+}
+
+body[data-page="details"] .detail-track-grid {
+  grid-template-columns: minmax(126px, 0.9fr) minmax(172px, 1.2fr) minmax(96px, 0.7fr) !important;
+  gap: 9px !important;
+}
+
+body[data-page="details"] .detail-library-popover .detail-progress-control {
+  grid-template-columns: 32px minmax(46px, 1fr) auto 32px !important;
+  min-height: 38px !important;
+}
+
+body[data-page="details"] .detail-library-popover .detail-notes {
+  min-height: 58px !important;
+  max-height: 120px;
+}
+
+body[data-page="details"] .detail-library-popover .detail-progress-card {
+  margin: 0 !important;
+  padding: 12px !important;
+}
+
+body[data-page="details"] .detail-primary-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+body[data-page="details"] .detail-square-action,
+body[data-page="details"] .detail-api-badge,
+body[data-page="details"] .detail-audience-pill {
+  min-height: 42px !important;
+  height: 42px !important;
+  border-radius: 10px !important;
+}
+
+body[data-page="details"] .detail-square-action {
+  width: 42px !important;
+  min-width: 42px !important;
+}
+
+body[data-page="details"] .detail-api-badge,
+body[data-page="details"] .detail-audience-pill {
+  min-width: 0 !important;
+  max-width: min(280px, 100%);
+  overflow: hidden;
+  padding: 0 13px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-page="details"] .detail-tab-strip {
+  width: min(860px, 100%) !important;
+  gap: 4px !important;
+}
+
+body[data-page="details"] .detail-tab-strip button {
+  flex: 1 1 118px !important;
+  min-width: 104px !important;
+  padding: 0 10px !important;
+}
+
+body[data-page="details"] .detail-tab-strip button[data-detail-tab="recommendations"] {
+  flex-basis: 158px !important;
+}
+
+.browse-filter-overlay {
+  display: none;
+}
+
+body.browse-filters-open[data-page="anime"],
+body.browse-filters-open[data-page="manga"],
+body.browse-filters-open[data-page="doujin"] {
+  overflow: hidden;
+}
+
+body[data-page="anime"] .browse-filter-overlay,
+body[data-page="manga"] .browse-filter-overlay,
+body[data-page="doujin"] .browse-filter-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2640;
+  display: block;
+  border: 0;
+  padding: 0;
+  opacity: 0;
+  visibility: hidden;
+  background: rgba(0, 0, 0, 0.54);
+  backdrop-filter: blur(2px);
+  transition: opacity 160ms ease, visibility 160ms ease;
+}
+
+body.browse-filters-open[data-page="anime"] .browse-filter-overlay,
+body.browse-filters-open[data-page="manga"] .browse-filter-overlay,
+body.browse-filters-open[data-page="doujin"] .browse-filter-overlay {
+  opacity: 1;
+  visibility: visible;
+}
+
+body[data-page="anime"] .browse-filter-fab,
+body[data-page="manga"] .browse-filter-fab,
+body[data-page="doujin"] .browse-filter-fab {
+  z-index: 2800 !important;
+  min-height: 46px !important;
+  border-radius: 999px !important;
+  padding: 0 18px !important;
+}
+
+body[data-page="anime"] .browse-toolbar,
+body[data-page="manga"] .browse-toolbar,
+body[data-page="doujin"] .browse-toolbar {
+  top: max(68px, calc(env(safe-area-inset-top) + 68px)) !important;
+  right: auto !important;
+  left: 50% !important;
+  z-index: 2700 !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 11px !important;
+  width: min(440px, calc(100vw - 24px)) !important;
+  max-height: calc(100vh - 92px) !important;
+  max-height: calc(100dvh - 92px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 22px !important;
+  padding: 16px !important;
+  background: rgba(8, 9, 11, 0.98) !important;
+  box-shadow: 0 30px 96px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.035) inset !important;
+  transform: translate(-50%, 0) scale(1) !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(143, 201, 207, 0.42) transparent;
+}
+
+body[data-page="anime"] .browse-toolbar::-webkit-scrollbar,
+body[data-page="manga"] .browse-toolbar::-webkit-scrollbar,
+body[data-page="doujin"] .browse-toolbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+body[data-page="anime"] .browse-toolbar::-webkit-scrollbar-thumb,
+body[data-page="manga"] .browse-toolbar::-webkit-scrollbar-thumb,
+body[data-page="doujin"] .browse-toolbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(143, 201, 207, 0.42);
+}
+
+body[data-page="anime"]:not(.browse-filters-open) .browse-toolbar,
+body[data-page="manga"]:not(.browse-filters-open) .browse-toolbar,
+body[data-page="doujin"]:not(.browse-filters-open) .browse-toolbar {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transform: translate(-50%, -10px) scale(0.98) !important;
+  pointer-events: none !important;
+}
+
+body[data-page="anime"] .browse-search,
+body[data-page="manga"] .browse-search,
+body[data-page="doujin"] .browse-search {
+  order: 1 !important;
+  width: 100% !important;
+  flex: none !important;
+}
+
+body[data-page="anime"] .browse-submit,
+body[data-page="manga"] .browse-submit,
+body[data-page="doujin"] .browse-submit {
+  order: 2 !important;
+  display: inline-flex !important;
+  width: 100% !important;
+  min-height: 44px !important;
+}
+
+body[data-page="anime"] .genre-filter,
+body[data-page="manga"] .genre-filter,
+body[data-page="doujin"] .doujin-tag-picker {
+  order: 3 !important;
+}
+
+body[data-page="anime"] .browse-toolbar > label:has([data-year-filter]),
+body[data-page="manga"] .browse-toolbar > label:has([data-year-filter]) {
+  order: 4 !important;
+}
+
+body[data-page="anime"] .browse-toolbar > label:has([data-status-filter]),
+body[data-page="manga"] .browse-toolbar > label:has([data-status-filter]) {
+  order: 5 !important;
+}
+
+body[data-page="anime"] .browse-toolbar > label:has([data-sort-filter]),
+body[data-page="manga"] .browse-toolbar > label:has([data-sort-filter]) {
+  order: 6 !important;
+}
+
+body[data-page="anime"] .browse-toolbar > [data-reset-filters],
+body[data-page="manga"] .browse-toolbar > [data-reset-filters],
+body[data-page="doujin"] .browse-toolbar > [data-doujin-reset] {
+  order: 20 !important;
+}
+
+body[data-page="anime"] .genre-filter,
+body[data-page="manga"] .genre-filter,
+body[data-page="doujin"] .doujin-tag-filter,
+body[data-page="anime"] .browse-toolbar > label:not(.browse-search),
+body[data-page="manga"] .browse-toolbar > label:not(.browse-search) {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 7px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 15px !important;
+  padding: 10px !important;
+  color: rgba(255, 255, 255, 0.62) !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  font-size: 11px !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+}
+
+body[data-page="anime"] .genre-filter > span,
+body[data-page="manga"] .genre-filter > span,
+body[data-page="doujin"] .doujin-tag-filter > span {
+  color: rgba(255, 255, 255, 0.62) !important;
+  font-size: 11px !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.1em !important;
+  line-height: 1 !important;
+  text-transform: uppercase !important;
+}
+
+body[data-page="anime"] .browse-toolbar input,
+body[data-page="manga"] .browse-toolbar input,
+body[data-page="doujin"] .browse-toolbar input,
+body[data-page="anime"] .browse-toolbar select,
+body[data-page="manga"] .browse-toolbar select,
+body[data-page="doujin"] .browse-toolbar select,
+body[data-page="anime"] .genre-toggle,
+body[data-page="manga"] .genre-toggle,
+body[data-page="doujin"] .genre-toggle {
+  width: 100% !important;
+  min-height: 46px !important;
+  height: 46px !important;
+  border-radius: 12px !important;
+  color: #eef5f7 !important;
+  background: rgba(5, 6, 8, 0.78) !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+}
+
+body[data-page="anime"] .browse-search,
+body[data-page="manga"] .browse-search,
+body[data-page="doujin"] .browse-search {
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+body[data-page="anime"] .browse-search input,
+body[data-page="manga"] .browse-search input,
+body[data-page="doujin"] .browse-search input {
+  padding-left: 48px !important;
+}
+
+body[data-page="anime"] .genre-menu,
+body[data-page="manga"] .genre-menu,
+body[data-page="doujin"] .doujin-tag-menu {
+  position: static !important;
+  width: 100% !important;
+  max-height: min(220px, 34vh) !important;
+  max-height: min(220px, 34dvh) !important;
+  margin-top: 2px !important;
+  overflow: auto !important;
+  border-radius: 13px !important;
+  padding: 7px !important;
+  background: rgba(0, 0, 0, 0.42) !important;
+  box-shadow: none !important;
+}
+
+body[data-page="anime"] .genre-filter.open .genre-menu,
+body[data-page="manga"] .genre-filter.open .genre-menu,
+body[data-page="doujin"] .doujin-tag-filter.open .doujin-tag-menu {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+}
+
+body[data-page="anime"] .genre-menu label,
+body[data-page="manga"] .genre-menu label,
+body[data-page="doujin"] .doujin-tag-menu label {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 31px !important;
+  border-radius: 9px !important;
+  padding: 5px 7px !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+  background: transparent !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.2 !important;
+  text-transform: none !important;
+}
+
+body[data-page="anime"] .genre-menu label:hover,
+body[data-page="manga"] .genre-menu label:hover,
+body[data-page="doujin"] .doujin-tag-menu label:hover {
+  background: rgba(143, 201, 207, 0.12) !important;
+}
+
+body[data-page="anime"] .genre-menu input,
+body[data-page="manga"] .genre-menu input,
+body[data-page="doujin"] .doujin-tag-menu input {
+  width: 17px !important;
+  height: 17px !important;
+  min-height: 17px !important;
+  padding: 0 !important;
+}
+
+body[data-page="anime"] .browse-title,
+body[data-page="manga"] .browse-title,
+body[data-page="doujin"] .browse-title {
+  padding-right: 116px !important;
+}
+
+@media (max-width: 760px) {
+  body[data-page="details"] .detail-track-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  body[data-page="details"] .detail-library-popover {
+    position: fixed !important;
+    top: max(74px, calc(env(safe-area-inset-top) + 74px)) !important;
+    right: auto !important;
+    left: 50% !important;
+    width: min(440px, calc(100vw - 24px)) !important;
+    max-height: calc(100vh - 112px) !important;
+    max-height: calc(100dvh - 112px) !important;
+    transform: translateX(-50%) !important;
+  }
+
+  body[data-page="details"] .detail-library-inline {
+    display: grid !important;
+    grid-template-columns: repeat(3, 42px) minmax(0, 1fr) !important;
+    align-items: center !important;
+  }
+
+  body[data-page="details"] .detail-api-badge,
+  body[data-page="details"] .detail-audience-pill {
+    grid-column: span 2;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  body[data-page="details"] .detail-tab-strip {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 560px) {
+  body[data-page="anime"] .browse-filter-fab,
+  body[data-page="manga"] .browse-filter-fab,
+  body[data-page="doujin"] .browse-filter-fab {
+    width: auto !important;
+    min-width: 46px !important;
+    padding: 0 14px !important;
+  }
+
+  body[data-page="anime"] .browse-filter-fab span,
+  body[data-page="manga"] .browse-filter-fab span,
+  body[data-page="doujin"] .browse-filter-fab span {
+    display: inline !important;
+  }
+
+  body[data-page="anime"] .genre-filter.open .genre-menu,
+  body[data-page="manga"] .genre-filter.open .genre-menu,
+  body[data-page="doujin"] .doujin-tag-filter.open .doujin-tag-menu {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body[data-page="anime"] .browse-title,
+  body[data-page="manga"] .browse-title,
+  body[data-page="doujin"] .browse-title {
+    padding-right: 104px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  body[data-page="anime"] .genre-filter.open .genre-menu,
+  body[data-page="manga"] .genre-filter.open .genre-menu,
+  body[data-page="doujin"] .doujin-tag-filter.open .doujin-tag-menu {
+    grid-template-columns: 1fr !important;
+  }
+}
