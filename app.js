@@ -3443,12 +3443,10 @@ function detailNestedRelationTreeHtml(active, entries) {
     <div class="detail-relation-nested-tree" aria-label="Nested relation tree">
       <div class="detail-relation-nested-root">
         <span class="detail-relation-origin-kicker">Tree root</span>
-        <div class="detail-relation-nested-root-card">
-          <img src="${escapeAttr(active.image || fallbackImage)}" alt="${escapeAttr(active.title)} poster" loading="lazy">
-          <div>
-            <strong>${escapeHtml(active.title)}</strong>
-            <span>${escapeHtml([active.format || mediaLabel(active), active.year, active.total ? `${active.total} ${active.unit}` : ""].filter(Boolean).join(" / "))}</span>
-          </div>
+        <div class="detail-relation-nested-card detail-relation-nested-card-root">
+          <span class="detail-relation-nested-poster"><img src="${escapeAttr(active.image || fallbackImage)}" alt="${escapeAttr(active.title)} poster" loading="lazy"></span>
+          <strong>${escapeHtml(active.title)}</strong>
+          <small>${escapeHtml([active.format || mediaLabel(active), active.year, active.total ? `${active.total} ${active.unit}` : ""].filter(Boolean).join(" / "))}</small>
         </div>
       </div>
       <div class="detail-relation-nested-branch-wrap">
@@ -3473,11 +3471,9 @@ function detailNestedRelationItemHtml(entry, options = {}) {
     <li class="detail-relation-nested-item" data-relation-depth="${depth}">
       <a class="detail-relation-nested-card" href="${escapeAttr(detailUrl(media))}"${dataAttrs}>
         <span class="detail-relation-nested-type">${escapeHtml(relationTypeLabel(entry.relationType))}</span>
-        <img src="${escapeAttr(media.image || fallbackImage)}" alt="${escapeAttr(media.title)} poster" loading="lazy">
-        <span class="detail-relation-copy">
-          <strong>${escapeHtml(media.title)}</strong>
-          <small>${metaHtml([mediaLabel(media), media.year, media.score, media.total ? `${media.total} ${media.unit}` : ""])}</small>
-        </span>
+        <span class="detail-relation-nested-poster"><img src="${escapeAttr(media.image || fallbackImage)}" alt="${escapeAttr(media.title)} poster" loading="lazy"></span>
+        <strong>${escapeHtml(media.title)}</strong>
+        <small>${metaHtml([mediaLabel(media), media.year, media.score, media.total ? `${media.total} ${media.unit}` : ""])}</small>
       </a>
       ${children.length ? `<ol class="detail-relation-nested-list">${children.map(({ entry: childEntry }) => detailNestedRelationItemHtml(childEntry, { depth: depth + 1, ancestors: nextAncestors })).join("")}</ol>` : ""}
     </li>`;

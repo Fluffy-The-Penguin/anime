@@ -12500,6 +12500,296 @@ body[data-page="details"] .detail-relation-nested-note {
   }
 }
 
+/* Experimental relation tree diagram. */
+body[data-page="details"] .detail-relation-view[data-relation-view="nested"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--detail-accent-rgb), 0.5) transparent;
+}
+
+body[data-page="details"] .detail-relation-view[data-relation-view="nested"]::-webkit-scrollbar {
+  height: 8px;
+}
+
+body[data-page="details"] .detail-relation-view[data-relation-view="nested"]::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(var(--detail-accent-rgb), 0.5);
+}
+
+body[data-page="details"] .detail-relation-nested-tree {
+  display: block !important;
+  min-width: min(1040px, 100%);
+  overflow: visible !important;
+  padding: clamp(20px, 3vw, 34px) !important;
+  background:
+    radial-gradient(circle at 50% 0, rgba(var(--detail-accent-rgb), 0.2), transparent 24rem),
+    radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(135deg, #050609, #101218 58%, #050609) !important;
+  background-size: auto, 30px 30px, auto !important;
+}
+
+body[data-page="details"] .detail-relation-nested-tree::before {
+  display: none !important;
+}
+
+body[data-page="details"] .detail-relation-nested-root {
+  position: relative;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  width: max-content;
+  min-width: 100%;
+  margin: 0 auto;
+  padding-bottom: 34px;
+  text-align: center;
+}
+
+body[data-page="details"] .detail-relation-nested-root::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  height: 34px;
+  border-left: 2px solid rgba(var(--detail-accent-rgb), 0.78);
+  transform: translateX(-50%);
+}
+
+body[data-page="details"] .detail-relation-nested-branch-wrap {
+  width: max-content;
+  min-width: 100%;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+body[data-page="details"] .detail-relation-nested-list {
+  position: relative;
+  display: flex !important;
+  align-items: flex-start;
+  justify-content: center;
+  width: max-content;
+  min-width: 100%;
+  gap: 0 !important;
+  margin: 0 auto !important;
+  padding: 34px 0 0 !important;
+  list-style: none;
+}
+
+body[data-page="details"] .detail-relation-nested-list::before {
+  display: none !important;
+}
+
+body[data-page="details"] .detail-relation-nested-item {
+  position: relative;
+  display: block !important;
+  flex: 0 0 auto;
+  min-width: 144px;
+  padding: 34px 12px 0 !important;
+  text-align: center;
+}
+
+body[data-page="details"] .detail-relation-nested-item::before,
+body[data-page="details"] .detail-relation-nested-item::after {
+  content: "";
+  position: absolute;
+  top: 0 !important;
+  width: 50% !important;
+  height: 34px !important;
+  border-top: 2px solid rgba(var(--detail-accent-rgb), 0.78) !important;
+}
+
+body[data-page="details"] .detail-relation-nested-item::before {
+  right: 50%;
+  left: auto !important;
+}
+
+body[data-page="details"] .detail-relation-nested-item::after {
+  left: 50%;
+  border-left: 2px solid rgba(var(--detail-accent-rgb), 0.78) !important;
+}
+
+body[data-page="details"] .detail-relation-nested-item:first-child::before,
+body[data-page="details"] .detail-relation-nested-item:last-child::after {
+  border-top-color: transparent !important;
+}
+
+body[data-page="details"] .detail-relation-nested-item:first-child::after {
+  border-radius: 14px 0 0 0;
+}
+
+body[data-page="details"] .detail-relation-nested-item:last-child::before {
+  border-right: 2px solid rgba(var(--detail-accent-rgb), 0.78) !important;
+  border-radius: 0 14px 0 0;
+}
+
+body[data-page="details"] .detail-relation-nested-item:only-child::before {
+  display: none !important;
+}
+
+body[data-page="details"] .detail-relation-nested-item:only-child::after {
+  left: 50% !important;
+  width: 0 !important;
+  border-top: 0 !important;
+  border-left: 2px solid rgba(var(--detail-accent-rgb), 0.78) !important;
+}
+
+body[data-page="details"] .detail-relation-nested-item > .detail-relation-nested-list {
+  margin: 0 auto !important;
+}
+
+body[data-page="details"] .detail-relation-nested-item > .detail-relation-nested-list::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  display: block !important;
+  height: 34px;
+  border-left: 2px solid rgba(var(--detail-accent-rgb), 0.78);
+  transform: translateX(-50%);
+}
+
+body[data-page="details"] .detail-relation-nested-card,
+body[data-page="details"] .detail-relation-nested-item[data-relation-depth] .detail-relation-nested-card {
+  position: relative;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  width: 132px;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  gap: 8px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  color: #f7fbff;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-decoration: none;
+}
+
+body[data-page="details"] .detail-relation-nested-card:hover {
+  transform: translateY(-3px) !important;
+}
+
+body[data-page="details"] .detail-relation-nested-poster {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  padding: 4px;
+  background: linear-gradient(135deg, rgba(var(--detail-accent-rgb), 0.95), #1537c8 62%, #081135);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.34), 0 0 0 5px rgba(var(--detail-accent-rgb), 0.08);
+}
+
+body[data-page="details"] .detail-relation-nested-card-root .detail-relation-nested-poster {
+  width: 108px;
+  height: 108px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42), 0 0 0 6px rgba(var(--detail-accent-rgb), 0.1);
+}
+
+body[data-page="details"] .detail-relation-nested-card .detail-relation-nested-poster img,
+body[data-page="details"] .detail-relation-nested-item[data-relation-depth] .detail-relation-nested-card .detail-relation-nested-poster img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+body[data-page="details"] .detail-relation-nested-card strong {
+  display: -webkit-box;
+  width: 100%;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.12;
+  text-align: center;
+}
+
+body[data-page="details"] .detail-relation-nested-card small {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+body[data-page="details"] .detail-relation-nested-card small span {
+  border-radius: 999px;
+  padding: 3px 6px;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+body[data-page="details"] .detail-relation-nested-type {
+  position: absolute !important;
+  top: -10px !important;
+  right: auto !important;
+  left: 50%;
+  z-index: 2;
+  max-width: 104px !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 999px !important;
+  padding: 5px 8px !important;
+  color: #031014 !important;
+  background: #e9fdff !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+  font-size: 9px !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  text-align: center;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+}
+
+body[data-page="details"] .detail-relation-nested-note {
+  width: min(520px, 100%);
+  margin: 18px auto 0 !important;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  body[data-page="details"] .detail-relation-nested-tree {
+    min-width: 760px;
+  }
+}
+
+@media (max-width: 520px) {
+  body[data-page="details"] .detail-relation-nested-tree {
+    min-width: 680px;
+    padding: 18px !important;
+  }
+
+  body[data-page="details"] .detail-relation-nested-item {
+    min-width: 124px;
+    padding-inline: 8px !important;
+  }
+
+  body[data-page="details"] .detail-relation-nested-card {
+    width: 116px;
+  }
+
+  body[data-page="details"] .detail-relation-nested-poster {
+    width: 76px;
+    height: 76px;
+  }
+
+  body[data-page="details"] .detail-relation-nested-card-root .detail-relation-nested-poster {
+    width: 94px;
+    height: 94px;
+  }
+}
+
 body[data-page="details"] .detail-related-card {
   position: relative;
   display: flex;
