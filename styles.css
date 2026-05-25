@@ -106,6 +106,7 @@ a { color: inherit; text-decoration: none; }
 
 .top-actions { display: flex; gap: 8px; align-items: center; }
 .icon-btn { display: inline-grid; min-width: 42px; min-height: 42px; place-items: center; border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: var(--panel); font-weight: 900; }
+.top-settings-link { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; border: 1px solid var(--line); border-radius: 999px; padding: 0 14px; color: var(--text); background: var(--panel); font-size: 13px; font-weight: 900; }
 .search-trigger { padding: 0 14px; }
 
 .hero {
@@ -4017,7 +4018,7 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   }
 
   body.is-scrolled {
-    padding-bottom: 78px;
+    padding-bottom: 0;
   }
 
   body[data-page] .topbar {
@@ -4053,13 +4054,14 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   }
 
   body.is-scrolled .nav {
-    position: fixed;
+    position: static;
     right: auto;
-    bottom: max(12px, env(safe-area-inset-bottom));
-    left: 50%;
-    z-index: 75;
-    width: min(420px, calc(100% - 24px));
-    transform: translateX(-50%);
+    bottom: auto;
+    left: auto;
+    z-index: auto;
+    width: 100%;
+    transform: none;
+    box-shadow: none;
   }
 
   :root[data-theme="light"] .nav {
@@ -4461,13 +4463,13 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   }
 
   body[data-page].mobile-nav-floating > .topbar.shell .nav {
-    position: fixed !important;
+    position: static !important;
     right: auto !important;
-    bottom: max(12px, env(safe-area-inset-bottom)) !important;
-    left: 50% !important;
-    z-index: 95 !important;
-    width: min(420px, calc(100% - 24px)) !important;
-    transform: translateX(-50%) !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: auto !important;
+    width: 100% !important;
+    transform: none !important;
   }
 
   body[data-page].mobile-nav-floating > .topbar.shell {
@@ -4549,11 +4551,11 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   }
 
   body[data-page].mobile-nav-floating .mobile-bottom-nav {
-    position: fixed;
+    position: static;
     right: auto;
-    bottom: max(12px, env(safe-area-inset-bottom));
-    left: 50%;
-    z-index: 95;
+    bottom: auto;
+    left: auto;
+    z-index: auto;
     display: none !important;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     width: min(420px, calc(100% - 24px));
@@ -7640,6 +7642,7 @@ body[data-page="doujin-preview"] .doujin-preview-actions {
 
 .anilist-topbar .menu-toggle,
 .anilist-topbar .theme-toggle,
+.anilist-topbar .top-settings-link,
 .anilist-topbar .profile-btn,
 .anilist-topbar .notification-btn,
 .anilist-topbar .history-btn,
@@ -7651,6 +7654,14 @@ body[data-page="doujin-preview"] .doujin-preview-actions {
   color: #8f9db2;
   background: transparent;
   box-shadow: none;
+}
+
+.anilist-topbar .top-settings-link {
+  min-width: auto;
+  padding: 0 14px;
+  color: #dce8f7;
+  font-size: 13px;
+  text-decoration: none;
 }
 
 .anilist-topbar .profile-btn {
@@ -8336,6 +8347,7 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
 
   .anilist-topbar .menu-toggle,
   .anilist-topbar .theme-toggle,
+  .anilist-topbar .top-settings-link,
   .anilist-topbar .profile-btn,
   .anilist-topbar .notification-btn,
   .anilist-topbar .history-btn,
@@ -8344,6 +8356,13 @@ body[data-page="player"] > .topbar.shell.anilist-topbar {
     min-height: 36px !important;
     width: 36px !important;
     height: 36px !important;
+  }
+
+  .anilist-topbar .top-settings-link {
+    min-width: auto !important;
+    width: auto !important;
+    padding: 0 10px !important;
+    font-size: 12px !important;
   }
 
   .anilist-topbar .profile-btn {
@@ -11480,6 +11499,7 @@ body[data-page="library"] .profile-sidebar-block button {
 }
 
 @media (max-width: 720px) {
+  body.is-scrolled,
   body[data-page].mobile-nav-floating {
     padding-bottom: 0 !important;
   }
@@ -11499,14 +11519,22 @@ body[data-page="library"] .profile-sidebar-block button {
     display: flex !important;
   }
 
+  body.is-scrolled .topbar.shell .nav,
+  body.is-scrolled .topbar.shell.anilist-topbar .nav,
   body[data-page].mobile-nav-floating > .topbar.shell .nav,
-  body[data-page].mobile-nav-floating .mobile-bottom-nav {
+  body[data-page].mobile-nav-floating .mobile-bottom-nav,
+  body[data-page] .mobile-bottom-nav {
     position: static !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    z-index: auto !important;
     display: none !important;
     width: auto !important;
     height: auto !important;
     transform: none !important;
     animation: none !important;
+    box-shadow: none !important;
   }
 }
 

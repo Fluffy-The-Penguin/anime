@@ -191,16 +191,14 @@ function init() {
 }
 
 function setupMobileNavMode() {
-  document.body.classList.remove("mobile-nav-floating");
+  document.body.classList.remove("is-scrolled", "mobile-nav-floating");
   if (page === "reader") {
-    document.body.classList.remove("is-scrolled", "primary-nav-collapsed");
+    document.body.classList.remove("primary-nav-collapsed");
     return;
   }
   const media = window.matchMedia?.("(max-width: 720px)");
   const update = () => {
-    const isScrolled = (window.scrollY || document.documentElement.scrollTop || 0) > 24;
-    document.body.classList.toggle("is-scrolled", isScrolled);
-    document.body.classList.remove("mobile-nav-floating");
+    document.body.classList.remove("is-scrolled", "mobile-nav-floating");
     window.requestAnimationFrame(syncMenuToggleVisibility);
   };
   update();
@@ -221,6 +219,7 @@ function syncMenuToggleVisibility() {
 
 function injectChrome() {
   const topbar = document.querySelector(".topbar");
+  ensureSettingsNavLink();
   if (topbar && !topbar.querySelector(".top-actions")) {
     topbar.insertAdjacentHTML(
       "beforeend",
@@ -233,6 +232,7 @@ function injectChrome() {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 18.4a7.7 7.7 0 1 1 5.4-13.1 7.7 7.7 0 0 1 0 10.8l4.1 4.1-2 2-4.1-4.1a7.6 7.6 0 0 1-3.4.8Zm0-3a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Z"/></svg>
         </button>`}
         <button class="icon-btn theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">${themeIcon()}</button>
+        <a class="top-settings-link" href="settings.html" aria-label="Open settings">Settings</a>
         <div class="notification-menu">
           <button class="icon-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.7 2.7 0 0 0 2.5-1.7h-5A2.7 2.7 0 0 0 12 22Zm7-6.4-1.7-2.3V9a5.3 5.3 0 0 0-4-5.1V3a1.3 1.3 0 0 0-2.6 0v.9a5.3 5.3 0 0 0-4 5.1v4.3L5 15.6V18h14v-2.4Z"/></svg><span data-notification-count hidden>0</span></button>
           <div class="notification-popover" data-notification-popover></div>
@@ -317,6 +317,12 @@ function injectChrome() {
     if (!event.target.closest(".history-menu")) closeHistory();
     if (!event.target.closest(".topbar")) closeMobileMenu();
     if (!event.target.closest(".browse-toolbar") && !event.target.closest("[data-browse-filter-toggle]")) closeBrowseFilters();
+  });
+}
+
+function ensureSettingsNavLink() {
+  document.querySelectorAll(".topbar .nav").forEach((nav) => {
+    if (!nav.querySelector('a[href="settings.html"]')) nav.insertAdjacentHTML("beforeend", '<a href="settings.html" data-settings-nav>Settings</a>');
   });
 }
 
