@@ -3453,7 +3453,6 @@ function detailNestedRelationTreeHtml(active, entries) {
         <div class="detail-relation-canvas" data-relation-canvas style="--relation-tree-width: ${treeWidth}px; --relation-zoom: 1;">
           <div class="detail-relation-nested-tree" aria-label="Nested relation tree">
             <div class="detail-relation-nested-root">
-              <span class="detail-relation-origin-kicker">Tree root</span>
               <div class="detail-relation-nested-card detail-relation-nested-card-root">
                 <span class="detail-relation-nested-poster"><img src="${escapeAttr(active.image || fallbackImage)}" alt="${escapeAttr(active.title)} poster" loading="lazy"></span>
                 <strong>${escapeHtml(active.title)}</strong>
@@ -3490,14 +3489,19 @@ function detailNestedRelationItemHtml(node, depth = 1) {
 function detailNestedRelationNodes(entries, options = {}) {
   const { depth = 1, maxDepth = 3, seen = new Set(), includeIndexes = false } = options;
   const nodes = [];
+  const levelSeen = new Set();
   for (const { entry, index } of orderRelationEntries(entries)) {
-    if (nodes.length >= 8) break;
     const media = entry?.media;
     const key = detailRelationMediaKey(media);
-    if (!key || seen.has(key)) continue;
+    if (!key || seen.has(key) || levelSeen.has(key)) continue;
+    levelSeen.add(key);
     seen.add(key);
-    const children = depth >= maxDepth ? [] : detailNestedRelationNodes(detailMediaEntries(media || {}, "relations"), { depth: depth + 1, maxDepth, seen });
-    nodes.push({ entry, index: includeIndexes ? index : -1, children });
+    nodes.push({ entry, index: includeIndexes ? index : -1, children: [] });
+  }
+  if (depth < maxDepth) {
+    nodes.forEach((node) => {
+      node.children = detailNestedRelationNodes(detailMediaEntries(node.entry.media || {}, "relations"), { depth: depth + 1, maxDepth, seen });
+    });
   }
   return nodes;
 }
