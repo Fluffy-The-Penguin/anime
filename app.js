@@ -336,18 +336,18 @@ function cinematicSideRailHtml() {
         <a href="manga.html" aria-label="Manga / Manhwa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.2 4h6.1c1 0 1.9.3 2.7.9.8-.6 1.7-.9 2.7-.9h2.1A2.2 2.2 0 0 1 21 6.2v13.4h-5.3c-.9 0-1.7.3-2.3.9l-.4.4-.4-.4c-.6-.6-1.4-.9-2.3-.9H3V6.2A2.2 2.2 0 0 1 5.2 4ZM5 17.6h5.3c.6 0 1.2.1 1.7.4V6.5c-.2-.3-.6-.5-1.1-.5H5.2c-.1 0-.2.1-.2.2v11.4Zm9 .4c.5-.3 1.1-.4 1.7-.4H19V6.2c0-.1-.1-.2-.2-.2h-2.1c-1 0-1.9.8-2.7 1.4V18Z"/></svg></a>
         <a href="doujin.html" data-adult-nav hidden aria-label="Doujin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 4 6v6c0 5 3.4 8.6 8 9.5 4.6-.9 8-4.5 8-9.5V6l-8-3.5Zm0 2.2 6 2.6V12c0 3.8-2.4 6.4-6 7.4-3.6-1-6-3.6-6-7.4V7.3l6-2.6Zm0 4.1a2.7 2.7 0 0 0-1.2 5.1v2.6h2.4v-2.6A2.7 2.7 0 0 0 12 8.8Z"/></svg></a>
         <a href="profile.html" aria-label="Profile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12.2a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Zm0-7.4a2.7 2.7 0 1 1 0 5.4 2.7 2.7 0 0 1 0-5.4Zm-8.4 16a8.4 8.4 0 0 1 16.8 0h-2a6.4 6.4 0 0 0-12.8 0h-2Z"/></svg></a>
+        ${settingsRailLinkHtml()}
       </div>
       <div class="details-rail-bottom">
         <a href="profile-favorites.html" aria-label="Favorites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 20.7-1.3-1.2C6.1 15.3 3 12.5 3 9.1A4.8 4.8 0 0 1 7.9 4c1.6 0 3.1.8 4.1 2 1-1.2 2.5-2 4.1-2A4.8 4.8 0 0 1 21 9.1c0 3.4-3.1 6.2-7.7 10.4L12 20.7Z"/></svg></a>
         <a href="history.html" aria-label="History"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.1-5L14 10h7V3l-2.7 2.7A8.9 8.9 0 0 0 12 3Zm-1 4v6l5 3 .9-1.6-3.9-2.3V7h-2Z"/></svg></a>
-        ${settingsRailLinkHtml()}
       </div>
     </nav>
   `;
 }
 
 function settingsRailLinkHtml() {
-  return `<a href="settings.html" data-settings-rail aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.7 7.7 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.7 7.7 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.7 7.7 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.7 7.7 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg></a>`;
+  return `<a href="settings.html" data-settings-rail aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.7 7.7 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.7 7.7 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.7 7.7 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.7 7.7 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg><span class="details-rail-label">Settings</span></a>`;
 }
 
 function profileMenuHtml(buttonClass = "icon-btn profile-btn", menuClass = "") {
@@ -378,7 +378,7 @@ function enhanceCinematicSideRail() {
     profileLink.remove();
   }
   const bottom = rail?.querySelector(".details-rail-bottom");
-  if (bottom && !bottom.querySelector("[data-settings-rail]")) bottom.insertAdjacentHTML("beforeend", settingsRailLinkHtml());
+  if (bottom && rail && !rail.querySelector("[data-settings-rail]")) bottom.insertAdjacentHTML("beforeend", settingsRailLinkHtml());
 }
 
 function searchOverlayHtml() {
@@ -6975,8 +6975,15 @@ async function loadEpisode(anime, episode, episodeNumber) {
           : episode.source === "anilibria"
             ? await fetchApiJson(`/api/anime/anilibria/streams?releaseId=${encodeURIComponent(episode.providerId || "")}&episodeId=${encodeURIComponent(episode.episodeId || episode.id || "")}${subtitleParams}`)
           : await fetchApiJson(`/api/anime/anizone/streams?episodeUrl=${encodeURIComponent(episode.episodeUrl || episode.id || "")}${subtitleParams}`);
+      if (!Array.isArray(data.sources) || !data.sources.some((source) => source?.url)) {
+        if (await tryAnimeStreamFallback(anime, episode.source, episodeNumber)) return;
+        renderDirectAnimeStreams(sources, data, episode.source, playerAutoPlayEnabled());
+        videoPlayer.innerHTML = '<div class="player-loading"><p style="color: var(--red);">No playable source found</p></div>';
+        return;
+      }
       renderDirectAnimeStreams(sources, data, episode.source, playerAutoPlayEnabled());
     } catch (error) {
+      if (await tryAnimeStreamFallback(anime, episode.source, episodeNumber)) return;
       sources.innerHTML = `<div class="empty">Could not load ${escapeHtml(animeSourceLabel(episode.source))} streams for this episode.</div>`;
       videoPlayer.innerHTML = '<div class="player-loading"><p style="color: var(--red);">No playable source found</p></div>';
     }
@@ -7005,6 +7012,27 @@ async function loadEpisode(anime, episode, episodeNumber) {
     `;
   }
 
+}
+
+async function tryAnimeStreamFallback(anime, failedSource, episodeNumber) {
+  if (failedSource !== "animedex" || !animeSourceEnabled("anizone")) return false;
+  const sources = document.querySelector("[data-streaming-sources]");
+  if (sources) sources.innerHTML = '<p class="muted">AnimeDex streams are blocked by the upstream CDN. Trying AniZone...</p>';
+  try {
+    const match = await searchAnimeProviderMatch(anime, "anizone", document.querySelector("[data-player-source-query]")?.value.trim() || "");
+    const episodes = match ? await fetchAnimeProviderEpisodes(match) : [];
+    const target = String(episodeNumber || "");
+    const fallbackEpisode = episodes.find((episode) => String(episode.number) === target) || episodes[Math.max(0, Number(target) - 1)] || episodes[0];
+    if (!fallbackEpisode) return false;
+    const subtitleParams = animeStreamSubtitleParams(anime, fallbackEpisode.number || episodeNumber);
+    const data = await fetchApiJson(`/api/anime/anizone/streams?episodeUrl=${encodeURIComponent(fallbackEpisode.episodeUrl || fallbackEpisode.id || "")}${subtitleParams}`);
+    if (!Array.isArray(data.sources) || !data.sources.some((source) => source?.url)) return false;
+    renderDirectAnimeStreams(sources, data, "anizone", playerAutoPlayEnabled());
+    showToast("AnimeDex stream blocked. Using AniZone fallback.");
+    return true;
+  } catch (error) {
+    return false;
+  }
 }
 
 function animeStreamSubtitleParams(anime, episodeNumber) {
