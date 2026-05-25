@@ -5077,13 +5077,21 @@ body[data-page="reader"] .reader-top-button {
 
 .detail-anime-episode-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: 112px minmax(0, 1fr);
   align-items: center;
   min-height: 98px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 18px;
   padding: 18px 20px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(var(--detail-accent-rgb), 0.08));
+}
+
+.detail-anime-episode-row .detail-episode-thumb {
+  width: 112px;
+  height: 64px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .detail-anime-episode-row .detail-chapter-text {
@@ -5222,7 +5230,13 @@ body[data-page="reader"] .reader-top-button {
 
   .detail-anime-episode-row {
     min-height: 86px;
+    grid-template-columns: 92px minmax(0, 1fr);
     padding: 14px;
+  }
+
+  .detail-anime-episode-row .detail-episode-thumb {
+    width: 92px;
+    height: 56px;
   }
 
   .detail-anime-episode-row .detail-chapter-text strong {
@@ -9234,4 +9248,802 @@ body[data-page="details"] .anilist-topbar .icon-btn:not(.profile-btn) {
 :root[data-theme="light"] body[data-page="details"] .detail-backdrop,
 :root[data-theme="light"] body[data-page="details"] > .topbar.shell.anilist-topbar {
   border-bottom: 0 !important;
+}
+
+/* Cinematic details page redesign. */
+body[data-page="details"] {
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: #000 !important;
+  font-family: "Overpass", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body[data-page="details"] > .topbar.shell.anilist-topbar,
+body[data-page="details"] .mobile-bottom-nav,
+body[data-page="details"] .site-footer {
+  display: none !important;
+}
+
+body[data-page="details"] main.shell,
+body[data-page="details"] .details-shell {
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+.details-side-rail {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 2200;
+  display: grid;
+  grid-template-rows: 66px 1fr auto;
+  width: 68px;
+  padding: 16px 0 18px;
+  background: #000;
+  color: #fff;
+}
+
+.details-side-rail a {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
+  border-radius: 14px;
+  color: rgba(255, 255, 255, 0.82);
+  transition: color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.details-side-rail a:hover,
+body[data-detail-type="anime"] .details-side-rail a[href="anime.html"],
+body[data-detail-type="manga"] .details-side-rail a[href="manga.html"] {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.details-side-rail a:hover {
+  transform: translateY(-1px);
+}
+
+.details-side-rail svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.details-rail-logo {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 0 !important;
+  color: #fff !important;
+  background: transparent !important;
+  font-size: 16px;
+  font-weight: 950;
+  letter-spacing: -0.12em;
+}
+
+.details-rail-main,
+.details-rail-bottom {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.details-rail-bottom {
+  align-content: end;
+}
+
+.details-rail-bottom a:first-child {
+  color: #ff5fc8;
+}
+
+body[data-page="details"] .detail-pro {
+  --detail-line: rgba(255, 255, 255, 0.12);
+  position: relative;
+  min-height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  padding: 0 0 70px;
+  color: #f6f7fb;
+  background: #000;
+  font-family: inherit;
+}
+
+body[data-page="details"] .detail-backdrop {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 68px;
+  z-index: 0;
+  height: min(58vh, 560px);
+  overflow: hidden;
+  border: 0 !important;
+  background: #000;
+  pointer-events: none;
+}
+
+body[data-page="details"] .detail-backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  opacity: 0.72;
+  filter: saturate(1.1) brightness(0.72) contrast(1.06);
+}
+
+body[data-page="details"] .detail-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  display: block;
+  background:
+    linear-gradient(90deg, #000 0, rgba(0, 0, 0, 0.78) 12%, rgba(0, 0, 0, 0.28) 42%, #000 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.06) 0, rgba(0, 0, 0, 0.58) 72%, #000 100%);
+}
+
+body[data-page="details"] .detail-pro-top {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 226px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin: 0;
+  padding: clamp(154px, 20vh, 220px) 64px 0 140px;
+}
+
+body[data-page="details"] .detail-cover-stack {
+  display: grid;
+  gap: 30px;
+  width: 226px;
+}
+
+.detail-poster-button {
+  position: relative;
+  display: block;
+  width: 226px;
+  border: 0;
+  border-radius: 5px;
+  padding: 0;
+  overflow: hidden;
+  background: #080808;
+  box-shadow: none;
+}
+
+.detail-poster-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0;
+  background: rgba(0, 0, 0, 0.42);
+  transition: opacity 160ms ease;
+}
+
+.detail-poster-button:hover::before,
+.detail-poster-button:focus-visible::before,
+.detail-poster-button:hover .detail-poster-expand,
+.detail-poster-button:focus-visible .detail-poster-expand {
+  opacity: 1;
+}
+
+body[data-page="details"] .detail-pro-cover {
+  width: 226px;
+  aspect-ratio: 0.705;
+  border: 0;
+  border-radius: 5px;
+  object-fit: cover;
+  background: #090909;
+  box-shadow: none;
+}
+
+.detail-poster-expand {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  color: #fff;
+  font-size: 56px;
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+  transition: opacity 160ms ease;
+}
+
+.detail-primary-watch {
+  width: 226px;
+  min-height: 46px;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: linear-gradient(135deg, #14b9c6, #4ee2ee) !important;
+  box-shadow: none;
+  font-size: 18px;
+  font-weight: 950;
+}
+
+body[data-page="details"] .detail-pro-main {
+  min-width: 0;
+  padding-top: 70px;
+}
+
+body[data-page="details"] .detail-title-block h1 {
+  max-width: 980px;
+  margin: 8px 0 10px;
+  color: #fff;
+  font-size: clamp(34px, 3vw, 48px);
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
+  text-shadow: 0 8px 34px rgba(0, 0, 0, 0.6);
+}
+
+body[data-page="details"] .detail-source,
+body[data-page="details"] .detail-native {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: clamp(18px, 1.25vw, 23px);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+body[data-page="details"] .detail-native {
+  display: none;
+}
+
+body[data-page="details"] .detail-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: none;
+  margin: 14px 0 18px;
+  color: #fff;
+}
+
+body[data-page="details"] .detail-meta-line span {
+  min-height: 30px;
+  margin: 0;
+  border: 0;
+  border-radius: 5px;
+  padding: 3px 16px;
+  color: #fff;
+  background: #0c98a6;
+  font-size: clamp(14px, 1.05vw, 20px);
+  font-weight: 900;
+  line-height: 1.18;
+}
+
+body[data-page="details"] .detail-meta-line .score-pill {
+  background: #178e38;
+}
+
+body[data-page="details"] .detail-description {
+  max-width: min(1390px, calc(100vw - 430px));
+  max-height: 100px;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: clamp(14px, 0.92vw, 17px);
+  font-weight: 500;
+  line-height: 1.38;
+}
+
+body[data-page="details"] .detail-description p {
+  margin: 0;
+}
+
+body[data-page="details"] .detail-library-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 30px;
+}
+
+.detail-square-action {
+  display: inline-grid;
+  width: 45px;
+  height: 45px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  background: #242529;
+  font-size: 23px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.detail-square-action:hover,
+.detail-square-action.active,
+.detail-library-toggle[aria-expanded="true"] {
+  color: #fff;
+  background: #34363d;
+  box-shadow: none;
+}
+
+.detail-favorite-toggle.active {
+  color: #ff5fc8;
+}
+
+body[data-page="details"] .detail-api-badge,
+.detail-audience-pill {
+  display: inline-grid;
+  min-height: 45px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 14px;
+  color: #d8eff4;
+  background: #242529;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+body[data-page="details"] .detail-genre-line {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 9px;
+  width: auto;
+  max-width: calc(100vw - 500px);
+  margin-top: 30px;
+  overflow-x: auto;
+  border: 0;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+body[data-page="details"] .detail-genre-line::-webkit-scrollbar {
+  display: none;
+}
+
+body[data-page="details"] .detail-genre-line span {
+  flex: 0 0 auto;
+  min-width: 124px;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  padding: 7px 20px;
+  color: rgba(255, 255, 255, 0.68);
+  background: #242529;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+body[data-page="details"] .detail-episodes {
+  position: relative;
+  z-index: 2;
+  margin-top: 30px;
+  padding: 0 84px 0 140px;
+}
+
+.detail-tab-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  width: min(834px, 100%);
+  min-height: 45px;
+  margin-bottom: 24px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: #26272b;
+}
+
+.detail-tab-strip button {
+  border: 0;
+  color: rgba(255, 255, 255, 0.6);
+  background: transparent;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.detail-tab-strip button.active {
+  margin: 6px;
+  border-radius: 7px;
+  color: #fff;
+  background: #0c98a6;
+}
+
+.detail-tab-strip button:disabled {
+  cursor: default;
+}
+
+body[data-page="details"] .detail-episode-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 22px;
+}
+
+body[data-page="details"] .detail-episode-head h2 {
+  display: none;
+}
+
+body[data-page="details"] .detail-episode-head label,
+body[data-page="details"] .detail-episode-head span,
+body[data-page="details"] .detail-list-search,
+body[data-page="details"] .detail-list-filter,
+body[data-page="details"] .detail-source-search {
+  min-height: 34px;
+  border: 0;
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.64);
+  background: #121316;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+body[data-page="details"] .detail-episode-head label {
+  min-width: min(330px, 100%);
+}
+
+body[data-page="details"] .detail-source-picker select,
+body[data-page="details"] .detail-episode-head input,
+body[data-page="details"] .detail-list-search input,
+body[data-page="details"] .detail-source-search input {
+  min-height: 32px;
+  border: 0;
+  color: #fff;
+  background: #050505 !important;
+}
+
+body[data-page="details"] .detail-list-search {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: min(500px, 100%);
+  margin-bottom: 18px;
+  padding: 8px 10px;
+}
+
+body[data-page="details"] .detail-chapter-list {
+  max-height: none;
+  padding: 0;
+}
+
+body[data-page="details"] .detail-anime-episode-list .detail-scroll-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  gap: 34px;
+  max-height: none;
+  overflow: visible;
+  border: 0;
+}
+
+body[data-page="details"] .detail-anime-episode-row {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+  min-height: 140px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 0;
+  color: #fff;
+  background: #0b0b0c;
+  text-align: left;
+  box-shadow: none;
+}
+
+body[data-page="details"] .detail-scroll-list > .detail-anime-episode-row:first-child {
+  border-color: #08c8d4;
+}
+
+body[data-page="details"] .detail-anime-episode-row:hover {
+  border-color: #08c8d4;
+  background: #101113;
+}
+
+.detail-episode-art {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  background: #111;
+}
+
+body[data-page="details"] .detail-anime-episode-row .detail-episode-thumb,
+body[data-page="details"] .detail-chapter-row img.detail-episode-thumb {
+  width: 260px;
+  height: 140px;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.detail-episode-art span {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #f8fafc;
+  background: rgba(0, 0, 0, 0.68);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+body[data-page="details"] .detail-episode-copy {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px 20px 16px 0;
+}
+
+body[data-page="details"] .detail-episode-copy strong {
+  display: block;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+body[data-page="details"] .detail-episode-copy p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+body[data-page="details"] .detail-episode-copy small {
+  border: 0;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+body[data-page="details"] .detail-manga-card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 18px;
+}
+
+body[data-page="details"] .detail-library-popover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #111216;
+}
+
+body[data-page="details"] .detail-poster-modal[hidden] {
+  display: none !important;
+}
+
+body.detail-poster-modal-open {
+  overflow: hidden;
+}
+
+.detail-poster-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  isolation: isolate;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.08) 0 3px, transparent 3px 8px),
+    linear-gradient(rgba(0, 0, 0, 0.64), rgba(0, 0, 0, 0.82)),
+    var(--detail-bg) center / cover no-repeat;
+}
+
+.detail-poster-modal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  backdrop-filter: blur(16px) saturate(120%);
+}
+
+.detail-poster-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+}
+
+.detail-poster-modal-card {
+  position: relative;
+  z-index: 1;
+  width: min(640px, calc(100vw - 120px));
+  margin: 0;
+  border-radius: 7px;
+  overflow: hidden;
+  background: #050505;
+  box-shadow: 0 28px 120px rgba(0, 0, 0, 0.78);
+}
+
+.detail-poster-modal-card img {
+  width: 100%;
+  max-height: calc(100vh - 92px);
+  object-fit: contain;
+}
+
+.detail-poster-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  border-radius: 9px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.52);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+@media (max-width: 1120px) {
+  body[data-page="details"] .detail-pro-top {
+    grid-template-columns: 190px minmax(0, 1fr);
+    padding-right: 28px;
+    padding-left: 94px;
+  }
+
+  body[data-page="details"] .detail-cover-stack,
+  .detail-poster-button,
+  body[data-page="details"] .detail-pro-cover,
+  .detail-primary-watch {
+    width: 190px;
+  }
+
+  body[data-page="details"] .detail-description {
+    max-width: calc(100vw - 340px);
+  }
+
+  body[data-page="details"] .detail-genre-line {
+    max-width: calc(100vw - 340px);
+  }
+
+  body[data-page="details"] .detail-episodes {
+    padding-right: 28px;
+    padding-left: 94px;
+  }
+
+  body[data-page="details"] .detail-anime-episode-list .detail-scroll-list {
+    gap: 18px;
+  }
+
+  body[data-page="details"] .detail-anime-episode-row {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+
+  body[data-page="details"] .detail-anime-episode-row .detail-episode-thumb,
+  body[data-page="details"] .detail-chapter-row img.detail-episode-thumb {
+    width: 190px;
+  }
+}
+
+@media (max-width: 820px) {
+  .details-side-rail {
+    inset: auto 0 0 0;
+    grid-template-rows: none;
+    grid-template-columns: auto 1fr auto;
+    width: auto;
+    height: 62px;
+    padding: 8px 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .details-rail-main,
+  .details-rail-bottom {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .details-side-rail a {
+    width: 42px;
+    height: 42px;
+  }
+
+  body[data-page="details"] .detail-backdrop {
+    left: 0;
+    height: 330px;
+  }
+
+  body[data-page="details"] .detail-pro {
+    padding-bottom: 98px;
+  }
+
+  body[data-page="details"] .detail-pro-top {
+    grid-template-columns: minmax(138px, 180px) minmax(0, 1fr);
+    gap: 18px;
+    padding: 126px 16px 0;
+  }
+
+  body[data-page="details"] .detail-cover-stack,
+  .detail-poster-button,
+  body[data-page="details"] .detail-pro-cover,
+  .detail-primary-watch {
+    width: 100%;
+  }
+
+  body[data-page="details"] .detail-pro-main {
+    padding-top: 24px;
+  }
+
+  body[data-page="details"] .detail-title-block h1 {
+    font-size: clamp(28px, 8vw, 42px);
+  }
+
+  body[data-page="details"] .detail-description,
+  body[data-page="details"] .detail-genre-line {
+    max-width: none;
+  }
+
+  body[data-page="details"] .detail-episodes {
+    padding: 0 16px;
+  }
+
+  .detail-tab-strip {
+    grid-template-columns: repeat(5, minmax(112px, 1fr));
+    overflow-x: auto;
+  }
+
+  body[data-page="details"] .detail-anime-episode-list .detail-scroll-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  body[data-page="details"] .detail-pro-top {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-page="details"] .detail-cover-stack {
+    width: min(188px, 64vw);
+  }
+
+  body[data-page="details"] .detail-pro-main {
+    padding-top: 0;
+  }
+
+  body[data-page="details"] .detail-meta-line span {
+    font-size: 13px;
+    padding: 4px 10px;
+  }
+
+  body[data-page="details"] .detail-anime-episode-row {
+    grid-template-columns: 128px minmax(0, 1fr);
+    min-height: 104px;
+  }
+
+  body[data-page="details"] .detail-anime-episode-row .detail-episode-thumb,
+  body[data-page="details"] .detail-chapter-row img.detail-episode-thumb {
+    width: 128px;
+    height: 104px;
+  }
+
+  body[data-page="details"] .detail-episode-copy {
+    gap: 6px;
+    padding: 10px 12px 10px 0;
+  }
+
+  body[data-page="details"] .detail-episode-copy strong {
+    font-size: 14px;
+  }
+
+  body[data-page="details"] .detail-episode-copy p {
+    -webkit-line-clamp: 1;
+  }
+
+  .detail-poster-modal-card {
+    width: min(92vw, 520px);
+  }
 }

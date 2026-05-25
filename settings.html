@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Customize your AniTrack experience." />
     <title>AniTrack | Settings</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-34" />
-    <script src="app.js?v=site-fix-34" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-35" />
+    <script src="app.js?v=site-fix-35" defer></script>
   </head>
   <body data-page="settings">
     <header class="topbar shell anilist-topbar">
@@ -200,6 +200,19 @@
                   <span>Auto-play Episodes</span>
                 </label>
                 <p class="muted" style="font-size: 12px; margin: 6px 0 0;">Automatically start the selected source when opening an episode.</p>
+              </div>
+
+              <div class="form-group">
+                <label>Ambient Mode</label>
+                <div class="ambient-style-controls">
+                  <label class="checkbox-label ambient-enable"><input type="checkbox" data-ambient-enabled aria-label="Enable ambient mode"><span>Enable ambient glow in the player</span></label>
+                  <label>Blur <span data-ambient-blur-value>34px</span><input data-ambient-blur type="range" min="8" max="72" step="1"></label>
+                  <label>Opacity <span data-ambient-opacity-value>58%</span><input data-ambient-opacity type="range" min="10" max="90" step="1"></label>
+                  <label>Spread <span data-ambient-spread-value>34px</span><input data-ambient-spread type="range" min="8" max="90" step="1"></label>
+                  <label>Saturation <span data-ambient-saturation-value>135%</span><input data-ambient-saturation type="range" min="80" max="190" step="1"></label>
+                  <label>Brightness <span data-ambient-brightness-value>82%</span><input data-ambient-brightness type="range" min="45" max="120" step="1"></label>
+                  <button class="btn secondary" data-reset-ambient type="button">Reset ambient</button>
+                </div>
               </div>
 
               <div class="form-group">
@@ -661,6 +674,35 @@
         color: var(--text);
         font-size: 13px;
         font-weight: 600;
+      }
+
+      .subtitle-style-controls,
+      .ambient-style-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .subtitle-style-controls label,
+      .ambient-style-controls label:not(.checkbox-label) {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--solid) 48%, transparent);
+      }
+
+      .subtitle-style-controls input,
+      .subtitle-style-controls select,
+      .ambient-style-controls input[type="range"] {
+        width: 100%;
+      }
+
+      .ambient-enable {
+        grid-column: 1 / -1;
       }
 
       .checkbox-label {

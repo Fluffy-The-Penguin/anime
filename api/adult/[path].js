@@ -8,6 +8,7 @@ const ANIZONE_BASE_URL = "https://anizone.to";
 const ANILIBRIA_BASE_URL = "https://anilibria.top";
 const TOKYOINSIDER_BASE_URL = "https://www.tokyoinsider.com";
 const JIMAKU_BASE_URL = "https://jimaku.cc";
+const ANIMEKAI_BASE_URL = "https://animekai.to";
 const REQUEST_TIMEOUT_MS = 15000;
 
 module.exports = async function handler(req, res) {
@@ -67,6 +68,10 @@ async function handleAnimeRoute(req, res, backendUrl) {
     }
     if (route === "anizone/proxy") {
       await proxyAniZoneMedia(req, res, backendUrl);
+      return;
+    }
+    if (route === "animekai/search") {
+      res.json(await searchAnimeKai(cleanQuery(req.query.title)));
       return;
     }
     if (route === "anilibria/search") {
@@ -490,6 +495,42 @@ function isAllowedAniZoneMediaUrl(url) {
   } catch (error) {
     return false;
   }
+}
+
+async function searchAnimeKai(title) {
+  if (!title) return [];
+  const html = await fetchText(`${ANIMEKAI_BASE_URL}/browser?keyword=${encodeURIComponent(title)}`, {
+    headers: { Accept: "text/html,*/*", Referer: `${ANIMEKAI_BASE_URL}/browser` },
+  });
+  const results = [];
+  const seen = new Set();
+  const linkRegex = /<a\b[^>]*href="(\/watch\/[^"]+)"[^>]*class="[^"]*\bposter\b[^"]*"[^>]*>/gi;
+  let match;
+  while ((match = linkRegex.exec(html)) && results.length < 12) {
+    const path = decodeXml(match[1]);
+    if (seen.has(path)) continue;
+    seen.add(path);
+
+    const block = html.slice(match.index, Math.min(html.length, match.index + 1600));
+    const titleText = cleanHtml(firstMatch(block, /<a\b[^>]*class="[^"]*\btitle\b[^"]*"[^>]*title="([^"]+)"/i) || firstMatch(block, /<a\b[^>]*class="[^"]*\btitle\b[^"]*"[^>]*>([\s\S]*?)<\/a>/i));
+    if (!titleText) continue;
+    const image = firstMatch(block, /<img\b[^>]*(?:data-src|src)="([^"]+)"/i);
+    const meta = [...block.matchAll(/<span\b[^>]*>([\s\S]*?)<\/span>/gi)].map((item) => cleanHtml(item[1])).filter(Boolean);
+    const episodeCount = Number(firstMatch(meta.join(" "), /\b(\d+)\b/)) || 0;
+    const type = meta.slice().reverse().find((item) => /^[A-Z]{2,5}$/i.test(item)) || "Provider";
+    results.push({
+      provider: "animekai",
+      id: path.replace(/^\/watch\//, ""),
+      title: titleText,
+      url: absolutizeUrl(path, ANIMEKAI_BASE_URL),
+      image: absolutizeUrl(image, ANIMEKAI_BASE_URL),
+      type,
+      episodeCount,
+      date: episodeCount ? `${episodeCount} episodes` : "AnimeKai",
+      score: titleScore(title, titleText),
+    });
+  }
+  return results.filter((item) => item.score >= 0.2).sort((a, b) => b.score - a.score);
 }
 
 async function searchAniLibria(title) {

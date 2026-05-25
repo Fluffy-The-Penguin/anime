@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Read manga with chapter details and tracking." />
     <title>AniTrack | Manga Reader</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-34" />
-    <script src="app.js?v=site-fix-34" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-35" />
+    <script src="app.js?v=site-fix-35" defer></script>
   </head>
   <body data-page="reader">
     <header class="topbar shell anilist-topbar">
@@ -443,6 +443,30 @@
       .chapters-list[hidden] {
         display: none;
       }
+
+      .chapter-item {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr);
+        grid-template-areas:
+          "thumb number"
+          "thumb title"
+          "thumb date";
+        gap: 3px 10px;
+        align-items: center;
+      }
+
+      .chapter-thumb {
+        grid-area: thumb;
+        width: 72px;
+        height: 52px;
+        border-radius: 10px;
+        object-fit: cover;
+        background: #151922;
+      }
+
+      .chapter-num { grid-area: number; }
+      .chapter-title { grid-area: title; }
+      .chapter-date { grid-area: date; }
 
       @media (max-width: 720px) {
         .reader-header {

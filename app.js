@@ -30,6 +30,9 @@ const ANIME_SOURCES = [
   { id: "anilibria", name: "AniLibria", description: "Russian/fansub public HLS source. Lower-priority fallback for native playback.", badge: "RU HLS" },
   { id: "tokyoinsider", name: "TokyoInsider", description: "Fallback source for public MP4 download links. MKV files are ignored for browser playback.", badge: "MP4" },
   { id: "aniwaves", name: "Aniwaves", description: "Searches provider matches when raw streams are not available.", badge: "Provider" },
+  { id: "animekai", name: "AnimeKai", description: "Searches AnimeKai provider matches when direct browser-playable streams are not available.", badge: "Provider" },
+  { id: "allanime", name: "AllAnime", description: "Adds a quick external AllAnime search fallback from the player.", badge: "Search" },
+  { id: "miruro", name: "Miruro", description: "Adds a quick external Miruro search fallback from the player.", badge: "Search" },
   { id: "hstream", name: "hstream.moe", description: "Adult-only direct playback source shown only when 18+ content is enabled.", badge: "+18", adult: true },
 ];
 const MANGA_SOURCES = [
@@ -2284,7 +2287,7 @@ function mapAniList(item) {
     year: item.seasonYear || "TBA",
     total: item.episodes || 0,
     unit: "eps",
-    genres: item.genres?.slice(0, 4) || [],
+    genres: item.genres || [],
     format: item.format || "Anime",
     statusText: item.status || "Unknown",
     extra: [item.duration ? `${item.duration} min` : "", item.popularity ? `${item.popularity.toLocaleString()} popular` : "", item.studios?.nodes?.[0]?.name || ""].filter(Boolean),
@@ -2324,7 +2327,7 @@ function mapAniListManga(item) {
     year: item.seasonYear || "TBA",
     total: item.chapters || 0,
     unit: "ch",
-    genres: item.genres?.slice(0, 4) || [],
+    genres: item.genres || [],
     format: item.format || "Manga",
     statusText: item.status || "Unknown",
     extra: [item.volumes ? `${item.volumes} volumes` : "", item.popularity ? `${item.popularity.toLocaleString()} popular` : "", item.staff?.nodes?.[0]?.name?.full || ""].filter(Boolean),
@@ -3024,8 +3027,11 @@ function isHentaiLibraryItem(item) {
 function isPornhwaLibraryItem(item) {
   if (!isAdultLibraryItem(item) || isDoujinLibraryItem(item)) return false;
   const provider = String(item?.provider || String(item?.providerId || item?.apiId || "").split(":")[0]).toLowerCase();
+  const text = `${item?.displayType || ""} ${item?.format || ""} ${(item?.genres || []).join(" ")} ${item?.provider || ""} ${item?.providerId || ""} ${item?.apiId || ""}`;
   return ["pornhwaz", "pornhwapro"].includes(provider)
-    || /pornhwa|adult manhwa/i.test(`${item?.displayType || ""} ${item?.format || ""} ${(item?.genres || []).join(" ")} ${item?.provider || ""} ${item?.providerId || ""} ${item?.apiId || ""}`);
+    || isAdultMangaProvider(provider)
+    || (item?.type === "manga" && /hentai|adult|pornhwa|manhwa/i.test(text))
+    || /pornhwa|adult manhwa/i.test(text);
 }
 
 function doujinLibraryApiId(item) {
@@ -3178,39 +3184,42 @@ function renderDetails(root, item, isTemporary = false) {
   const countLabel = active.total ? `${active.total} ${active.type === "anime" ? "episodes" : "chapters"}` : active.type === "anime" ? "Episodes TBA" : "Chapters TBA";
   const audience = (active.extra || []).find((value) => /popular|members/i.test(value)) || "Library ready";
   const backdrop = active.banner || "";
+  const heroImage = backdrop || active.image || fallbackImage;
+  const posterImage = active.image || fallbackImage;
+  const primaryAction = active.type === "anime" ? "Watch Now" : "Read Now";
+  const primaryActionAttr = active.type === "anime" ? "data-watch-button" : "data-read-button";
+  const detailPills = [countLabel, active.format || mediaLabel(active), active.statusText, active.year, active.score].filter((value) => value && !/^n\/?a$/i.test(String(value)));
+  const detailTags = uniqueStrings([...(active.genres || []), ...(active.extra || []).filter((value) => !/popular|members/i.test(value))]).slice(0, 14);
   state.current = active;
+  document.body.dataset.detailType = active.type;
   document.title = `AniTrack | ${active.title}`;
 
   root.innerHTML = `
-    <section class="detail-pro" style="--detail-bg: ${backdrop ? `url('${escapeAttr(backdrop)}')` : "none"}; --detail-accent: ${accent}; --detail-accent-rgb: ${accentRgb};">
+    <section class="detail-pro" style="--detail-bg: url('${escapeAttr(heroImage)}'); --detail-accent: ${accent}; --detail-accent-rgb: ${accentRgb};">
       <div class="detail-backdrop">
-        ${backdrop ? `<img src="${escapeAttr(backdrop)}" alt="${escapeAttr(active.title)} backdrop">` : ""}
+        <img src="${escapeAttr(heroImage)}" alt="${escapeAttr(active.title)} backdrop">
       </div>
       <div class="detail-pro-top">
         <aside class="detail-cover-stack">
-          <img class="detail-pro-cover" src="${escapeAttr(active.image)}" alt="${escapeAttr(active.title)} poster">
+          <button class="detail-poster-button" data-detail-poster-open type="button" aria-label="Open ${escapeAttr(active.title)} poster">
+            <img class="detail-pro-cover" src="${escapeAttr(posterImage)}" alt="${escapeAttr(active.title)} poster">
+            <span class="detail-poster-expand" aria-hidden="true">↗</span>
+          </button>
+          <button class="btn detail-primary-watch" ${primaryActionAttr} type="button">▶ ${escapeHtml(primaryAction)}</button>
         </aside>
         <main class="detail-pro-main">
           <div class="detail-title-block">
-            <span class="detail-source">${escapeHtml(mediaLabel(active))}${isTemporary ? " / saved copy" : ""}</span>
-            <h1>${escapeHtml(active.title)} <span class="detail-api-badge">${escapeHtml(active.source || (active.apiSource === "jikan" ? "Jikan" : "AniList"))}</span></h1>
+            <span class="detail-source">${escapeHtml(active.romajiTitle || active.nativeTitle || mediaLabel(active))}${isTemporary ? " / saved copy" : ""}</span>
+            <h1>${escapeHtml(active.title)}</h1>
             ${active.nativeTitle ? `<p class="detail-native">${escapeHtml(active.nativeTitle)}</p>` : ""}
           </div>
           <div class="detail-meta-line">
-            <span>${escapeHtml(active.format || mediaLabel(active))}</span>
-            <span>${escapeHtml(countLabel)}</span>
-            <span>${escapeHtml(active.statusText)}</span>
-            <span>${escapeHtml(active.year)}</span>
-            <span>☆ ${escapeHtml(active.score)}</span>
-            <span>${escapeHtml(audience)}</span>
+            ${detailPills.map((pill, index) => `<span class="${index === detailPills.length - 1 && /%|score|rating/i.test(String(pill)) ? "score-pill" : ""}">${escapeHtml(pill)}</span>`).join("")}
           </div>
-          <div class="detail-genre-line">${(active.genres || []).map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
           <div class="detail-description"><p>${escapeHtml(active.description)}</p></div>
           <section class="detail-library-inline" aria-label="Library controls">
-            ${active.type === "anime" ? `<button class="btn" data-watch-button type="button" style="background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a;">▶ Watch Now</button>` : ""}
-            ${active.type === "manga" ? `<button class="btn" data-read-button type="button" style="background: linear-gradient(135deg, var(--mint), var(--blue)); color: #06101a;">Read Now</button>` : ""}
             <div class="detail-library-popover-wrap">
-              <button class="btn detail-library-toggle" data-library-editor-toggle type="button" aria-expanded="false">${tracked ? "Edit Library" : "Add to Library"}</button>
+              <button class="detail-square-action detail-library-toggle" data-library-editor-toggle type="button" aria-expanded="false" aria-label="${tracked ? "Edit library" : "Add to library"}">✎</button>
               <div class="detail-library-popover" data-library-editor hidden>
                 <div class="detail-tracker-head">
                   <div>
@@ -3235,21 +3244,38 @@ function renderDetails(root, item, isTemporary = false) {
                 </div>
               </div>
             </div>
-            <button class="btn secondary detail-favorite-toggle ${isFavoriteItem(active) ? "active" : ""}" data-favorite-toggle type="button">${isFavoriteItem(active) ? "★ Favorited" : "☆ Favorite"}</button>
+            <button class="detail-square-action detail-favorite-toggle ${isFavoriteItem(active) ? "active" : ""}" data-favorite-toggle type="button" aria-label="Favorite title">${isFavoriteItem(active) ? "★" : "♡"}</button>
+            <button class="detail-square-action" data-detail-share type="button" aria-label="Copy details link">⌯</button>
+            <span class="detail-api-badge">${escapeHtml(active.source || (active.apiSource === "jikan" ? "Jikan" : "AniList"))}</span>
+            <span class="detail-audience-pill">${escapeHtml(audience)}</span>
           </section>
+          <div class="detail-genre-line">${detailTags.map((genre) => `<span>${escapeHtml(genre)}</span>`).join("")}</div>
         </main>
       </div>
       ${active.type === "anime" ? `<section class="detail-episodes detail-anime-episodes">
+          <div class="detail-tab-strip" role="tablist" aria-label="Details sections">
+            <button class="active" type="button">Episodes</button>
+            <button type="button" disabled>Relations</button>
+            <button type="button" disabled>Threads</button>
+            <button type="button" disabled>Themes</button>
+            <button type="button" disabled>Recommendations</button>
+          </div>
           <div class="detail-episode-head">
             <h2>Episodes</h2>
             <label class="detail-source-picker">Source <select data-detail-anime-source><option>Loading sources...</option></select></label>
             <span data-detail-anime-source-count>Loading episodes...</span>
             <label>Find source as <input data-detail-anime-query type="search" placeholder="Custom source title" autocomplete="off"></label>
           </div>
-          <div class="detail-list-filter">All matching source episodes and entries</div>
           <div class="chapter-list detail-chapter-list detail-anime-episode-list" data-detail-anime-episode-list><div class="empty">Choose a source to load real episodes.</div></div>
         </section>` : ""}
       ${active.type === "manga" ? `<section class="detail-episodes">
+          <div class="detail-tab-strip" role="tablist" aria-label="Details sections">
+            <button class="active" type="button">Chapters</button>
+            <button type="button" disabled>Relations</button>
+            <button type="button" disabled>Threads</button>
+            <button type="button" disabled>Themes</button>
+            <button type="button" disabled>Recommendations</button>
+          </div>
           <div class="detail-episode-head">
             <h2>Chapters</h2>
           <label class="detail-source-picker">Source <select data-detail-manga-source><option>Loading sources...</option></select></label>
@@ -3264,6 +3290,13 @@ function renderDetails(root, item, isTemporary = false) {
         <div class="detail-list-filter">All ⌕ <span>|</span> ${escapeHtml(active.title)}</div>
         <div class="detail-chapter-list detail-manga-card-grid" data-detail-chapter-list>${chapters.map((chapter, index) => detailMangaChapterCardHtml(chapter, active, index)).join("")}</div>
       </section>` : ""}
+      <div class="detail-poster-modal" data-detail-poster-modal hidden>
+        <button class="detail-poster-modal-backdrop" data-detail-poster-close type="button" aria-label="Close poster preview"></button>
+        <figure class="detail-poster-modal-card">
+          <button class="detail-poster-close" data-detail-poster-close type="button" aria-label="Close poster preview">×</button>
+          <img src="${escapeAttr(posterImage)}" alt="${escapeAttr(active.title)} full poster">
+        </figure>
+      </div>
     </section>
   `;
 
@@ -3280,8 +3313,18 @@ function renderDetails(root, item, isTemporary = false) {
     const activeFavorite = toggleFavoriteItem(state.current);
     const button = root.querySelector("[data-favorite-toggle]");
     button.classList.toggle("active", activeFavorite);
-    button.textContent = activeFavorite ? "★ Favorited" : "☆ Favorite";
+    button.textContent = activeFavorite ? "★" : "♡";
+    button.setAttribute("aria-pressed", String(activeFavorite));
   });
+  root.querySelector("[data-detail-share]")?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      showToast("Details link copied");
+    } catch (error) {
+      showToast("Could not copy details link");
+    }
+  });
+  bindDetailsPosterLightbox(root);
   root.querySelector("[data-watch-button]")?.addEventListener("click", () => {
     openPlayerForResume(active);
   });
@@ -3301,6 +3344,29 @@ function renderDetails(root, item, isTemporary = false) {
     saveCurrent(true);
   }));
   root.querySelector("[data-remove-track]").addEventListener("click", removeCurrent);
+}
+
+function bindDetailsPosterLightbox(root) {
+  const modal = root.querySelector("[data-detail-poster-modal]");
+  const open = root.querySelector("[data-detail-poster-open]");
+  if (!modal || !open) return;
+
+  const close = () => {
+    modal.hidden = true;
+    document.body.classList.remove("detail-poster-modal-open");
+    document.removeEventListener("keydown", onKeyDown);
+  };
+  const show = () => {
+    modal.hidden = false;
+    document.body.classList.add("detail-poster-modal-open");
+    document.addEventListener("keydown", onKeyDown);
+  };
+  function onKeyDown(event) {
+    if (event.key === "Escape") close();
+  }
+
+  open.addEventListener("click", show);
+  root.querySelectorAll("[data-detail-poster-close]").forEach((button) => button.addEventListener("click", close));
 }
 
 function renderDetailsError(root, message) {
@@ -3753,7 +3819,7 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
   const audioOptions = animeEpisodeAudioOptions(episodes);
   const selectedAudio = sourceId === "animedex" && audioOptions.length > 1 ? selectedAnimeEpisodeAudio(anime, episodes) : "";
   const filteredEpisodes = filterDetailRows(selectedAudio ? episodes.filter((episode) => episodeAudioKey(episode) === selectedAudio) : [...episodes], searchQuery, "Episode");
-  const visibleEpisodes = filteredEpisodes.sort(compareEpisodesDesc);
+  const visibleEpisodes = filteredEpisodes.sort(compareEpisodesAsc);
   const pageSize = detailListPageSize();
   const totalPages = Math.max(1, Math.ceil(visibleEpisodes.length / pageSize));
   const currentPage = Math.min(Math.max(1, pageNumber), totalPages);
@@ -3773,11 +3839,22 @@ function renderAnimeDetailEpisodeList(container, anime, sourceId, episodes, sour
       ${pageEpisodes.map((episode, index) => {
         const absoluteIndex = (currentPage - 1) * pageSize + index;
         const episodeIndex = episodes.indexOf(episode);
+        const number = episode.number || absoluteIndex + 1;
+        const title = episode.title || `Episode ${number}`;
+        const displayTitle = stripLeadingEpisodeNumber(title, number);
+        const image = episode.image || anime.banner || anime.image || fallbackImage;
+        const meta = [episode.airDate || episode.date || episode.time, episodeAudioLabel(episode.audio)].filter(Boolean).join(" / ") || "Source episode";
+        const description = episode.description || `${providerLabel(sourceId)} episode source.`;
         return `
           <button type="button" class="chapter-row detail-chapter-row detail-anime-episode-row" data-detail-watch-episode data-episode-index="${episodeIndex}">
-            <div class="detail-chapter-text">
-              <strong>${escapeHtml(episode.number || absoluteIndex + 1)}</strong>
-              <span>${escapeHtml(episode.title || `Episode ${episode.number || absoluteIndex + 1}`)}</span>
+            <figure class="detail-episode-art">
+              <img class="detail-episode-thumb" src="${escapeAttr(image)}" alt="${escapeAttr(title)} thumbnail" loading="lazy">
+              <span>${escapeHtml(meta.split(" /")[0] || "25m")}</span>
+            </figure>
+            <div class="detail-chapter-text detail-episode-copy">
+              <strong>${escapeHtml(number)}. ${escapeHtml(displayTitle)}</strong>
+              <p>${escapeHtml(shortText(description, 126))}</p>
+              <small>${escapeHtml(meta)}</small>
             </div>
           </button>
         `;
@@ -3823,11 +3900,17 @@ function filterDetailRows(rows, query, prefix) {
   return rows.filter((row, index) => normalizeSearchText(`${row.number || index + 1} ${row.title || `${prefix} ${row.number || index + 1}`} ${row.date || row.time || ""}`).includes(normalized));
 }
 
-function compareEpisodesDesc(a, b) {
+function stripLeadingEpisodeNumber(title, number) {
+  const text = String(title || "").trim();
+  const prefix = String(number || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return prefix ? text.replace(new RegExp(`^${prefix}\\.?\\s*`), "") || text : text;
+}
+
+function compareEpisodesAsc(a, b) {
   const left = Number.parseFloat(a?.number);
   const right = Number.parseFloat(b?.number);
-  if (Number.isFinite(left) && Number.isFinite(right)) return right - left;
-  return String(b?.number || b?.title || "").localeCompare(String(a?.number || a?.title || ""), undefined, { numeric: true });
+  if (Number.isFinite(left) && Number.isFinite(right)) return left - right;
+  return String(a?.number || a?.title || "").localeCompare(String(b?.number || b?.title || ""), undefined, { numeric: true });
 }
 
 function animeEpisodeAudioOptions(episodes) {
@@ -4608,6 +4691,7 @@ function loadSettings() {
       mangaSources: { ...defaults.mangaSources, ...(saved.mangaSources || {}) },
       doujinSources: { ...defaults.doujinSources, ...(saved.doujinSources || {}) },
       subtitleStyle: { ...defaults.subtitleStyle, ...(saved.subtitleStyle || {}) },
+      ambientStyle: { ...defaults.ambientStyle, ...(saved.ambientStyle || {}) },
     };
     settings.apiBaseUrl = normalizeApiBaseUrl(settings.apiBaseUrl || localStorage.getItem(API_BASE_KEY) || DEFAULT_API_BASE_URL);
     return settings;
@@ -4627,6 +4711,7 @@ function defaultSettings() {
     autoPlay: true,
     autoPlayNext: false,
     playerAmbient: false,
+    ambientStyle: defaultAmbientStyle(),
     defaultAnimeSource: "animedex",
     defaultHentaiSource: "hstream",
     defaultMangaSource: "weebcentral",
@@ -4640,6 +4725,10 @@ function defaultSettings() {
 
 function defaultSubtitleStyle() {
   return { ...DEFAULT_SUBTITLE_STYLE };
+}
+
+function defaultAmbientStyle() {
+  return { blur: 34, opacity: 58, spread: 34, saturation: 135, brightness: 82 };
 }
 
 function defaultAnimeSources() {
@@ -5740,6 +5829,7 @@ async function initSettingsPage() {
   });
 
   initSubtitleStyleSettings();
+  initAmbientStyleSettings();
 
   const autoPlayToggle = document.querySelector("[data-player-autoplay-toggle]");
   if (autoPlayToggle) {
@@ -5916,6 +6006,60 @@ function initSubtitleStyleSettings() {
     persistSettings();
     sync();
     showToast("Subtitle style reset.");
+  });
+  sync();
+}
+
+function initAmbientStyleSettings() {
+  const enabled = document.querySelector("[data-ambient-enabled]");
+  const blur = document.querySelector("[data-ambient-blur]");
+  const blurValue = document.querySelector("[data-ambient-blur-value]");
+  const opacity = document.querySelector("[data-ambient-opacity]");
+  const opacityValue = document.querySelector("[data-ambient-opacity-value]");
+  const spread = document.querySelector("[data-ambient-spread]");
+  const spreadValue = document.querySelector("[data-ambient-spread-value]");
+  const saturation = document.querySelector("[data-ambient-saturation]");
+  const saturationValue = document.querySelector("[data-ambient-saturation-value]");
+  const brightness = document.querySelector("[data-ambient-brightness]");
+  const brightnessValue = document.querySelector("[data-ambient-brightness-value]");
+  const reset = document.querySelector("[data-reset-ambient]");
+  if (!enabled || !blur || !opacity || !spread || !saturation || !brightness || !reset) return;
+
+  const sync = () => {
+    const style = { ...defaultAmbientStyle(), ...(state.settings.ambientStyle || {}) };
+    enabled.checked = Boolean(state.settings.playerAmbient);
+    blur.value = style.blur;
+    opacity.value = style.opacity;
+    spread.value = style.spread;
+    saturation.value = style.saturation;
+    brightness.value = style.brightness;
+    if (blurValue) blurValue.textContent = `${style.blur}px`;
+    if (opacityValue) opacityValue.textContent = `${style.opacity}%`;
+    if (spreadValue) spreadValue.textContent = `${style.spread}px`;
+    if (saturationValue) saturationValue.textContent = `${style.saturation}%`;
+    if (brightnessValue) brightnessValue.textContent = `${style.brightness}%`;
+  };
+
+  const save = () => {
+    state.settings.playerAmbient = enabled.checked;
+    state.settings.ambientStyle = {
+      blur: Number(blur.value),
+      opacity: Number(opacity.value),
+      spread: Number(spread.value),
+      saturation: Number(saturation.value),
+      brightness: Number(brightness.value),
+    };
+    sync();
+    persistSettings();
+  };
+
+  [blur, opacity, spread, saturation, brightness].forEach((control) => control.addEventListener("input", save));
+  enabled.addEventListener("change", save);
+  reset.addEventListener("click", () => {
+    state.settings.ambientStyle = defaultAmbientStyle();
+    persistSettings();
+    sync();
+    showToast("Ambient style reset.");
   });
   sync();
 }
@@ -6436,6 +6580,7 @@ function renderEpisodesList(episodes, anime) {
   container.innerHTML = episodes
     .map((ep, index) => {
       const isWatched = state.library[anime.id]?.progress >= ep.number;
+      const image = ep.image || anime.banner || anime.image || fallbackImage;
       return `<button
         type="button"
         class="episode-item ${index === 0 ? "active" : ""} ${isWatched ? "watched" : ""}"
@@ -6444,10 +6589,13 @@ function renderEpisodesList(episodes, anime) {
         data-episode-title="${escapeAttr(ep.title)}"
         data-episode-data="${escapeAttr(JSON.stringify(ep))}"
       >
-        <span class="episode-number">Ep ${ep.number}</span>
+        <span class="episode-thumb-wrap">
+          <img class="episode-thumb" src="${escapeAttr(image)}" alt="${escapeAttr(ep.title || `Episode ${ep.number}`)} thumbnail" loading="lazy">
+          <span class="episode-number">Ep ${ep.number}</span>
+        </span>
         <h4 class="episode-title">${escapeHtml(ep.title)}</h4>
         <span class="episode-air-date">${escapeHtml([episodeAudioLabel(ep.audio), ep.airDate].filter(Boolean).join(" / "))}</span>
-        ${isWatched ? '<span class="muted" style="font-size: 11px;">✓ Watched</span>' : ""}
+        ${isWatched ? '<span class="episode-state muted">✓ Watched</span>' : ""}
       </button>`;
     })
     .join("");
@@ -6515,11 +6663,12 @@ async function loadEpisode(anime, episode, episodeNumber) {
   }
 
   try {
-    const [aniwavesMatches, adultMatches] = await Promise.all([
+    const [aniwavesMatches, animeKaiMatches, adultMatches] = await Promise.all([
       animeSourceEnabled("aniwaves") ? searchAniwavesAnime(anime.title) : [],
+      animeSourceEnabled("animekai") ? searchAnimeKaiAnime(anime.title) : [],
       animeSourceEnabled("hstream") ? searchAdultAnime(anime) : [],
     ]);
-    renderStreamingSources(sources, anime, episodeNumber, aniwavesMatches, adultMatches);
+    renderStreamingSources(sources, anime, episodeNumber, aniwavesMatches, animeKaiMatches, adultMatches);
   } catch (error) {
     sources.innerHTML = `
       <div class="empty" style="padding: 16px; text-align: center;">
@@ -6574,6 +6723,14 @@ function markAnimeEpisodeWatched(anime, episodeNumber) {
 async function searchAniwavesAnime(animeTitle) {
   try {
     return await fetchApiJson(`/api/anime/search?title=${encodeURIComponent(animeTitle)}`);
+  } catch (error) {
+    return [];
+  }
+}
+
+async function searchAnimeKaiAnime(animeTitle) {
+  try {
+    return await fetchApiJson(`/api/anime/animekai/search?title=${encodeURIComponent(animeTitle)}`);
   } catch (error) {
     return [];
   }
@@ -6638,14 +6795,14 @@ function romajiSpacingVariants(title) {
   return uniqueStrings(variants).slice(0, 4);
 }
 
-function renderStreamingSources(container, anime, episodeNumber, aniwavesMatches = [], adultMatches = []) {
+function renderStreamingSources(container, anime, episodeNumber, aniwavesMatches = [], animeKaiMatches = [], adultMatches = []) {
   const extensionHtml = extensionSourceCards("anime");
-  const aniwavesHtml = aniwavesSourceCards(aniwavesMatches, episodeNumber);
+  const externalHtml = externalAnimeSourceCards(anime, episodeNumber, { aniwaves: aniwavesMatches, animekai: animeKaiMatches });
   const adultHtml = adultSourceCards(adultMatches);
-  if (!aniwavesMatches.length && !adultMatches.length) {
+  if (!externalHtml && !adultMatches.length) {
     container.innerHTML = `
       ${extensionHtml}
-      ${aniwavesHtml}
+      ${externalHtml}
       ${adultHtml}
       <div class="empty" style="padding: 16px; text-align: center;">
         <p class="muted">No sources available</p>
@@ -6653,7 +6810,7 @@ function renderStreamingSources(container, anime, episodeNumber, aniwavesMatches
       </div>
     `;
     bindExtensionSourceButtons(container);
-    bindAniwavesSourceButtons(container);
+    bindExternalAnimeSourceButtons(container);
     bindAdultSourceButtons(container);
     document.querySelector("[data-video-player]").innerHTML = `
       <div class="player-loading">
@@ -6664,11 +6821,11 @@ function renderStreamingSources(container, anime, episodeNumber, aniwavesMatches
     return;
   }
 
-  container.innerHTML = `${extensionHtml}${aniwavesHtml}${adultHtml}`;
+  container.innerHTML = `${extensionHtml}${externalHtml}${adultHtml}`;
 
   // Add play button handlers
   bindExtensionSourceButtons(container);
-  bindAniwavesSourceButtons(container);
+  bindExternalAnimeSourceButtons(container);
   bindAdultSourceButtons(container);
   document.querySelector("[data-video-player]").innerHTML = `
     <div class="player-loading">
@@ -6678,33 +6835,53 @@ function renderStreamingSources(container, anime, episodeNumber, aniwavesMatches
   `;
 }
 
-function aniwavesSourceCards(matches, episodeNumber) {
-  if (!matches.length) return "";
+function externalAnimeSourceCards(anime, episodeNumber, matchesByProvider = {}) {
+  const sections = [];
+  if (animeSourceEnabled("aniwaves") && matchesByProvider.aniwaves?.length) sections.push(matchedExternalAnimeSourceCards("aniwaves", matchesByProvider.aniwaves, episodeNumber));
+  if (animeSourceEnabled("animekai") && matchesByProvider.animekai?.length) sections.push(matchedExternalAnimeSourceCards("animekai", matchesByProvider.animekai, episodeNumber));
+  if (animeSourceEnabled("allanime")) sections.push(searchExternalAnimeSourceCard("allanime", anime, episodeNumber, `https://allmanga.to/anime?search=${encodeURIComponent(anime?.title || "")}`));
+  if (animeSourceEnabled("miruro")) sections.push(searchExternalAnimeSourceCard("miruro", anime, episodeNumber, `https://www.miruro.tv/search?query=${encodeURIComponent(anime?.title || "")}`));
+  return sections.filter(Boolean).join("");
+}
+
+function matchedExternalAnimeSourceCards(provider, matches, episodeNumber) {
   return `
     <div class="aniwaves-source-list" style="display: grid; gap: 8px; margin-bottom: 12px;">
-      <h4 style="margin: 0 0 4px; font-size: 14px;">Aniwaves matches</h4>
-      ${matches.slice(0, 5).map((match) => {
-        const meta = [match.type, match.date, match.rating].filter(Boolean).join(" / ");
-        return `
-          <div class="source-item">
-            <div class="source-info">
-              <h4>${escapeHtml(match.title || "Aniwaves")}</h4>
-              <p>${escapeHtml(meta || "Open provider page")}</p>
-              <p style="font-size: 11px; margin-top: 4px;">${escapeHtml(episodeNumber ? `Select episode ${episodeNumber} on Aniwaves` : "Episode selection opens on Aniwaves")}</p>
-            </div>
-            <button class="source-open-aniwaves" data-aniwaves-url="${escapeAttr(match.url)}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">Open</button>
-          </div>
-        `;
-      }).join("")}
+      <h4 style="margin: 0 0 4px; font-size: 14px;">${escapeHtml(animeSourceLabel(provider))} matches</h4>
+      ${matches.slice(0, 5).map((match) => externalAnimeSourceItem(provider, match, episodeNumber)).join("")}
     </div>
   `;
 }
 
-function bindAniwavesSourceButtons(container) {
-  container.querySelectorAll("[data-aniwaves-url]").forEach((button) => {
+function externalAnimeSourceItem(provider, match, episodeNumber) {
+  const meta = [match.type, match.date, match.rating].filter(Boolean).join(" / ");
+  return `
+    <div class="source-item">
+      <div class="source-info">
+        <h4>${escapeHtml(match.title || animeSourceLabel(provider))}</h4>
+        <p>${escapeHtml(meta || "Open provider page")}</p>
+        <p style="font-size: 11px; margin-top: 4px;">${escapeHtml(episodeNumber ? `Select episode ${episodeNumber} on ${animeSourceLabel(provider)}` : "Episode selection opens on the provider")}</p>
+      </div>
+      <button class="source-open-external-anime" data-external-anime-url="${escapeAttr(match.url)}" data-external-anime-provider="${escapeAttr(provider)}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">Open</button>
+    </div>
+  `;
+}
+
+function searchExternalAnimeSourceCard(provider, anime, episodeNumber, url) {
+  if (!url || !anime?.title) return "";
+  return `
+    <div class="aniwaves-source-list" style="display: grid; gap: 8px; margin-bottom: 12px;">
+      <h4 style="margin: 0 0 4px; font-size: 14px;">${escapeHtml(animeSourceLabel(provider))} search</h4>
+      ${externalAnimeSourceItem(provider, { title: anime.title, url, type: "Search", date: episodeNumber ? `Find episode ${episodeNumber}` : "Open provider search" }, episodeNumber)}
+    </div>
+  `;
+}
+
+function bindExternalAnimeSourceButtons(container) {
+  container.querySelectorAll("[data-external-anime-url]").forEach((button) => {
     button.addEventListener("click", () => {
-      window.open(button.dataset.aniwavesUrl, "_blank", "noreferrer");
-      showToast("Opening Aniwaves match");
+      window.open(button.dataset.externalAnimeUrl, "_blank", "noreferrer");
+      showToast(`Opening ${animeSourceLabel(button.dataset.externalAnimeProvider)} source`);
     });
   });
 }
@@ -7413,10 +7590,17 @@ function applyPlayerAmbientMode(video = document.querySelector("[data-active-vid
   const backdrop = document.querySelector("[data-player-ambient-backdrop]");
   if (!player || !backdrop) return;
   const enabled = Boolean(state.settings.playerAmbient);
+  const style = { ...defaultAmbientStyle(), ...(state.settings.ambientStyle || {}) };
   player.classList.toggle("ambient-on", enabled);
   backdrop.hidden = !enabled;
   const image = playerRuntime.currentEpisode?.image || playerRuntime.anime?.banner || playerRuntime.anime?.image || fallbackImage;
   backdrop.style.backgroundImage = enabled ? `url("${String(image).replace(/"/g, "%22")}")` : "";
+  backdrop.style.setProperty("--ambient-spread", `${style.spread}px`);
+  backdrop.style.setProperty("--ambient-blur", `${style.blur}px`);
+  backdrop.style.setProperty("--ambient-opacity", String(style.opacity / 100));
+  backdrop.style.setProperty("--ambient-saturation", String(style.saturation / 100));
+  backdrop.style.setProperty("--ambient-brightness", String(style.brightness / 100));
+  backdrop.style.setProperty("--ambient-scale", String(1 + Math.max(0, style.spread) / 1100));
   if (video) video.classList.toggle("ambient-video", enabled);
 }
 
@@ -8094,11 +8278,11 @@ function mangaSourceCustomQueryKey(manga) {
 }
 
 function providerLabel(provider) {
-  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", projectsuki: "Project Suki", manhwaz: "ManhwaZ", pornhwaz: "PornhwaZ", hentai20: "Hentai20", pornhwapro: "Pornhwa Pro", hentai18: "Hentai18", hentainame: "Hentai.name", hentaizap: "HentaiZap", hentaifox: "HentaiFox", "3hentai": "3Hentai", hentaiera: "HentaiEra", hentaicity: "HentaiCity", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider", hstream: "hstream.moe" }[provider] || provider || "Source");
+  return ({ mangadex: "MangaDex", asura: "Asura Scans", mangakatana: "MangaKatana", weebcentral: "WeebCentral", flamecomics: "Flame Comics", rizzcomic: "Rizz Comic", projectsuki: "Project Suki", manhwaz: "ManhwaZ", pornhwaz: "PornhwaZ", hentai20: "Hentai20", pornhwapro: "Pornhwa Pro", hentai18: "Hentai18", hentainame: "Hentai.name", hentaizap: "HentaiZap", hentaifox: "HentaiFox", "3hentai": "3Hentai", hentaiera: "HentaiEra", hentaicity: "HentaiCity", toonily: "Toonily", animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider", aniwaves: "Aniwaves", animekai: "AnimeKai", allanime: "AllAnime", miruro: "Miruro", hstream: "hstream.moe" }[provider] || provider || "Source");
 }
 
 function animeSourceLabel(source) {
-  return ({ animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider", aniwaves: "Aniwaves", hstream: "hstream.moe" }[source] || source || "Anime source");
+  return ({ animedex: "AnimeDex", anizone: "AniZone", anilibria: "AniLibria", tokyoinsider: "TokyoInsider", aniwaves: "Aniwaves", animekai: "AnimeKai", allanime: "AllAnime", miruro: "Miruro", hstream: "hstream.moe" }[source] || source || "Anime source");
 }
 
 function mangaSourceOptionLabel(source, count = null) {
@@ -8233,6 +8417,7 @@ function renderChaptersList(chapters, manga) {
   container.innerHTML = chapters
     .map((ch, index) => {
       const isRead = state.library[manga.id]?.progress >= ch.number;
+      const image = ch.image || manga.image || manga.banner || fallbackImage;
       return `<button
         type="button"
         class="chapter-item ${index === 0 ? "active" : ""} ${isRead ? "read" : ""}"
@@ -8243,6 +8428,7 @@ function renderChaptersList(chapters, manga) {
         data-chapter-title="${escapeAttr(ch.title)}"
         data-chapter-data="${escapeAttr(JSON.stringify(ch))}"
       >
+        <img class="chapter-thumb" src="${escapeAttr(image)}" alt="${escapeAttr(ch.title || `Chapter ${ch.number}`)} thumbnail" loading="lazy">
         <span class="chapter-num">Ch ${ch.number}</span>
         <h4 class="chapter-title">${escapeHtml(ch.title)}</h4>
         <span class="chapter-date">${escapeHtml(ch.date)}</span>
