@@ -258,7 +258,7 @@ function injectChrome() {
     if (nav) document.body.insertAdjacentHTML("beforeend", `<nav class="mobile-bottom-nav" aria-label="Mobile navigation">${nav.innerHTML}</nav>`);
   }
 
-  if (["anime", "manga", "doujin"].includes(page) && !document.querySelector(".details-side-rail")) {
+  if (["home", "anime", "manga", "doujin", "doujin-preview", "profile"].includes(page) && !document.querySelector(".details-side-rail")) {
     document.body.insertAdjacentHTML("afterbegin", cinematicSideRailHtml());
   }
 
@@ -3195,9 +3195,21 @@ function updateLibraryItemStatus(id, status) {
   renderLibrary();
 }
 
+function detailActionIcon(type) {
+  const icons = {
+    play: '<svg class="detail-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.7v14.6L18.6 12 7 4.7Z"/></svg>',
+    edit: '<svg class="detail-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 16.9-.7 2.8 2.8-.7L17.8 8.3 15.7 6.2 5 16.9Zm14.4-10.2-2.1-2.1 1.1-1.1a1.5 1.5 0 0 1 2.1 0 1.5 1.5 0 0 1 0 2.1l-1.1 1.1Z"/></svg>',
+    heart: '<svg class="detail-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 20.6-1.2-1.1C6.4 15.5 3.5 12.8 3.5 9.5A4.4 4.4 0 0 1 8 5c1.6 0 3.1.8 4 2 1-1.2 2.4-2 4-2a4.4 4.4 0 0 1 4.5 4.5c0 3.3-2.9 6-7.3 10L12 20.6Zm0-2.7c3.9-3.5 6.3-5.8 6.3-8.4 0-1.5-1-2.4-2.3-2.4-1 0-2.1.7-2.7 1.7L12 11l-1.3-2.2C10.1 7.8 9 7.1 8 7.1c-1.3 0-2.3.9-2.3 2.4 0 2.6 2.4 4.9 6.3 8.4Z"/></svg>',
+    star: '<svg class="detail-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.8 2.8 5.8 6.4.9-4.6 4.5 1.1 6.4-5.7-3-5.7 3L7.4 14 2.8 9.5l6.4-.9L12 2.8Z"/></svg>',
+    share: '<svg class="detail-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16.1c-1 0-1.9.4-2.5 1.1L8.8 13.3a3.8 3.8 0 0 0 0-2.6l6.6-3.8A3.3 3.3 0 1 0 14.5 5c0 .2 0 .4.1.6L8 9.5a3.4 3.4 0 1 0 0 5l6.6 3.9a3.1 3.1 0 0 0-.1.7 3.5 3.5 0 1 0 3.5-3.5Z"/></svg>'
+  };
+  return icons[type] || "";
+}
+
 function renderDetails(root, item, isTemporary = false) {
   const tracked = state.library[item.id];
   const active = { ...item, ...tracked };
+  const favoriteActive = isFavoriteItem(active);
   const progress = Number(active.progress || 0);
   const total = Number(active.total || 0);
   const progressPercent = total ? Math.min(100, Math.round((progress / total) * 100)) : 0;
@@ -3228,7 +3240,7 @@ function renderDetails(root, item, isTemporary = false) {
             <img class="detail-pro-cover" src="${escapeAttr(posterImage)}" alt="${escapeAttr(active.title)} poster">
             <span class="detail-poster-expand" aria-hidden="true">↗</span>
           </button>
-          <button class="btn detail-primary-watch" ${primaryActionAttr} type="button">▶ ${escapeHtml(primaryAction)}</button>
+          <button class="btn detail-primary-watch" ${primaryActionAttr} type="button">${detailActionIcon("play")}<span>${escapeHtml(primaryAction)}</span></button>
         </aside>
         <main class="detail-pro-main">
           <div class="detail-title-block">
@@ -3242,7 +3254,7 @@ function renderDetails(root, item, isTemporary = false) {
           <div class="detail-description"><p>${escapeHtml(active.description)}</p></div>
           <section class="detail-library-inline" aria-label="Library controls">
             <div class="detail-library-popover-wrap">
-              <button class="detail-square-action detail-library-toggle" data-library-editor-toggle type="button" aria-expanded="false" aria-label="${tracked ? "Edit library" : "Add to library"}">✎</button>
+              <button class="detail-square-action detail-library-toggle" data-library-editor-toggle type="button" aria-expanded="false" aria-label="${tracked ? "Edit library" : "Add to library"}">${detailActionIcon("edit")}</button>
               <div class="detail-library-popover" data-library-editor hidden>
                 <div class="detail-tracker-head">
                   <div>
@@ -3267,8 +3279,8 @@ function renderDetails(root, item, isTemporary = false) {
                 </div>
               </div>
             </div>
-            <button class="detail-square-action detail-favorite-toggle ${isFavoriteItem(active) ? "active" : ""}" data-favorite-toggle type="button" aria-label="Favorite title">${isFavoriteItem(active) ? "★" : "♡"}</button>
-            <button class="detail-square-action" data-detail-share type="button" aria-label="Copy details link">⌯</button>
+            <button class="detail-square-action detail-favorite-toggle ${favoriteActive ? "active" : ""}" data-favorite-toggle type="button" aria-label="Favorite title" aria-pressed="${favoriteActive}">${detailActionIcon(favoriteActive ? "star" : "heart")}</button>
+            <button class="detail-square-action" data-detail-share type="button" aria-label="Copy details link">${detailActionIcon("share")}</button>
             <span class="detail-api-badge">${escapeHtml(active.source || (active.apiSource === "jikan" ? "Jikan" : "AniList"))}</span>
             <span class="detail-audience-pill">${escapeHtml(audience)}</span>
           </section>
@@ -3336,7 +3348,7 @@ function renderDetails(root, item, isTemporary = false) {
     const activeFavorite = toggleFavoriteItem(state.current);
     const button = root.querySelector("[data-favorite-toggle]");
     button.classList.toggle("active", activeFavorite);
-    button.textContent = activeFavorite ? "★" : "♡";
+    button.innerHTML = detailActionIcon(activeFavorite ? "star" : "heart");
     button.setAttribute("aria-pressed", String(activeFavorite));
   });
   root.querySelector("[data-detail-share]")?.addEventListener("click", async () => {
