@@ -259,9 +259,13 @@ function injectChrome() {
     );
   }
 
-  if (topbar && !document.querySelector(".mobile-bottom-nav")) {
+  if (topbar && page !== "details" && !document.querySelector(".mobile-bottom-nav")) {
     const nav = topbar.querySelector(".nav");
     if (nav) document.body.insertAdjacentHTML("beforeend", `<nav class="mobile-bottom-nav" aria-label="Mobile navigation">${nav.innerHTML}</nav>`);
+  }
+
+  if (["anime", "manga", "doujin"].includes(page) && !document.querySelector(".browse-filter-fab")) {
+    document.body.insertAdjacentHTML("beforeend", `<button class="browse-filter-fab" data-browse-filter-toggle type="button" aria-label="Show search and filters" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm3 5h10v2H7v-2Zm3 5h4v2h-4v-2Z"/></svg><span>Filters</span></button>`);
   }
 
   if (["home", "anime", "manga", "doujin", "doujin-preview", "profile", "library", "history"].includes(page) && !document.querySelector(".details-side-rail")) {
@@ -305,7 +309,7 @@ function injectChrome() {
   document.querySelector("[data-menu-toggle]").addEventListener("click", toggleMobileMenu);
   document.querySelector("[data-notification-toggle]")?.addEventListener("click", toggleNotifications);
   document.querySelector("[data-history-toggle]")?.addEventListener("click", toggleHistory);
-  document.querySelector("[data-browse-filter-toggle]")?.addEventListener("click", toggleBrowseFilters);
+  document.querySelectorAll("[data-browse-filter-toggle]").forEach((button) => button.addEventListener("click", toggleBrowseFilters));
   document.querySelector("[data-search-toggle]")?.addEventListener("click", toggleSearchOverlay);
   document.querySelector("[data-overlay-search-form]")?.addEventListener("submit", handleOverlaySearch);
   document.querySelector("[data-search-close]")?.addEventListener("click", closeSearchOverlay);
@@ -320,6 +324,7 @@ function injectChrome() {
     if (event.key === "Escape") closeNotifications();
     if (event.key === "Escape") closeHistory();
     if (event.key === "Escape") closeSearchOverlay();
+    if (event.key === "Escape") closeBrowseFilters();
   });
 
   document.addEventListener("click", (event) => {
@@ -327,6 +332,7 @@ function injectChrome() {
     if (!event.target.closest(".notification-menu")) closeNotifications();
     if (!event.target.closest(".history-menu")) closeHistory();
     if (!event.target.closest(".topbar")) closeMobileMenu();
+    if (!event.target.closest(".browse-toolbar") && !event.target.closest("[data-browse-filter-toggle]")) closeBrowseFilters();
   });
 }
 
@@ -2157,7 +2163,8 @@ async function fetchAnimeLatest(pageNumber = 1) {
 }
 
 async function fetchAnimeDetails(apiId, apiSource = "") {
-  const filter = animeFilterArgs(["id: $id", "type: ANIME"], false);
+  const idArg = apiSource === "jikan" ? "idMal: $id" : "id: $id";
+  const filter = animeFilterArgs([idArg, "type: ANIME"], false);
   const data = await anilistQuery(
     `query ($id: Int) {
       Media(${filter}) {
@@ -2170,7 +2177,7 @@ async function fetchAnimeDetails(apiId, apiSource = "") {
       }
     }
     ${ANILIST_DETAIL_MEDIA_FRAGMENT}`,
-    { id: Number(apiId), source: apiSource }
+    { id: Number(apiId) }
   );
   return mapAniList(data.Media);
 }
@@ -2234,7 +2241,8 @@ async function fetchMangaLatest(pageNumber = 1) {
 }
 
 async function fetchMangaDetails(apiId, apiSource = "") {
-  const filter = animeFilterArgs(["id: $id", "type: MANGA"], false);
+  const idArg = apiSource === "jikan" ? "idMal: $id" : "id: $id";
+  const filter = animeFilterArgs([idArg, "type: MANGA"], false);
   const data = await anilistQuery(
     `query ($id: Int) {
       Media(${filter}) {
@@ -2246,7 +2254,7 @@ async function fetchMangaDetails(apiId, apiSource = "") {
       }
     }
     ${ANILIST_DETAIL_MEDIA_FRAGMENT}`,
-    { id: Number(apiId), source: apiSource }
+    { id: Number(apiId) }
   );
   return mapAniListManga(data.Media);
 }
@@ -2313,7 +2321,7 @@ function mapAniListRecommendations(nodes) {
 }
 
 function mapAniList(item) {
-  const apiSource = item.dataSource === "jikan" || (item.idMal && Number(item.id) === Number(item.idMal)) ? "jikan" : "anilist";
+  const apiSource = item.dataSource === "jikan" ? "jikan" : "anilist";
   const englishTitle = item.title.english || "";
   const romajiTitle = item.title.romaji || "";
   const nativeTitle = item.title.native || "";
@@ -2358,7 +2366,7 @@ function mapAniList(item) {
 }
 
 function mapAniListManga(item) {
-  const apiSource = item.dataSource === "jikan" || (item.idMal && Number(item.id) === Number(item.idMal)) ? "jikan" : "anilist";
+  const apiSource = item.dataSource === "jikan" ? "jikan" : "anilist";
   const englishTitle = item.title.english || "";
   const romajiTitle = item.title.romaji || "";
   const nativeTitle = item.title.native || "";
@@ -4749,8 +4757,14 @@ function toggleBrowseFilters(event) {
 
   event.stopPropagation();
   const isOpen = document.body.classList.toggle("browse-filters-open");
-  event.currentTarget.setAttribute("aria-expanded", String(isOpen));
-  if (isOpen) window.setTimeout(() => document.querySelector("[data-browse-search]")?.focus(), 0);
+  document.querySelectorAll("[data-browse-filter-toggle]").forEach((button) => button.setAttribute("aria-expanded", String(isOpen)));
+  if (isOpen) window.setTimeout(() => document.querySelector("[data-browse-search], [data-doujin-search]")?.focus(), 0);
+}
+
+function closeBrowseFilters() {
+  if (page !== "anime" && page !== "manga" && page !== "doujin") return;
+  document.body.classList.remove("browse-filters-open");
+  document.querySelectorAll("[data-browse-filter-toggle]").forEach((button) => button.setAttribute("aria-expanded", "false"));
 }
 
 function updateAdultSetting(event) {
@@ -5946,6 +5960,9 @@ async function initSettingsPage() {
     event.preventDefault();
     showSettingsSection(button.dataset.section);
   });
+
+  const requestedSection = new URLSearchParams(window.location.search).get("section") || window.location.hash.replace(/^#/, "");
+  if (requestedSection && navButtons.some((button) => button.dataset.section === requestedSection)) showSettingsSection(requestedSection);
 
   initProfileMediaSettings(settingsRoot);
 

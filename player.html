@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-42" />
-    <script src="app.js?v=site-fix-42" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-46" />
+    <script src="app.js?v=site-fix-46" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell anilist-topbar">
@@ -40,6 +40,7 @@
                   <label class="player-check"><input data-player-auto-next type="checkbox"> Auto next</label>
                   <label class="player-check"><input data-player-ambient-toggle type="checkbox"> Ambient mode</label>
                 </div>
+                <a class="player-settings-link" href="settings.html?section=streaming">Open streaming settings</a>
               </div>
             </div>
             <div class="player-controls" data-player-controls>
@@ -50,6 +51,7 @@
               <div class="player-actions">
                 <button class="icon-btn subtitle-toggle" data-subtitle-toggle type="button" aria-label="Toggle subtitles" aria-pressed="true" hidden>CC</button>
                 <button class="icon-btn" data-player-settings-toggle type="button" aria-label="Player settings" aria-expanded="false">⚙</button>
+                <a class="btn secondary player-app-settings" href="settings.html?section=streaming">Settings</a>
                 <button class="btn secondary" data-mark-watched type="button">Mark as Watched</button>
                 <button class="icon-btn" data-fullscreen-btn type="button" aria-label="Fullscreen">⛶</button>
               </div>
@@ -1243,6 +1245,163 @@
         .player-settings-panel {
           right: 8px;
           width: min(260px, calc(100% - 16px));
+        }
+      }
+
+      /* Final streaming page polish. */
+      body[data-page="player"] {
+        --panel: #0b0b0d;
+        --solid: #08090b;
+        --soft: rgba(255, 255, 255, 0.075);
+        --line: rgba(255, 255, 255, 0.12);
+        background:
+          radial-gradient(circle at 20% -12%, rgba(20, 185, 198, 0.14), transparent 34rem),
+          radial-gradient(circle at 100% 0, rgba(255, 95, 200, 0.08), transparent 28rem),
+          linear-gradient(180deg, #020202 0, #000 340px, #000 100%) !important;
+        font-family: "Overpass", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body[data-page="player"] > .topbar.shell {
+        position: sticky !important;
+        top: 0;
+        z-index: 1800;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        background: rgba(4, 5, 7, 0.86) !important;
+        backdrop-filter: blur(18px) saturate(130%);
+      }
+
+      body[data-page="player"] > .topbar.shell .nav a {
+        border-radius: 999px;
+        padding: 9px 12px;
+        color: rgba(255, 255, 255, 0.64) !important;
+        font-size: 13px;
+      }
+
+      body[data-page="player"] > .topbar.shell .nav a.active,
+      body[data-page="player"] > .topbar.shell .nav a:hover {
+        color: #effcff !important;
+        background: rgba(20, 185, 198, 0.14) !important;
+      }
+
+      body[data-page="player"] main.shell {
+        padding-top: 14px;
+      }
+
+      .player-container {
+        grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+        gap: 18px;
+        margin-top: 0;
+      }
+
+      .video-player,
+      .player-controls,
+      .player-source-bar,
+      .episode-card,
+      .player-sidebar {
+        border-color: rgba(255, 255, 255, 0.1) !important;
+        background: rgba(9, 10, 13, 0.9) !important;
+        box-shadow: 0 26px 80px rgba(0, 0, 0, 0.34) !important;
+      }
+
+      .video-player,
+      .player-controls,
+      .player-source-bar,
+      .episode-card,
+      .player-sidebar {
+        border-radius: 14px;
+      }
+
+      .player-info h2 {
+        color: #fff;
+        font-size: clamp(16px, 1.4vw, 20px);
+        font-weight: 950;
+        letter-spacing: -0.035em;
+      }
+
+      .player-actions .btn,
+      .player-actions .icon-btn,
+      .player-app-settings,
+      .player-settings-link {
+        min-height: 38px;
+        border-radius: 10px;
+        box-shadow: none !important;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .player-actions .btn.secondary,
+      .player-app-settings {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.78) !important;
+        background: #17191f !important;
+      }
+
+      .player-app-settings:hover,
+      .player-settings-link:hover {
+        color: #effcff !important;
+        background: #26383d !important;
+      }
+
+      .player-settings-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 4px;
+        border: 1px solid rgba(20, 185, 198, 0.24);
+        color: #dff7fa;
+        background: rgba(20, 185, 198, 0.11);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .player-source-bar {
+        grid-template-columns: minmax(190px, 240px) minmax(240px, 1fr) auto;
+      }
+
+      .player-sidebar {
+        top: 78px;
+        max-height: calc(100vh - 92px);
+      }
+
+      .episode-item {
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.045);
+      }
+
+      .episode-item.active {
+        border-color: rgba(20, 185, 198, 0.42);
+        background: rgba(20, 185, 198, 0.14);
+      }
+
+      @media (max-width: 920px) {
+        .player-container {
+          grid-template-columns: 1fr;
+        }
+
+        .player-sidebar {
+          position: static;
+          max-height: none;
+        }
+      }
+
+      @media (max-width: 720px) {
+        body[data-page="player"] > .topbar.shell {
+          position: static !important;
+        }
+
+        body[data-page="player"] > .topbar.shell .nav {
+          display: flex !important;
+          overflow-x: auto;
+          grid-template-columns: none !important;
+        }
+
+        body[data-page="player"] > .topbar.shell .nav a {
+          flex: 0 0 auto;
+        }
+
+        .player-actions {
+          flex-wrap: wrap;
+          justify-content: flex-start;
         }
       }
     </style>

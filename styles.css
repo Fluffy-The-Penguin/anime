@@ -11749,6 +11749,51 @@ body[data-page="details"] .detail-tab-strip button.active {
   background: #26383d;
 }
 
+body[data-page="details"] > .topbar.shell.anilist-topbar,
+body[data-page="details"] .mobile-bottom-nav {
+  display: none !important;
+}
+
+body[data-page="details"] .detail-tab-strip {
+  display: flex !important;
+  width: min(1040px, 100%) !important;
+  max-width: 100%;
+  gap: 5px;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none;
+}
+
+body[data-page="details"] .detail-tab-strip::-webkit-scrollbar {
+  display: none;
+}
+
+body[data-page="details"] .detail-tab-strip button {
+  flex: 1 0 132px;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 12px;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+body[data-page="details"] .detail-tab-strip button[data-detail-tab="recommendations"] {
+  flex-basis: 178px;
+}
+
+@media (max-width: 720px) {
+  body[data-page="details"] .detail-tab-strip button {
+    flex: 0 0 auto;
+    min-width: 116px;
+    padding: 0 14px;
+  }
+
+  body[data-page="details"] .detail-tab-strip button[data-detail-tab="recommendations"] {
+    min-width: 178px;
+  }
+}
+
 body[data-page="details"] .detail-tab-panel[hidden] {
   display: none !important;
 }
@@ -12756,5 +12801,396 @@ body[data-page="library"] .profile-list-layout {
   body[data-page="profile"] .profile-hero h1,
   body[data-page="library"] .profile-hero h1 {
     font-size: clamp(30px, 9.5vw, 38px) !important;
+  }
+}
+
+/* Final browse filter drawer and History page polish. */
+.browse-filter-fab {
+  display: none;
+}
+
+body[data-page="anime"] .browse-filter-fab,
+body[data-page="manga"] .browse-filter-fab,
+body[data-page="doujin"] .browse-filter-fab {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  z-index: 2700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 0 15px;
+  color: #eef7f8;
+  background: rgba(13, 15, 19, 0.9);
+  box-shadow: 0 18px 56px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(16px) saturate(130%);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+body[data-page="anime"] .browse-filter-fab svg,
+body[data-page="manga"] .browse-filter-fab svg,
+body[data-page="doujin"] .browse-filter-fab svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+body[data-page="anime"] .browse-filter-fab[aria-expanded="true"],
+body[data-page="manga"] .browse-filter-fab[aria-expanded="true"],
+body[data-page="doujin"] .browse-filter-fab[aria-expanded="true"] {
+  color: #031113;
+  border-color: rgba(12, 152, 166, 0.7);
+  background: #71dbe2;
+}
+
+body[data-page="anime"] .browse-toolbar,
+body[data-page="manga"] .browse-toolbar,
+body[data-page="doujin"] .browse-toolbar {
+  position: fixed !important;
+  top: max(72px, calc(env(safe-area-inset-top) + 72px)) !important;
+  right: max(18px, env(safe-area-inset-right)) !important;
+  left: auto !important;
+  z-index: 2650 !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  align-items: stretch !important;
+  width: min(430px, calc(100vw - 104px)) !important;
+  max-height: calc(100vh - 96px) !important;
+  margin: 0 !important;
+  overflow: auto !important;
+  overscroll-behavior: contain;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 18px !important;
+  padding: 14px !important;
+  background: rgba(8, 8, 10, 0.96) !important;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.58) !important;
+  backdrop-filter: blur(20px) saturate(130%);
+  transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease !important;
+}
+
+body[data-page="anime"]:not(.browse-filters-open) .browse-toolbar,
+body[data-page="manga"]:not(.browse-filters-open) .browse-toolbar,
+body[data-page="doujin"]:not(.browse-filters-open) .browse-toolbar {
+  max-height: calc(100vh - 96px) !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transform: translateY(-12px) scale(0.98) !important;
+  pointer-events: none !important;
+}
+
+body[data-page="anime"].browse-filters-open .browse-toolbar,
+body[data-page="manga"].browse-filters-open .browse-toolbar,
+body[data-page="doujin"].browse-filters-open .browse-toolbar {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: translateY(0) scale(1) !important;
+  pointer-events: auto !important;
+}
+
+body[data-page="anime"] .browse-toolbar > *,
+body[data-page="manga"] .browse-toolbar > *,
+body[data-page="doujin"] .browse-toolbar > *,
+body[data-page="doujin"] .doujin-tag-picker,
+body[data-page="doujin"] .doujin-tag-filter {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+body[data-page="anime"] .browse-submit,
+body[data-page="manga"] .browse-submit,
+body[data-page="doujin"] .browse-submit {
+  display: inline-flex !important;
+}
+
+body[data-page="anime"] .genre-filter,
+body[data-page="manga"] .genre-filter,
+body[data-page="doujin"] .doujin-tag-filter,
+body[data-page="anime"] .browse-toolbar > label:not(.browse-search),
+body[data-page="manga"] .browse-toolbar > label:not(.browse-search) {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 6px !important;
+  align-items: stretch !important;
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+body[data-page="anime"] .genre-menu,
+body[data-page="manga"] .genre-menu,
+body[data-page="doujin"] .doujin-tag-menu {
+  position: static !important;
+  width: 100% !important;
+  max-height: min(300px, 44vh) !important;
+  margin-top: 8px !important;
+  border-radius: 14px !important;
+}
+
+body[data-page="anime"] .genre-filter.open .genre-menu,
+body[data-page="manga"] .genre-filter.open .genre-menu,
+body[data-page="doujin"] .doujin-tag-filter.open .doujin-tag-menu {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+body[data-page="anime"] .browse-title,
+body[data-page="manga"] .browse-title,
+body[data-page="doujin"] .browse-title {
+  padding-right: 120px;
+}
+
+body[data-page="history"] .history-page-main {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  padding: 34px 52px 92px 120px !important;
+  background:
+    radial-gradient(circle at 22% -10%, rgba(143, 201, 207, 0.14), transparent 34rem),
+    radial-gradient(circle at 100% 0, rgba(185, 92, 255, 0.08), transparent 28rem),
+    linear-gradient(180deg, #030303 0, #000 300px, #000 100%) !important;
+}
+
+body[data-page="history"] .profile-subpage-hero,
+body[data-page="history"] .history-page-panel {
+  width: min(1020px, 100%) !important;
+  margin: 0 auto !important;
+  border-radius: 18px !important;
+}
+
+body[data-page="history"] .profile-subpage-hero {
+  padding: clamp(28px, 4vw, 54px) !important;
+  background:
+    linear-gradient(135deg, rgba(143, 201, 207, 0.12), transparent 44%),
+    #08090b !important;
+}
+
+body[data-page="history"] .profile-subpage-hero h1 {
+  margin: 14px 0 18px !important;
+  font-size: clamp(44px, 6vw, 78px) !important;
+  line-height: 0.95 !important;
+}
+
+body[data-page="history"] .profile-subpage-hero p {
+  max-width: 640px;
+  margin: 0 0 16px !important;
+  color: rgba(255, 255, 255, 0.64) !important;
+  font-size: clamp(16px, 2vw, 20px) !important;
+  line-height: 1.55 !important;
+}
+
+body[data-page="history"] .profile-subpage-hero strong {
+  color: #eef7f8 !important;
+  font-size: 15px !important;
+}
+
+body[data-page="history"] .history-page-panel {
+  padding: 16px !important;
+}
+
+body[data-page="history"] .history-page-list {
+  gap: 12px !important;
+}
+
+body[data-page="history"] .history-page-row {
+  grid-template-columns: 62px minmax(0, 1fr) auto !important;
+  gap: 16px !important;
+  min-height: 86px !important;
+  border-radius: 16px !important;
+  padding: 11px 14px !important;
+  background: #08090b !important;
+  box-shadow: none !important;
+}
+
+body[data-page="history"] .history-page-row:hover {
+  border-color: rgba(143, 201, 207, 0.34) !important;
+  background: #101317 !important;
+}
+
+body[data-page="history"] .history-page-row img {
+  width: 62px !important;
+  height: 62px !important;
+  border-radius: 12px !important;
+}
+
+body[data-page="history"] .history-page-row strong {
+  color: #f5f8ff !important;
+  font-size: 18px !important;
+}
+
+body[data-page="history"] .history-page-row small,
+body[data-page="history"] .history-page-row em {
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-size: 13px !important;
+}
+
+body[data-page="history"] .history-page-row em {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: #14161a;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  body[data-page="anime"] .browse-filter-fab,
+  body[data-page="manga"] .browse-filter-fab,
+  body[data-page="doujin"] .browse-filter-fab {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+  }
+
+  body[data-page="anime"] .browse-toolbar,
+  body[data-page="manga"] .browse-toolbar,
+  body[data-page="doujin"] .browse-toolbar {
+    top: max(64px, calc(env(safe-area-inset-top) + 64px)) !important;
+    right: max(12px, env(safe-area-inset-right)) !important;
+    left: max(12px, env(safe-area-inset-left)) !important;
+    width: auto !important;
+    max-height: calc(100vh - 148px) !important;
+  }
+
+  body[data-page="anime"] .browse-title,
+  body[data-page="manga"] .browse-title,
+  body[data-page="doujin"] .browse-title {
+    padding-right: 96px;
+  }
+
+  body[data-page="history"] .history-page-main {
+    padding: 18px 14px 96px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  body[data-page="anime"] .browse-filter-fab span,
+  body[data-page="manga"] .browse-filter-fab span,
+  body[data-page="doujin"] .browse-filter-fab span {
+    display: none;
+  }
+
+  body[data-page="anime"] .browse-filter-fab,
+  body[data-page="manga"] .browse-filter-fab,
+  body[data-page="doujin"] .browse-filter-fab {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  body[data-page="anime"] .genre-filter.open .genre-menu,
+  body[data-page="manga"] .genre-filter.open .genre-menu,
+  body[data-page="doujin"] .doujin-tag-filter.open .doujin-tag-menu {
+    grid-template-columns: 1fr !important;
+  }
+
+  body[data-page="history"] .profile-subpage-hero {
+    padding: 26px 20px !important;
+  }
+
+  body[data-page="history"] .profile-subpage-hero h1 {
+    font-size: clamp(42px, 14vw, 58px) !important;
+  }
+
+  body[data-page="history"] .history-page-panel {
+    padding: 10px !important;
+  }
+
+  body[data-page="history"] .history-page-row {
+    grid-template-columns: 54px minmax(0, 1fr) !important;
+    gap: 12px !important;
+    min-height: 76px !important;
+    padding: 10px !important;
+  }
+
+  body[data-page="history"] .history-page-row img {
+    width: 54px !important;
+    height: 54px !important;
+  }
+
+  body[data-page="history"] .history-page-row strong {
+    font-size: 16px !important;
+  }
+
+  body[data-page="history"] .history-page-row small {
+    white-space: normal !important;
+  }
+
+  body[data-page="history"] .history-page-row em {
+    display: none !important;
+  }
+}
+
+/* Profile/library tabs: cleaner text nav instead of oversized pills. */
+body[data-page="profile"] .profile-tabs,
+body[data-page="library"] .profile-tabs {
+  border-top: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(5, 5, 6, 0.96) !important;
+}
+
+body[data-page="profile"] .profile-tabs-inner,
+body[data-page="library"] .profile-tabs-inner {
+  min-height: 58px !important;
+  gap: 6px !important;
+  align-items: stretch !important;
+  padding: 0 18px !important;
+}
+
+body[data-page="profile"] .profile-tabs a,
+body[data-page="library"] .profile-tabs a {
+  position: relative;
+  min-height: 58px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 14px !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+  background: transparent !important;
+  font-size: 13px !important;
+  font-weight: 850 !important;
+  letter-spacing: 0 !important;
+}
+
+body[data-page="profile"] .profile-tabs a::after,
+body[data-page="library"] .profile-tabs a::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: 0;
+  left: 12px;
+  height: 2px;
+  border-radius: 999px 999px 0 0;
+  background: transparent;
+}
+
+body[data-page="profile"] .profile-tabs a:hover,
+body[data-page="profile"] .profile-tabs a.active,
+body[data-page="library"] .profile-tabs a:hover,
+body[data-page="library"] .profile-tabs a.active {
+  color: #f2fbfc !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+body[data-page="profile"] .profile-tabs a:hover::after,
+body[data-page="profile"] .profile-tabs a.active::after,
+body[data-page="library"] .profile-tabs a:hover::after,
+body[data-page="library"] .profile-tabs a.active::after {
+  background: #8fc9cf;
+}
+
+@media (max-width: 820px) {
+  body[data-page="profile"] .profile-tabs-inner,
+  body[data-page="library"] .profile-tabs-inner {
+    min-height: 54px !important;
+    padding: 0 12px !important;
+  }
+
+  body[data-page="profile"] .profile-tabs a,
+  body[data-page="library"] .profile-tabs a {
+    min-height: 54px !important;
+    padding: 0 12px !important;
+    font-size: 12px !important;
   }
 }
