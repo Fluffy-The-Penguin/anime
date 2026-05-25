@@ -334,9 +334,14 @@ function cinematicSideRailHtml() {
       <div class="details-rail-bottom">
         <a href="profile-favorites.html" aria-label="Favorites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 20.7-1.3-1.2C6.1 15.3 3 12.5 3 9.1A4.8 4.8 0 0 1 7.9 4c1.6 0 3.1.8 4.1 2 1-1.2 2.5-2 4.1-2A4.8 4.8 0 0 1 21 9.1c0 3.4-3.1 6.2-7.7 10.4L12 20.7Z"/></svg></a>
         <a href="history.html" aria-label="History"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.1-5L14 10h7V3l-2.7 2.7A8.9 8.9 0 0 0 12 3Zm-1 4v6l5 3 .9-1.6-3.9-2.3V7h-2Z"/></svg></a>
+        ${settingsRailLinkHtml()}
       </div>
     </nav>
   `;
+}
+
+function settingsRailLinkHtml() {
+  return `<a href="settings.html" data-settings-rail aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.7 7.7 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.7 7.7 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.7 7.7 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.7 7.7 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg></a>`;
 }
 
 function profileMenuHtml(buttonClass = "icon-btn profile-btn", menuClass = "") {
@@ -360,10 +365,14 @@ function profileMenuHtml(buttonClass = "icon-btn profile-btn", menuClass = "") {
 }
 
 function enhanceCinematicSideRail() {
-  const profileLink = document.querySelector('.details-side-rail .details-rail-main a[href="profile.html"]');
-  if (!profileLink || document.querySelector(".details-rail-profile-menu")) return;
-  profileLink.insertAdjacentHTML("afterend", profileMenuHtml("details-rail-profile-btn", "details-rail-profile-menu"));
-  profileLink.remove();
+  const rail = document.querySelector(".details-side-rail");
+  const profileLink = rail?.querySelector('.details-rail-main a[href="profile.html"]');
+  if (profileLink && !rail.querySelector(".details-rail-profile-menu")) {
+    profileLink.insertAdjacentHTML("afterend", profileMenuHtml("details-rail-profile-btn", "details-rail-profile-menu"));
+    profileLink.remove();
+  }
+  const bottom = rail?.querySelector(".details-rail-bottom");
+  if (bottom && !bottom.querySelector("[data-settings-rail]")) bottom.insertAdjacentHTML("beforeend", settingsRailLinkHtml());
 }
 
 function searchOverlayHtml() {
