@@ -7,6 +7,8 @@ const APP_ROOT = path.resolve(__dirname, "..");
 const LOCAL_APP_PORT = 47931;
 const BACKEND_ORIGIN = "https://anime-api-proxy.aryanpanwar.workers.dev";
 const DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+const DESKTOP_SETTINGS_PATH = path.join(app.getPath("userData"), "desktop-settings.json");
+const desktopSettings = readDesktopSettings();
 const singleInstanceLock = app.requestSingleInstanceLock();
 const frontendApiHandler = require(path.join(APP_ROOT, "api", "adult", "[path].js"));
 const ELECTRON_SAFE_AREA_CSS = `
@@ -27,6 +29,10 @@ let webTorrentClientPromise = null;
 const torrentSessions = new Map();
 const TORRENT_VIDEO_EXTENSIONS = new Set([".mp4", ".m4v", ".webm", ".mkv", ".mov", ".avi", ".ogv", ".ts"]);
 
+if (desktopSettings.gpuAcceleration === false) {
+  app.disableHardwareAcceleration();
+}
+
 if (!singleInstanceLock) {
   app.quit();
 }
@@ -40,6 +46,21 @@ const MIME_TYPES = {
   ".svg": "image/svg+xml",
   ".webmanifest": "application/manifest+json; charset=utf-8"
 };
+
+function readDesktopSettings() {
+  try {
+    return { gpuAcceleration: true, ...JSON.parse(fs.readFileSync(DESKTOP_SETTINGS_PATH, "utf8")) };
+  } catch {
+    return { gpuAcceleration: true };
+  }
+}
+
+function writeDesktopSettings(nextSettings) {
+  fs.mkdirSync(path.dirname(DESKTOP_SETTINGS_PATH), { recursive: true });
+  Object.assign(desktopSettings, nextSettings);
+  fs.writeFileSync(DESKTOP_SETTINGS_PATH, JSON.stringify(desktopSettings, null, 2));
+  return desktopSettings;
+}
 
 const TORRENT_STREAM_MIME_TYPES = {
   ".avi": "video/x-msvideo",
@@ -108,16 +129,25 @@ function waitForTorrentMetadata(torrent, timeoutMs = 45000) {
     const timer = setTimeout(() => cleanup(() => reject(new Error("Timed out waiting for torrent metadata"))), timeoutMs);
     const done = () => cleanup(() => resolve(torrent));
     const fail = (error) => cleanup(() => reject(error));
+    const on = (event, handler) => {
+      if (typeof torrent.once === "function") torrent.once(event, handler);
+      else if (typeof torrent.addEventListener === "function") torrent.addEventListener(event, handler, { once: true });
+    };
+    const off = (event, handler) => {
+      if (typeof torrent.off === "function") torrent.off(event, handler);
+      else if (typeof torrent.removeListener === "function") torrent.removeListener(event, handler);
+      else if (typeof torrent.removeEventListener === "function") torrent.removeEventListener(event, handler);
+    };
     const cleanup = (callback) => {
       clearTimeout(timer);
-      torrent.off("metadata", done);
-      torrent.off("ready", done);
-      torrent.off("error", fail);
+      off("metadata", done);
+      off("ready", done);
+      off("error", fail);
       callback();
     };
-    torrent.once("metadata", done);
-    torrent.once("ready", done);
-    torrent.once("error", fail);
+    on("metadata", done);
+    on("ready", done);
+    on("error", fail);
   });
 }
 
@@ -187,6 +217,35 @@ async function handleTorrentStreamRequest(request, response) {
   });
   request.on("close", () => stream.destroy?.());
   stream.pipe(response);
+}
+
+async function handleSubtitleProxyRequest(request, response) {
+  try {
+    const parsed = new URL(request.url || "/", appOrigin || "http://127.0.0.1");
+    const target = parsed.searchParams.get("url") || "";
+    if (!/^https?:\/\//i.test(target)) {
+      response.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+      response.end("Invalid subtitle URL");
+      return;
+    }
+
+    const subtitleResponse = await fetch(target, {
+      headers: {
+        accept: "text/vtt,text/plain,*/*",
+        "user-agent": DESKTOP_USER_AGENT
+      }
+    });
+    const data = Buffer.from(await subtitleResponse.arrayBuffer());
+    response.writeHead(subtitleResponse.status, {
+      "Access-Control-Allow-Origin": appOrigin,
+      "Cache-Control": "no-store",
+      "Content-Type": subtitleResponse.headers.get("content-type") || "text/plain; charset=utf-8"
+    });
+    response.end(data);
+  } catch (error) {
+    response.writeHead(502, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Subtitle proxy failed");
+  }
 }
 
 function isLocalAppUrl(targetUrl) {
@@ -320,6 +379,11 @@ async function proxyBackendRequest(request, response) {
 function startLocalServer(port = LOCAL_APP_PORT) {
   return new Promise((resolve, reject) => {
     const server = http.createServer((request, response) => {
+      if ((request.url || "").startsWith("/__subtitle")) {
+        handleSubtitleProxyRequest(request, response);
+        return;
+      }
+
       if ((request.url || "").startsWith("/__torrent/stream/")) {
         handleTorrentStreamRequest(request, response).catch((error) => {
           response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
@@ -466,6 +530,16 @@ ipcMain.handle("torrent:remove", async (event, payload = {}) => {
   torrentSessions.delete(torrentId);
   torrent.destroy({ destroyStore: false });
   return true;
+});
+
+ipcMain.handle("gpu:get", async () => ({
+  enabled: desktopSettings.gpuAcceleration !== false,
+  restartRequired: false
+}));
+
+ipcMain.handle("gpu:set", async (event, payload = {}) => {
+  const next = writeDesktopSettings({ gpuAcceleration: payload.enabled !== false });
+  return { enabled: next.gpuAcceleration !== false, restartRequired: true };
 });
 
 app.whenReady().then(async () => {

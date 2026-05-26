@@ -260,7 +260,7 @@ function injectChrome() {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 18.4a7.7 7.7 0 1 1 5.4-13.1 7.7 7.7 0 0 1 0 10.8l4.1 4.1-2 2-4.1-4.1a7.6 7.6 0 0 1-3.4.8Zm0-3a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Z"/></svg>
         </button>`}
         <button class="icon-btn theme-toggle" data-theme-toggle type="button" aria-label="Toggle theme">${themeIcon()}</button>
-        <a class="top-settings-link" href="settings.html" aria-label="Open settings">Settings</a>
+        ${["profile", "library"].includes(page) ? "" : '<a class="top-settings-link" href="settings.html" aria-label="Open settings">Settings</a>'}
         <div class="notification-menu">
           <button class="icon-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.7 2.7 0 0 0 2.5-1.7h-5A2.7 2.7 0 0 0 12 22Zm7-6.4-1.7-2.3V9a5.3 5.3 0 0 0-4-5.1V3a1.3 1.3 0 0 0-2.6 0v.9a5.3 5.3 0 0 0-4 5.1v4.3L5 15.6V18h14v-2.4Z"/></svg><span data-notification-count hidden>0</span></button>
           <div class="notification-popover" data-notification-popover></div>
@@ -275,7 +275,7 @@ function injectChrome() {
   }
 
   if (["anime", "manga", "doujin"].includes(page) && !document.querySelector(".browse-filter-fab")) {
-    document.body.insertAdjacentHTML("beforeend", `<button class="browse-filter-fab" data-browse-filter-toggle type="button" aria-label="Show search and filters" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 18.4a7.7 7.7 0 1 1 5.4-13.1 7.7 7.7 0 0 1 0 10.8l4.1 4.1-2 2-4.1-4.1a7.6 7.6 0 0 1-3.4.8Zm0-3a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Z"/></svg></button>`);
+    document.body.insertAdjacentHTML("beforeend", `<button class="browse-filter-fab" data-browse-filter-toggle type="button" aria-label="Show search and filters" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v5.5l-4 2V13L3 5Z"/></svg></button>`);
   }
 
   if (["anime", "manga", "doujin"].includes(page) && !document.querySelector("[data-browse-filter-overlay]")) {
@@ -400,11 +400,13 @@ function profileMenuHtml(buttonClass = "icon-btn profile-btn", menuClass = "") {
         <strong>Profile</strong>
         <div class="profile-account-card" data-account-panel>
           <div class="account-status"><strong data-account-title>${state.account?.username ? `@${escapeHtml(state.account.username)}` : "Guest"}</strong><span data-account-status>${state.account?.username ? "Sync enabled" : "Local library only"}</span></div>
-          <button class="settings-row compact" data-account-open type="button">${state.account?.token ? "Manage Account" : "Log in / Register"}</button>
+          <div class="profile-account-actions">
+            <button class="settings-row compact" data-account-sync type="button" ${state.account?.token ? "" : "disabled"}>${state.account?.token ? "Sync Now" : "Sign in to sync"}</button>
+            <button class="settings-row compact secondary" data-account-open type="button">${state.account?.token ? "Account" : "Log in"}</button>
+          </div>
         </div>
         <button class="settings-row" data-profile-page-button type="button">Profile</button>
         <button class="settings-row" data-library-button type="button">Library</button>
-        <button class="settings-row" data-settings-button type="button">Settings</button>
         <label class="settings-toggle"><span>Show 18+ content</span><input data-adult-toggle type="checkbox" ${state.settings.allowAdult ? "checked" : ""}></label>
       </div>
     </div>
@@ -1395,6 +1397,10 @@ function initLibraryPage() {
   const viewButtons = document.querySelectorAll("[data-library-view]");
   const params = new URLSearchParams(window.location.search);
   state.libraryType = document.body.dataset.libraryKind || "anime";
+  if (state.libraryType === "adult" && !state.settings.allowAdult) {
+    window.location.replace("profile.html");
+    return;
+  }
   state.libraryView = readLibraryView();
   state.filter = ["all", "watching", "reading", "planning", "completed", "dropped"].includes(params.get("status")) ? params.get("status") : "all";
   state.libraryAdultFilter = ["all", "adult", "normal", "doujin", "hentai", "pornhwa"].includes(params.get("adult")) ? params.get("adult") : (state.libraryType === "adult" ? "adult" : "all");
@@ -1475,7 +1481,7 @@ function setupLibraryFilterDrawer() {
   sidebar.setAttribute("data-library-filter-panel", "");
   sidebar.setAttribute("aria-label", drawerLabel);
   if (!document.querySelector("[data-library-filter-toggle]")) {
-    document.body.insertAdjacentHTML("beforeend", `<button class="library-filter-fab" data-library-filter-toggle type="button" aria-label="Open filters" aria-expanded="false">Filters</button>`);
+    document.body.insertAdjacentHTML("beforeend", `<button class="library-filter-fab" data-library-filter-toggle type="button" aria-label="Open filters" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v5.5l-4 2V13L3 5Z"/></svg></button>`);
   }
   if (!document.querySelector("[data-library-filter-overlay]")) {
     document.body.insertAdjacentHTML("beforeend", `<button class="library-filter-overlay" data-library-filter-overlay type="button" aria-label="Close filters"></button>`);
@@ -5343,6 +5349,10 @@ function setAdultContentEnabled(enabled, options = {}) {
     loadDoujinSourcesNew();
   }
   if (toast) showToast(state.settings.allowAdult ? "18+ content enabled." : "18+ content disabled.");
+  if (!state.settings.allowAdult && document.body.dataset.libraryKind === "adult") {
+    window.location.href = "profile.html";
+    return;
+  }
   if (!reload) return;
   if (page === "anime" || page === "manga") updateBrowseUrl();
   if (page === "home") loadHomeSections();
@@ -5599,7 +5609,13 @@ function initAccountControls() {
     const action = event.submitter?.dataset.accountAction || "login";
     await handleAccountSubmit(action);
   });
-  document.querySelector("[data-account-sync]")?.addEventListener("click", () => syncAccountNow(true));
+  document.querySelectorAll("[data-account-sync]").forEach((button) => button.addEventListener("click", () => {
+    if (!state.account?.token) {
+      openAccountModal();
+      return;
+    }
+    syncAccountNow(true);
+  }));
   document.querySelector("[data-account-logout]")?.addEventListener("click", () => {
     state.account = null;
     persistAccount();
@@ -5832,7 +5848,11 @@ function renderAccountState(message) {
   setText("[data-account-title]", signedIn ? `@${state.account.username}` : "Guest");
   syncProfileToggleButtons();
   document.querySelectorAll("[data-account-open]").forEach((button) => {
-    button.textContent = signedIn ? "Manage Account" : "Log in / Register";
+    button.textContent = button.closest(".profile-popover") ? (signedIn ? "Account" : "Log in") : (signedIn ? "Manage Account" : "Log in / Register");
+  });
+  document.querySelectorAll("[data-account-sync]").forEach((button) => {
+    button.disabled = !signedIn;
+    button.textContent = signedIn ? "Sync Now" : "Sign in to sync";
   });
   setAccountStatus(message || (signedIn ? "Sync enabled" : "Local library only"));
 }
@@ -6630,6 +6650,8 @@ async function initSettingsPage() {
     });
   }
 
+  initDesktopGpuSetting();
+
   const defaultAnimeSource = document.querySelector("[data-default-anime-source]");
   if (defaultAnimeSource) {
     if (![...defaultAnimeSource.options].some((option) => option.value === state.settings.defaultAnimeSource)) {
@@ -6697,6 +6719,35 @@ async function initSettingsPage() {
 
   loadAnimeSourcesNew();
   loadDoujinSourcesNew();
+}
+
+async function initDesktopGpuSetting() {
+  const panel = document.querySelector("[data-electron-gpu-setting]");
+  const toggle = document.querySelector("[data-gpu-toggle]");
+  const status = document.querySelector("[data-gpu-status]");
+  const api = window.anitrackDesktop?.gpu;
+  if (!panel || !toggle || !api) return;
+  panel.hidden = false;
+  try {
+    const current = await api.get();
+    toggle.checked = current.enabled !== false;
+  } catch (error) {
+    if (status) status.textContent = "GPU status is unavailable in this build.";
+  }
+  toggle.addEventListener("change", async () => {
+    toggle.disabled = true;
+    try {
+      const result = await api.set(toggle.checked);
+      toggle.checked = result.enabled !== false;
+      if (status) status.textContent = "Saved. Restart AniTrack Experimental for this GPU setting to take effect.";
+      showToast("GPU setting saved. Restart required.");
+    } catch (error) {
+      if (status) status.textContent = "Could not save GPU setting.";
+      showToast("Could not save GPU setting");
+    } finally {
+      toggle.disabled = false;
+    }
+  });
 }
 
 function initProfileMediaSettings(root = document) {
@@ -8157,6 +8208,19 @@ function sortSubtitleTracks(tracks = []) {
     .map((item) => item.track);
 }
 
+function desktopSubtitleProxyTracks(tracks = []) {
+  if (!window.anitrackDesktop) return tracks;
+  return tracks.map((track) => {
+    if (!track?.url || !/^https?:\/\//i.test(track.url)) return track;
+    try {
+      if (new URL(track.url, window.location.href).origin === window.location.origin) return track;
+    } catch (error) {
+      return track;
+    }
+    return { ...track, originalUrl: track.url, url: `/__subtitle?url=${encodeURIComponent(track.url)}` };
+  });
+}
+
 function subtitleTrackPreferenceScore(track) {
   const preference = state.settings.subtitleLanguage || "english";
   if (preference === "both") return 0;
@@ -8174,7 +8238,7 @@ function playerAutoPlayEnabled() {
 
 async function playHttpStream(url, tracks = [], options = {}) {
   const player = document.querySelector("[data-video-player]");
-  const subtitleTracks = sortSubtitleTracks(tracks);
+  const subtitleTracks = sortSubtitleTracks(desktopSubtitleProxyTracks(tracks));
   const resumeState = options.resumeState || playerRuntime.resumeState || null;
   playerRuntime.resumeState = null;
   const streamToken = ++playerRuntime.streamToken;

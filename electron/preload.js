@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld("anitrackDesktop", {
     chooseFile: () => ipcRenderer.invoke("torrent:choose-file"),
     remove: (torrentId) => ipcRenderer.invoke("torrent:remove", { torrentId }),
     status: (torrentId) => ipcRenderer.invoke("torrent:status", { torrentId })
+  },
+  gpu: {
+    get: () => ipcRenderer.invoke("gpu:get"),
+    set: (enabled) => ipcRenderer.invoke("gpu:set", { enabled })
   }
 });
 

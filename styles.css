@@ -3354,12 +3354,13 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   right: 0;
   z-index: 1200;
   display: none;
-  min-width: 230px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 12px;
-  background: var(--solid);
-  box-shadow: var(--shadow);
+  min-width: min(320px, calc(100vw - 28px));
+  border: 1px solid color-mix(in srgb, var(--theme-primary) 28%, var(--line));
+  border-radius: 22px;
+  padding: 14px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--solid) 96%, transparent), color-mix(in srgb, var(--panel) 88%, transparent));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(18px) saturate(130%);
 }
 
 .profile-popover.show {
@@ -3369,11 +3370,17 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
 
 .profile-account-card {
   display: grid;
-  gap: 9px;
-  border: 1px solid var(--line);
-  border-radius: 15px;
-  padding: 10px;
-  background: color-mix(in srgb, var(--soft) 78%, transparent);
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--theme-primary) 24%, var(--line));
+  border-radius: 18px;
+  padding: 12px;
+  background: radial-gradient(circle at 12% 0, color-mix(in srgb, var(--theme-primary) 16%, transparent), transparent 46%), color-mix(in srgb, var(--soft) 78%, transparent);
+}
+
+.profile-account-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  gap: 8px;
 }
 
 .account-status {
@@ -3441,6 +3448,26 @@ body[data-page="doujin"].browse-filters-open .nav-search-toggle {
   background: var(--soft);
   text-align: left;
   font-weight: 800;
+}
+
+.settings-row {
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.settings-row:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--theme-primary) 42%, var(--line));
+  background: color-mix(in srgb, var(--theme-primary) 12%, var(--soft));
+}
+
+.settings-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.settings-row.secondary {
+  color: var(--muted);
+  background: transparent;
 }
 
 /* Disable card zoom/lift hover effects site-wide. */
@@ -9111,7 +9138,7 @@ body[data-page="profile"] .profile-hero h1 {
     position: fixed;
     top: 0;
     bottom: 0;
-    left: 0;
+    right: 0;
     z-index: 2200;
     display: block !important;
     width: min(340px, calc(100vw - 44px)) !important;
@@ -9119,14 +9146,14 @@ body[data-page="profile"] .profile-hero h1 {
     overflow-y: auto;
     padding: max(18px, env(safe-area-inset-top)) 14px max(92px, env(safe-area-inset-bottom)) !important;
     background: rgba(12, 20, 31, 0.98) !important;
-    box-shadow: 24px 0 70px rgba(0, 0, 0, 0.42) !important;
-    transform: translateX(calc(-100% - 18px));
+    box-shadow: -24px 0 70px rgba(0, 0, 0, 0.42) !important;
+    transform: translateX(calc(100% + 18px));
     transition: transform 180ms ease;
   }
 
   :root[data-theme="light"] body[data-page="library"] .profile-list-sidebar {
     background: rgba(255, 255, 255, 0.98) !important;
-    box-shadow: 24px 0 70px rgba(15, 23, 42, 0.18) !important;
+    box-shadow: -24px 0 70px rgba(15, 23, 42, 0.18) !important;
   }
 
   body[data-page="library"].library-filter-open .profile-list-sidebar {
@@ -9164,14 +9191,23 @@ body[data-page="profile"] .profile-hero h1 {
 
   .library-filter-fab {
     position: fixed;
-    left: max(12px, env(safe-area-inset-left));
+    right: max(14px, env(safe-area-inset-right));
     bottom: calc(78px + env(safe-area-inset-bottom));
-    z-index: 105;
+    z-index: 2700;
     display: inline-flex;
-    min-height: 42px;
     align-items: center;
-    padding: 0 16px;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    min-height: 52px;
+    padding: 0;
     box-shadow: 0 16px 34px rgba(15, 23, 42, 0.28);
+  }
+
+  .library-filter-fab svg {
+    width: 21px;
+    height: 21px;
+    fill: currentColor;
   }
 
   .library-filter-overlay {
@@ -14413,8 +14449,8 @@ body[data-page="history"] .history-page-row em {
   body[data-page="doujin"] .browse-toolbar {
     top: max(64px, calc(env(safe-area-inset-top) + 64px)) !important;
     right: max(12px, env(safe-area-inset-right)) !important;
-    left: max(12px, env(safe-area-inset-left)) !important;
-    width: auto !important;
+    left: auto !important;
+    width: min(360px, calc(100vw - 24px)) !important;
     max-height: calc(100vh - 148px) !important;
   }
 
