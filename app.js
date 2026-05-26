@@ -315,10 +315,10 @@ function injectChrome() {
   document.querySelectorAll("[data-adult-toggle]").forEach((input) => input.addEventListener("change", updateAdultSetting));
   document.querySelector("[data-theme-color]")?.addEventListener("input", updateThemeColor);
   document.querySelector("[data-reset-color]")?.addEventListener("click", resetThemeColor);
-  document.querySelector("[data-theme-toggle]").addEventListener("click", toggleTheme);
+  document.querySelectorAll("[data-theme-toggle]").forEach((button) => button.addEventListener("click", toggleTheme));
   document.querySelector("[data-menu-toggle]").addEventListener("click", toggleMobileMenu);
-  document.querySelector("[data-notification-toggle]")?.addEventListener("click", toggleNotifications);
-  document.querySelector("[data-history-toggle]")?.addEventListener("click", toggleHistory);
+  document.querySelectorAll("[data-notification-toggle]").forEach((button) => button.addEventListener("click", toggleNotifications));
+  document.querySelectorAll("[data-history-toggle]").forEach((button) => button.addEventListener("click", toggleHistory));
   document.querySelectorAll("[data-browse-filter-toggle]").forEach((button) => button.addEventListener("click", toggleBrowseFilters));
   document.querySelector("[data-browse-filter-overlay]")?.addEventListener("click", closeBrowseFilters);
   document.querySelector("[data-search-toggle]")?.addEventListener("click", toggleSearchOverlay);
@@ -365,8 +365,16 @@ function cinematicSideRailHtml() {
         ${settingsRailLinkHtml()}
       </div>
       <div class="details-rail-bottom">
-        <a href="profile-favorites.html" aria-label="Favorites" data-nav-label="Favorites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 20.7-1.3-1.2C6.1 15.3 3 12.5 3 9.1A4.8 4.8 0 0 1 7.9 4c1.6 0 3.1.8 4.1 2 1-1.2 2.5-2 4.1-2A4.8 4.8 0 0 1 21 9.1c0 3.4-3.1 6.2-7.7 10.4L12 20.7Z"/></svg></a>
-        <a href="history.html" aria-label="History" data-nav-label="History"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.1-5L14 10h7V3l-2.7 2.7A8.9 8.9 0 0 0 12 3Zm-1 4v6l5 3 .9-1.6-3.9-2.3V7h-2Z"/></svg></a>
+        <div class="notification-menu details-rail-menu">
+          <button class="details-rail-action-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false" data-nav-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.7 2.7 0 0 0 2.5-1.7h-5A2.7 2.7 0 0 0 12 22Zm7-6.4-1.7-2.3V9a5.3 5.3 0 0 0-4-5.1V3a1.3 1.3 0 0 0-2.6 0v.9a5.3 5.3 0 0 0-4 5.1v4.3L5 15.6V18h14v-2.4Z"/></svg><span data-notification-count hidden>0</span></button>
+          <div class="notification-popover" data-notification-popover></div>
+        </div>
+        <a class="details-rail-favorites" href="profile-favorites.html" aria-label="Favorites" data-nav-label="Favorites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 20.7-1.3-1.2C6.1 15.3 3 12.5 3 9.1A4.8 4.8 0 0 1 7.9 4c1.6 0 3.1.8 4.1 2 1-1.2 2.5-2 4.1-2A4.8 4.8 0 0 1 21 9.1c0 3.4-3.1 6.2-7.7 10.4L12 20.7Z"/></svg></a>
+        <div class="history-menu details-rail-menu">
+          <button class="details-rail-action-btn history-btn" data-history-toggle type="button" aria-label="Open history" aria-expanded="false" data-nav-label="History"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.1-5L14 10h7V3l-2.7 2.7A8.9 8.9 0 0 0 12 3Zm-1 4v6l5 3 .9-1.6-3.9-2.3V7h-2Z"/></svg></button>
+          <div class="history-popover" data-history-popover></div>
+        </div>
+        <button class="details-rail-theme-btn" data-theme-toggle type="button" aria-label="Toggle theme" data-nav-label="Theme">${themeIcon()}</button>
       </div>
     </nav>
   `;
@@ -4845,40 +4853,45 @@ function toggleNotifications(event) {
   event.stopPropagation();
   closeProfileMenu();
   closeHistory();
-  const popover = document.querySelector("[data-notification-popover]");
-  const button = document.querySelector("[data-notification-toggle]");
+  const menu = event.currentTarget.closest(".notification-menu");
+  const popover = menu?.querySelector("[data-notification-popover]");
+  const button = event.currentTarget;
   if (!popover || !button) return;
   const shouldOpen = !popover.classList.contains("show");
-  popover.classList.toggle("show", shouldOpen);
-  button.setAttribute("aria-expanded", String(shouldOpen));
+  closeNotifications();
   if (shouldOpen) {
     localStorage.setItem(NOTIFICATION_READ_KEY, String(Date.now()));
     state.notificationPage = 1;
     renderNotifications();
     popover.classList.add("show");
+    button.setAttribute("aria-expanded", "true");
   }
 }
 
 function closeNotifications() {
-  document.querySelector("[data-notification-popover]")?.classList.remove("show");
-  document.querySelector("[data-notification-toggle]")?.setAttribute("aria-expanded", "false");
+  document.querySelectorAll("[data-notification-popover]").forEach((popover) => popover.classList.remove("show"));
+  document.querySelectorAll("[data-notification-toggle]").forEach((button) => button.setAttribute("aria-expanded", "false"));
 }
 
 function renderNotifications() {
-  const popover = document.querySelector("[data-notification-popover]");
-  const count = document.querySelector("[data-notification-count]");
-  const button = document.querySelector("[data-notification-toggle]");
-  if (!popover || !count || !button) return;
+  const popovers = [...document.querySelectorAll("[data-notification-popover]")];
+  const counts = [...document.querySelectorAll("[data-notification-count]")];
+  const buttons = [...document.querySelectorAll("[data-notification-toggle]")];
+  if (!popovers.length) return;
   const readAt = Number(localStorage.getItem(NOTIFICATION_READ_KEY) || 0);
   const items = notificationItems();
   const unread = items.filter((item) => Number(item.updatedAt || 0) > readAt).length;
   const visibleItems = items.slice(0, state.notificationPage * ACTIVITY_PAGE_SIZE);
   const hasMore = visibleItems.length < items.length;
-  count.textContent = unread > 99 ? "99+" : String(unread);
-  count.hidden = unread === 0;
-  button.classList.toggle("has-unread", unread > 0);
-  button.setAttribute("aria-label", unread ? `Open notifications, ${unread} unread` : "Open notifications");
-  popover.innerHTML = `
+  counts.forEach((count) => {
+    count.textContent = unread > 99 ? "99+" : String(unread);
+    count.hidden = unread === 0;
+  });
+  buttons.forEach((button) => {
+    button.classList.toggle("has-unread", unread > 0);
+    button.setAttribute("aria-label", unread ? `Open notifications, ${unread} unread` : "Open notifications");
+  });
+  const html = `
     <strong>Notifications</strong>
     ${visibleItems.length ? visibleItems.map((item) => `
       <button class="notification-row" data-notification-index="${visibleItems.indexOf(item)}" type="button">
@@ -4888,21 +4901,24 @@ function renderNotifications() {
     `).join("") : `<p class="notification-empty">No notifications yet.</p>`}
     ${hasMore ? `<button class="notification-more" data-notification-more type="button">Load more notifications</button>` : ""}
   `;
-  popover.querySelectorAll("[data-notification-index]").forEach((row) => row.addEventListener("click", () => {
-    const item = resolveNavigableItem(visibleItems[Number(row.dataset.notificationIndex)]);
-    if (item) openLibraryItem(item);
-  }));
-  popover.querySelector("[data-notification-more]")?.addEventListener("click", () => {
-    state.notificationPage += 1;
-    renderNotifications();
-    popover.classList.add("show");
+  popovers.forEach((popover) => {
+    popover.innerHTML = html;
+    popover.querySelectorAll("[data-notification-index]").forEach((row) => row.addEventListener("click", () => {
+      const item = resolveNavigableItem(visibleItems[Number(row.dataset.notificationIndex)]);
+      if (item) openLibraryItem(item);
+    }));
+    popover.querySelector("[data-notification-more]")?.addEventListener("click", () => {
+      state.notificationPage += 1;
+      renderNotifications();
+      popover.classList.add("show");
+    });
+    popover.onscroll = () => {
+      if (!hasMore || popover.scrollTop + popover.clientHeight < popover.scrollHeight - 32) return;
+      state.notificationPage += 1;
+      renderNotifications();
+      popover.classList.add("show");
+    };
   });
-  popover.onscroll = () => {
-    if (!hasMore || popover.scrollTop + popover.clientHeight < popover.scrollHeight - 32) return;
-    state.notificationPage += 1;
-    renderNotifications();
-    popover.classList.add("show");
-  };
 }
 
 function notificationItems() {
@@ -4913,30 +4929,32 @@ function toggleHistory(event) {
   event.stopPropagation();
   closeProfileMenu();
   closeNotifications();
-  const popover = document.querySelector("[data-history-popover]");
-  const button = document.querySelector("[data-history-toggle]");
+  const menu = event.currentTarget.closest(".history-menu");
+  const popover = menu?.querySelector("[data-history-popover]");
+  const button = event.currentTarget;
   if (!popover || !button) return;
   const shouldOpen = !popover.classList.contains("show");
-  popover.classList.toggle("show", shouldOpen);
-  button.setAttribute("aria-expanded", String(shouldOpen));
+  closeHistory();
   if (shouldOpen) {
     state.historyPage = 1;
     renderHistory();
+    popover.classList.add("show");
+    button.setAttribute("aria-expanded", "true");
   }
 }
 
 function closeHistory() {
-  document.querySelector("[data-history-popover]")?.classList.remove("show");
-  document.querySelector("[data-history-toggle]")?.setAttribute("aria-expanded", "false");
+  document.querySelectorAll("[data-history-popover]").forEach((popover) => popover.classList.remove("show"));
+  document.querySelectorAll("[data-history-toggle]").forEach((button) => button.setAttribute("aria-expanded", "false"));
 }
 
 function renderHistory() {
-  const popover = document.querySelector("[data-history-popover]");
-  if (!popover) return;
+  const popovers = [...document.querySelectorAll("[data-history-popover]")];
+  if (!popovers.length) return;
   const items = historyItems();
   const visibleItems = items.slice(0, state.historyPage * ACTIVITY_PAGE_SIZE);
   const hasMore = visibleItems.length < items.length;
-  popover.innerHTML = `
+  const html = `
     <strong>History</strong>
     ${visibleItems.length ? visibleItems.map((item) => `
       <button class="history-row" data-history-index="${visibleItems.indexOf(item)}" type="button">
@@ -4947,21 +4965,24 @@ function renderHistory() {
     ${hasMore ? `<button class="notification-more" data-history-more type="button">Load more history</button>` : ""}
     <a class="notification-more history-details-link" href="history.html">Details</a>
   `;
-  popover.querySelectorAll("[data-history-index]").forEach((row) => row.addEventListener("click", () => {
-    const item = resolveNavigableItem(visibleItems[Number(row.dataset.historyIndex)]);
-    if (item) openLibraryItem(item);
-  }));
-  popover.querySelector("[data-history-more]")?.addEventListener("click", () => {
-    state.historyPage += 1;
-    renderHistory();
-    popover.classList.add("show");
+  popovers.forEach((popover) => {
+    popover.innerHTML = html;
+    popover.querySelectorAll("[data-history-index]").forEach((row) => row.addEventListener("click", () => {
+      const item = resolveNavigableItem(visibleItems[Number(row.dataset.historyIndex)]);
+      if (item) openLibraryItem(item);
+    }));
+    popover.querySelector("[data-history-more]")?.addEventListener("click", () => {
+      state.historyPage += 1;
+      renderHistory();
+      popover.classList.add("show");
+    });
+    popover.onscroll = () => {
+      if (!hasMore || popover.scrollTop + popover.clientHeight < popover.scrollHeight - 32) return;
+      state.historyPage += 1;
+      renderHistory();
+      popover.classList.add("show");
+    };
   });
-  popover.onscroll = () => {
-    if (!hasMore || popover.scrollTop + popover.clientHeight < popover.scrollHeight - 32) return;
-    state.historyPage += 1;
-    renderHistory();
-    popover.classList.add("show");
-  };
 }
 
 function initHistoryPage() {
@@ -5221,8 +5242,14 @@ function toggleTheme() {
   const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
   document.documentElement.dataset.theme = next;
   localStorage.setItem(THEME_KEY, next);
-  document.querySelector("[data-theme-toggle]").innerHTML = themeIcon();
+  syncThemeToggleButtons();
   scheduleAccountSync();
+}
+
+function syncThemeToggleButtons() {
+  document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+    button.innerHTML = themeIcon();
+  });
 }
 
 function applyStoredTheme() {
@@ -5538,9 +5565,7 @@ function applyAccountData(data) {
   if (data.theme) {
     localStorage.setItem(THEME_KEY, data.theme);
     document.documentElement.dataset.theme = data.theme;
-    document.querySelector("[data-theme-toggle]")?.replaceChildren();
-    const themeButton = document.querySelector("[data-theme-toggle]");
-    if (themeButton) themeButton.innerHTML = themeIcon();
+    syncThemeToggleButtons();
   }
   if (data.readerMode) localStorage.setItem("reader-mode", data.readerMode);
   persistLibrary(false);

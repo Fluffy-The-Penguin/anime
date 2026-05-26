@@ -9335,26 +9335,40 @@ body[data-page="details"] .details-shell {
   color: #fff;
 }
 
-.details-side-rail a {
+.details-side-rail a,
+.details-side-rail .details-rail-action-btn {
   display: grid;
   place-items: center;
   width: 44px;
   height: 44px;
   margin: 0 auto;
+  border: 0;
   border-radius: 14px;
   color: rgba(255, 255, 255, 0.82);
+  background: transparent;
+  cursor: pointer;
   transition: color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
 .details-side-rail a:hover,
+.details-side-rail .details-rail-action-btn:hover,
 body[data-detail-type="anime"] .details-side-rail a[href="anime.html"],
 body[data-detail-type="manga"] .details-side-rail a[href="manga.html"] {
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
 }
 
-.details-side-rail a:hover {
+.details-side-rail a:hover,
+.details-side-rail .details-rail-action-btn:hover {
   transform: translateY(-1px);
+}
+
+.details-rail-menu {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  margin: 0 auto;
 }
 
 .details-rail-profile-menu {
@@ -9380,7 +9394,28 @@ body[data-detail-type="manga"] .details-side-rail a[href="manga.html"] {
   transition: color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
+.details-rail-theme-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
+  border: 0;
+  border-radius: 14px;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.82);
+  background: transparent;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
 .details-rail-profile-btn:hover {
+  transform: translateY(-1px);
+}
+
+.details-rail-theme-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
   transform: translateY(-1px);
 }
 
@@ -9398,6 +9433,26 @@ body[data-detail-type="manga"] .details-side-rail a[href="manga.html"] {
   fill: currentColor;
 }
 
+.details-rail-action-btn span[data-notification-count] {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  display: grid;
+  min-width: 16px;
+  height: 16px;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: #ff6f80;
+  font-size: 9px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.details-rail-action-btn span[data-notification-count][hidden] {
+  display: none;
+}
+
 .details-rail-main,
 .details-rail-bottom {
   display: grid;
@@ -9406,12 +9461,16 @@ body[data-detail-type="manga"] .details-side-rail a[href="manga.html"] {
 }
 
 .details-side-rail a[data-nav-label],
-.details-side-rail .details-rail-profile-btn[data-nav-label] {
+.details-side-rail .details-rail-action-btn[data-nav-label],
+.details-side-rail .details-rail-profile-btn[data-nav-label],
+.details-side-rail .details-rail-theme-btn[data-nav-label] {
   position: relative;
 }
 
 .details-side-rail a[data-nav-label]::after,
-.details-side-rail .details-rail-profile-btn[data-nav-label]::after {
+.details-side-rail .details-rail-action-btn[data-nav-label]::after,
+.details-side-rail .details-rail-profile-btn[data-nav-label]::after,
+.details-side-rail .details-rail-theme-btn[data-nav-label]::after {
   content: attr(data-nav-label);
   position: absolute;
   top: 50%;
@@ -9435,8 +9494,12 @@ body[data-detail-type="manga"] .details-side-rail a[href="manga.html"] {
 
 .details-side-rail a[data-nav-label]:hover::after,
 .details-side-rail a[data-nav-label]:focus-visible::after,
+.details-side-rail .details-rail-action-btn[data-nav-label]:hover::after,
+.details-side-rail .details-rail-action-btn[data-nav-label]:focus-visible::after,
 .details-side-rail .details-rail-profile-btn[data-nav-label]:hover::after,
-.details-side-rail .details-rail-profile-btn[data-nav-label]:focus-visible::after {
+.details-side-rail .details-rail-profile-btn[data-nav-label]:focus-visible::after,
+.details-side-rail .details-rail-theme-btn[data-nav-label]:hover::after,
+.details-side-rail .details-rail-theme-btn[data-nav-label]:focus-visible::after {
   opacity: 1;
   transform: translate(0, -50%);
 }
@@ -9445,7 +9508,17 @@ body[data-detail-type="manga"] .details-side-rail a[href="manga.html"] {
   align-content: end;
 }
 
-.details-rail-bottom a:first-child {
+.details-side-rail .notification-popover,
+.details-side-rail .history-popover {
+  top: auto;
+  right: auto;
+  bottom: 0;
+  left: calc(100% + 12px);
+  width: min(330px, calc(100vw - 96px));
+  color: var(--text);
+}
+
+.details-rail-favorites {
   color: #ff5fc8;
 }
 
@@ -10060,15 +10133,27 @@ body.detail-poster-modal-open {
     gap: 6px;
   }
 
-  .details-side-rail a {
+  .details-side-rail a,
+  .details-side-rail .details-rail-action-btn,
+  .details-side-rail .details-rail-theme-btn {
     width: 42px;
     height: 42px;
   }
 
+  .details-rail-menu,
   .details-rail-profile-menu,
   .details-rail-profile-btn {
     width: 42px !important;
     height: 42px !important;
+  }
+
+  .details-side-rail .notification-popover,
+  .details-side-rail .history-popover {
+    top: auto;
+    right: 0;
+    bottom: calc(100% + 12px);
+    left: auto;
+    width: min(330px, calc(100vw - 24px));
   }
 
   .details-rail-profile-menu .profile-popover {
@@ -11760,25 +11845,31 @@ body {
   background: var(--pro-control-hover) !important;
 }
 
-.details-side-rail a {
+.details-side-rail a,
+.details-side-rail .details-rail-action-btn {
   width: 40px !important;
   height: 40px !important;
   border-radius: 11px !important;
   color: rgba(255, 255, 255, 0.74) !important;
 }
 
+.details-rail-menu,
 .details-rail-profile-menu,
-.details-rail-profile-btn {
+.details-rail-profile-btn,
+.details-rail-theme-btn {
   width: 40px !important;
   height: 40px !important;
 }
 
-.details-rail-profile-btn {
+.details-rail-profile-btn,
+.details-rail-theme-btn {
   border-radius: 11px !important;
 }
 
 .details-side-rail a:hover,
 .details-rail-profile-btn:hover,
+.details-rail-action-btn:hover,
+.details-rail-theme-btn:hover,
 body[data-detail-type="anime"] .details-side-rail a[href="anime.html"],
 body[data-detail-type="manga"] .details-side-rail a[href="manga.html"],
 body[data-page="home"] .details-side-rail a[href="index.html"],
@@ -11787,12 +11878,13 @@ body[data-page="manga"] .details-side-rail a[href="manga.html"],
 body[data-page="doujin"] .details-side-rail a[href="doujin.html"],
 body[data-page="doujin-preview"] .details-side-rail a[href="doujin.html"],
 body[data-page="profile"] .details-side-rail a[href="profile.html"],
+body[data-page="history"] .details-side-rail [data-history-toggle],
 body[data-page="profile"] .details-rail-profile-btn {
   color: #f7f8fb !important;
   background: #191a1f !important;
 }
 
-.details-rail-bottom a:first-child {
+.details-rail-favorites {
   color: #b98298 !important;
 }
 
@@ -13308,7 +13400,7 @@ body[data-page="history"] .site-footer {
 }
 
 body[data-page="library"] .details-side-rail a[href="profile.html"],
-body[data-page="history"] .details-side-rail a[href="history.html"] {
+body[data-page="history"] .details-side-rail [data-history-toggle] {
   color: #f7f8fb !important;
   background: #191a1f !important;
 }
@@ -14535,26 +14627,26 @@ body[data-page="profile"] .profile-hero::after {
 
 /* Cinematic settings command center. */
 body[data-page="settings"] {
-  --settings-bg: #020303;
-  --settings-bg-2: #090b0e;
-  --settings-panel: rgba(8, 10, 13, 0.92);
-  --settings-panel-strong: rgba(13, 16, 21, 0.96);
-  --settings-card: rgba(255, 255, 255, 0.045);
-  --settings-card-hover: rgba(255, 255, 255, 0.075);
-  --settings-border: rgba(255, 255, 255, 0.1);
-  --settings-border-strong: rgba(143, 201, 207, 0.34);
-  --settings-text: #f4fbff;
-  --settings-muted: rgba(244, 251, 255, 0.62);
-  --settings-soft: rgba(244, 251, 255, 0.08);
-  --settings-field: rgba(255, 255, 255, 0.065);
+  --settings-bg: #000;
+  --settings-bg-2: #050506;
+  --settings-panel: #07080a;
+  --settings-panel-strong: #0b0b0d;
+  --settings-card: #101114;
+  --settings-card-hover: #17191f;
+  --settings-border: rgba(255, 255, 255, 0.09);
+  --settings-border-strong: rgba(143, 201, 207, 0.26);
+  --settings-text: #f7f8fb;
+  --settings-muted: rgba(255, 255, 255, 0.58);
+  --settings-soft: rgba(255, 255, 255, 0.07);
+  --settings-field: #202226;
   --settings-accent: #8fc9cf;
   --settings-accent-2: #f2fbfc;
   --settings-danger: #ff7f95;
   color: var(--settings-text) !important;
   background:
-    radial-gradient(circle at 12% -8%, rgba(143, 201, 207, 0.16), transparent 30rem),
-    radial-gradient(circle at 86% 8%, rgba(185, 92, 255, 0.12), transparent 34rem),
-    linear-gradient(180deg, var(--settings-bg) 0, #000 44%, var(--settings-bg) 100%) !important;
+    radial-gradient(circle at 10% -8%, rgba(143, 201, 207, 0.08), transparent 28rem),
+    radial-gradient(circle at 96% 0, rgba(185, 92, 255, 0.06), transparent 30rem),
+    linear-gradient(180deg, #000 0, #000 100%) !important;
   font-family: "Overpass", Inter, "Segoe UI", Arial, sans-serif !important;
 }
 
