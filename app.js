@@ -4299,13 +4299,35 @@ function hstreamMatchesToEpisodes(matches) {
 }
 
 async function searchAnimeProviderMatch(anime, provider, customTitle = "") {
-  const titles = customTitle ? uniqueStrings([customTitle, ...animeTitleCandidates(anime)]) : animeTitleCandidates(anime);
+  const titles = prioritizedAnimeSourceTitles(anime, customTitle);
   const endpoint = provider === "animedex" ? "animedex" : provider === "tokyoinsider" ? "tokyoinsider" : provider === "anilibria" ? "anilibria" : "anizone";
-  const results = await Promise.allSettled(titles.map((title, searchIndex) =>
-    fetchApiJson(`/api/anime/${endpoint}/search?title=${encodeURIComponent(title)}`)
-      .then((matches) => matches.map((match) => ({ ...match, searchTitle: title, searchIndex })))
-  ));
-  const matches = results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+  const matches = [];
+  for (let searchIndex = 0; searchIndex < titles.length; searchIndex += 1) {
+    const title = titles[searchIndex];
+    try {
+      const sourceMatches = await fetchApiJson(`/api/anime/${endpoint}/search?title=${encodeURIComponent(title)}`);
+      matches.push(...sourceMatches.map((match) => ({ ...match, searchTitle: title, searchIndex })));
+      const best = bestAnimeProviderMatch(anime, titles, matches);
+      if (best?.score >= 0.78 || animeProviderIdentityMatches(anime, best)) return best;
+    } catch (error) {
+      // Try the next title variant.
+    }
+  }
+  return bestAnimeProviderMatch(anime, titles, matches);
+}
+
+function prioritizedAnimeSourceTitles(anime, customTitle = "") {
+  return uniqueStrings([
+    customTitle,
+    anime?.sourceQuery,
+    anime?.englishTitle,
+    anime?.romajiTitle,
+    anime?.title,
+    ...animeTitleCandidates(anime),
+  ].filter(Boolean)).slice(0, 6);
+}
+
+function bestAnimeProviderMatch(anime, titles, matches) {
   return matches
     .map((match) => {
       const providerScore = Number(match.score) || 0;

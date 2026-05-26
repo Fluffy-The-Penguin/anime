@@ -17752,6 +17752,14 @@ html[data-electron] body {
   scrollbar-color: rgba(143, 201, 207, 0.46) transparent;
 }
 
+html[data-electron] body {
+  padding-top: 34px;
+}
+
+html[data-electron] .topbar {
+  top: 34px;
+}
+
 html[data-electron] ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
