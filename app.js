@@ -23,6 +23,10 @@ const BROWSE_PAGE_SIZE = 28;
 const API_BASE_KEY = "anitrack-api-base";
 const DEFAULT_API_BASE_URL = "https://anime-api-proxy.aryanpanwar.workers.dev";
 const LEGACY_API_BASE_URLS = ["http://localhost:3000", "http://fi10.bot-hosting.net:21204"];
+const EXTENSION_INDEX_URLS = [
+  "https://exten.pages.dev/index.json",
+  "https://exten.pages.dev/multi/index.json",
+];
 const DEFAULT_SUBTITLE_STYLE = { size: 28, color: "#ffffff", backgroundColor: "#081018", backgroundOpacity: 46, position: "bottom", offset: 58 };
 const ANILIST_DETAIL_MEDIA_FRAGMENT = `
   fragment DetailMediaCard on Media {
@@ -6544,6 +6548,7 @@ async function initSettingsPage() {
 
     if (sectionName === "anime-sources") loadAnimeSourcesNew();
     if (sectionName === "extensions-manga") loadMangaExtensionsNew();
+    if (sectionName === "extensions") loadExtensionIndexesNew();
     if (sectionName === "doujin-sources") loadDoujinSourcesNew();
   };
 
@@ -6718,6 +6723,7 @@ async function initSettingsPage() {
   });
 
   loadAnimeSourcesNew();
+  loadExtensionIndexesNew();
   loadDoujinSourcesNew();
 }
 
@@ -6998,7 +7004,61 @@ async function loadDoujinSourcesNew() {
   });
 }
 
-function renderExtensionsGrid(container, extensions) {
+async function loadExtensionIndexesNew() {
+  const container = document.querySelector("[data-extension-indexes]");
+  if (!container) return;
+  container.innerHTML = '<div class="loading-state">Loading extension indexes...</div>';
+  try {
+    const settled = await Promise.allSettled(EXTENSION_INDEX_URLS.map(fetchExtensionIndex));
+    const extensions = settled.flatMap((result) => result.status === "fulfilled" ? result.value : []);
+    const failures = settled.filter((result) => result.status === "rejected").length;
+    if (!extensions.length) {
+      container.innerHTML = '<div class="empty">No extension manifests could be loaded right now.</div>';
+      return;
+    }
+    renderExtensionsGrid(container, extensions, { failures });
+  } catch (error) {
+    container.innerHTML = '<div class="empty">Extension indexes are unavailable right now.</div>';
+  }
+}
+
+async function fetchExtensionIndex(indexUrl) {
+  const response = await fetch(indexUrl, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Extension index failed: ${response.status}`);
+  const data = await response.json();
+  const items = Array.isArray(data) ? data : Array.isArray(data.extensions) ? data.extensions : [];
+  return items.map((item) => normalizeExtensionManifest(item, indexUrl)).filter(Boolean);
+}
+
+function normalizeExtensionManifest(item, indexUrl) {
+  if (!item?.id || !item?.name) return null;
+  const languages = Array.isArray(item.languages) ? item.languages : item.lang ? [item.lang] : [];
+  return {
+    ...item,
+    id: String(item.id),
+    name: String(item.name),
+    description: extensionManifestDescription(item, languages),
+    lang: languages.length ? languages.join(", ") : "unknown",
+    languages,
+    nsfw: Boolean(item.nsfw || item.adult),
+    indexUrl,
+    codeUrl: item.code || "",
+    updateUrl: item.update || indexUrl,
+    url: item.code || item.update || indexUrl,
+  };
+}
+
+function extensionManifestDescription(item, languages = []) {
+  const pieces = [
+    item.type ? `${item.type} extension` : "Extension manifest",
+    item.media ? `media: ${item.media}` : "",
+    item.accuracy ? `accuracy: ${item.accuracy}` : "",
+    languages.length ? `languages: ${languages.join(", ")}` : "",
+  ].filter(Boolean);
+  return pieces.join(" / ");
+}
+
+function renderExtensionsGrid(container, extensions, options = {}) {
   const catalog = JSON.parse(localStorage.getItem("extension-catalog") || "{}");
   extensions.forEach((ext) => {
     catalog[String(ext.id)] = ext;
@@ -7007,10 +7067,11 @@ function renderExtensionsGrid(container, extensions) {
 
   const pageSize = 30;
   let currentPage = 1;
-  const langs = [...new Set(extensions.map((ext) => ext.lang || "unknown"))].sort((a, b) => a.localeCompare(b));
+  const langs = [...new Set(extensions.flatMap((ext) => ext.languages?.length ? ext.languages : [ext.lang || "unknown"]))].sort((a, b) => a.localeCompare(b));
 
   container.innerHTML = `
     <div class="extensions-browser">
+      <div class="source-note">Loaded ${extensions.length} manifests from ${EXTENSION_INDEX_URLS.length} index${EXTENSION_INDEX_URLS.length === 1 ? "" : "es"}.${options.failures ? ` ${options.failures} index${options.failures === 1 ? "" : "es"} failed.` : ""} Remote extension code is not executed.</div>
       <div class="extensions-toolbar">
         <input data-extension-search type="search" placeholder="Search ${escapeAttr(extensions[0]?.type || "")} extensions..." aria-label="Search extensions">
         <select data-extension-lang aria-label="Filter extension language">
@@ -7043,8 +7104,9 @@ function renderExtensionsGrid(container, extensions) {
     const lang = langSelect.value;
     const includeNsfw = nsfwToggle.checked;
     const filtered = extensions.filter((ext) => {
-      const haystack = `${ext.name} ${ext.description} ${ext.lang}`.toLowerCase();
-      return (!query || haystack.includes(query)) && (!lang || ext.lang === lang) && (includeNsfw || !ext.nsfw);
+      const haystack = `${ext.name} ${ext.description} ${ext.lang} ${ext.type} ${ext.media}`.toLowerCase();
+      const languageMatch = !lang || ext.languages?.includes(lang) || ext.lang === lang;
+      return (!query || haystack.includes(query)) && languageMatch && (includeNsfw || !ext.nsfw);
     });
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
     currentPage = Math.min(currentPage, totalPages);
@@ -7088,8 +7150,9 @@ function extensionCardHtml(ext) {
       <h4>${escapeHtml(ext.name)}${ext.nsfw ? ' <span class="extension-nsfw">NSFW</span>' : ""}</h4>
       <p>${escapeHtml(ext.description)}</p>
       <div class="extension-footer">
-        <span class="extension-version">${escapeHtml(ext.lang || "unknown")} / v${escapeHtml(ext.version)}</span>
-        ${ext.url ? `<a class="btn secondary" href="${escapeAttr(ext.url)}" target="_blank" rel="noreferrer" style="min-height: 32px; padding: 6px 10px; font-size: 12px;">Open</a>` : ""}
+        <span class="extension-version">${escapeHtml(ext.lang || "unknown")} / v${escapeHtml(ext.version || "?")}</span>
+        ${ext.codeUrl ? `<a class="btn secondary" href="${escapeAttr(ext.codeUrl)}" target="_blank" rel="noreferrer" style="min-height: 32px; padding: 6px 10px; font-size: 12px;">Code</a>` : ""}
+        ${ext.updateUrl ? `<a class="btn secondary" href="${escapeAttr(ext.updateUrl)}" target="_blank" rel="noreferrer" style="min-height: 32px; padding: 6px 10px; font-size: 12px;">Index</a>` : ""}
         <input type="checkbox" class="extension-toggle" data-ext-id="${escapeAttr(ext.id)}" aria-label="Enable ${escapeAttr(ext.name)}">
       </div>
     </div>
@@ -7105,6 +7168,7 @@ function bindExtensionToggles(root) {
       const enabled = JSON.parse(localStorage.getItem("enabled-extensions") || "{}");
       enabled[toggle.dataset.extId] = toggle.checked;
       localStorage.setItem("enabled-extensions", JSON.stringify(enabled));
+      showToast(toggle.checked ? "Extension manifest enabled" : "Extension manifest disabled");
     });
   });
 }
