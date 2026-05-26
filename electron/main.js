@@ -14,6 +14,7 @@ const ELECTRON_SAFE_AREA_CSS = `
   body { padding-top: 54px !important; }
   .topbar.shell.anilist-topbar { top: 54px !important; padding-top: 18px !important; padding-right: 176px !important; }
   .topbar.shell.anilist-topbar .top-actions { transform: translateY(10px) !important; }
+  body[data-page="anime"] .browse-filter-fab, body[data-page="manga"] .browse-filter-fab, body[data-page="doujin"] .browse-filter-fab { top: 72px !important; right: 176px !important; }
   ::-webkit-scrollbar { width: 5px !important; height: 5px !important; }
   ::-webkit-scrollbar-button, ::-webkit-scrollbar-corner { display: none !important; width: 0 !important; height: 0 !important; background: transparent !important; }
   ::-webkit-scrollbar-track { background: transparent !important; }

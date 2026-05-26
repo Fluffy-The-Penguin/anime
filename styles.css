@@ -17816,8 +17816,22 @@ html[data-electron] .topbar.shell.anilist-topbar .top-actions {
   -webkit-app-region: no-drag;
 }
 
+html[data-electron] body[data-page="anime"] .browse-filter-fab,
+html[data-electron] body[data-page="manga"] .browse-filter-fab,
+html[data-electron] body[data-page="doujin"] .browse-filter-fab {
+  top: 72px !important;
+  right: 176px !important;
+}
+
 @media (max-width: 820px) {
   html[data-electron] .topbar.shell.anilist-topbar {
     padding-right: 148px !important;
+  }
+
+  html[data-electron] body[data-page="anime"] .browse-filter-fab,
+  html[data-electron] body[data-page="manga"] .browse-filter-fab,
+  html[data-electron] body[data-page="doujin"] .browse-filter-fab {
+    top: 72px !important;
+    right: 148px !important;
   }
 }
