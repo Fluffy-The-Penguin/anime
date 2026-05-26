@@ -23,6 +23,8 @@
     },
     "files": [
       "electron/**/*",
+      "api/**/*",
+      "lib/**/*",
       "*.html",
       "app.js",
       "styles.css",

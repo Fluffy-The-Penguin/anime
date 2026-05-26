@@ -8,6 +8,7 @@ const LOCAL_APP_PORT = 47931;
 const BACKEND_ORIGIN = "https://anime-api-proxy.aryanpanwar.workers.dev";
 const DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 const singleInstanceLock = app.requestSingleInstanceLock();
+const frontendApiHandler = require(path.join(APP_ROOT, "api", "adult", "[path].js"));
 let appOrigin = "";
 let mainWindow = null;
 
@@ -70,6 +71,53 @@ function proxiedRequestHeaders(headers) {
   return forwarded;
 }
 
+function queryObject(searchParams) {
+  const query = {};
+  searchParams.forEach((value, key) => {
+    if (query[key] === undefined) {
+      query[key] = value;
+    } else if (Array.isArray(query[key])) {
+      query[key].push(value);
+    } else {
+      query[key] = [query[key], value];
+    }
+  });
+  return query;
+}
+
+function addVercelResponseHelpers(response) {
+  if (response.status) return;
+  response.status = (code) => {
+    response.statusCode = code;
+    return response;
+  };
+  response.json = (data) => {
+    if (!response.headersSent) response.setHeader("Content-Type", "application/json; charset=utf-8");
+    response.end(JSON.stringify(data));
+  };
+  response.send = (data) => {
+    response.end(data);
+  };
+}
+
+async function handleFrontendApiRequest(request, response) {
+  addVercelResponseHelpers(response);
+  const parsed = new URL(request.url || "/", appOrigin || "http://127.0.0.1");
+  const query = queryObject(parsed.searchParams);
+  if (parsed.pathname.startsWith("/api/anime/")) {
+    query.path = "anime";
+    query.animePath = parsed.pathname.replace(/^\/api\/anime\//, "");
+  } else if (parsed.pathname === "/api/anilist") {
+    query.path = "anilist";
+  } else {
+    return false;
+  }
+
+  request.query = query;
+  await frontendApiHandler(request, response);
+  return true;
+}
+
 async function proxyBackendRequest(request, response) {
   try {
     const targetUrl = new URL(request.url || "/", BACKEND_ORIGIN);
@@ -109,6 +157,14 @@ async function proxyBackendRequest(request, response) {
 function startLocalServer(port = LOCAL_APP_PORT) {
   return new Promise((resolve, reject) => {
     const server = http.createServer((request, response) => {
+      if ((request.url || "").startsWith("/api/anime/") || (request.url || "").startsWith("/api/anilist")) {
+        handleFrontendApiRequest(request, response).catch((error) => {
+          response.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+          response.end(JSON.stringify({ error: "Frontend API failed", detail: error.message || String(error) }));
+        });
+        return;
+      }
+
       if ((request.url || "").startsWith("/api/") || (request.url || "") === "/health") {
         proxyBackendRequest(request, response);
         return;

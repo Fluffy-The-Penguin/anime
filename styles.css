@@ -17749,26 +17749,52 @@ body[data-page="doujin"] .browse-toolbar {
 html[data-electron],
 html[data-electron] body {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+  scrollbar-color: rgba(143, 201, 207, 0.46) transparent;
 }
 
 html[data-electron] ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
 }
 
 html[data-electron] ::-webkit-scrollbar-track {
   background: transparent;
 }
 
+html[data-electron] ::-webkit-scrollbar-button,
+html[data-electron] ::-webkit-scrollbar-corner {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
 html[data-electron] ::-webkit-scrollbar-thumb {
-  border: 1px solid transparent;
+  min-height: 52px;
+  border: 1px solid rgba(0, 0, 0, 0.22);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.32);
+  background: linear-gradient(180deg, rgba(143, 201, 207, 0.74), rgba(143, 201, 207, 0.28));
   background-clip: padding-box;
+  box-shadow: 0 0 12px rgba(143, 201, 207, 0.14);
 }
 
 html[data-electron] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.46);
+  background: linear-gradient(180deg, rgba(177, 235, 241, 0.86), rgba(143, 201, 207, 0.42));
   background-clip: padding-box;
+}
+
+html[data-electron] .topbar.shell.anilist-topbar {
+  padding-right: 156px !important;
+}
+
+html[data-electron] .topbar.shell.anilist-topbar .brand,
+html[data-electron] .topbar.shell.anilist-topbar .nav,
+html[data-electron] .topbar.shell.anilist-topbar .top-actions {
+  -webkit-app-region: no-drag;
+}
+
+@media (max-width: 820px) {
+  html[data-electron] .topbar.shell.anilist-topbar {
+    padding-right: 148px !important;
+  }
 }
