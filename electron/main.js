@@ -107,7 +107,7 @@ function createWindow() {
       height: 36
     },
     autoHideMenuBar: true,
-    show: false,
+    show: true,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -120,6 +120,10 @@ function createWindow() {
 
   win.webContents.setUserAgent(DESKTOP_USER_AGENT);
   win.once("ready-to-show", () => win.show());
+  win.webContents.once("did-finish-load", () => win.show());
+  setTimeout(() => {
+    if (!win.isDestroyed()) win.show();
+  }, 1200);
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (isLocalAppUrl(url)) {
@@ -158,6 +162,7 @@ app.whenReady().then(async () => {
 app.on("second-instance", () => {
   if (!mainWindow) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
   mainWindow.focus();
 });
 

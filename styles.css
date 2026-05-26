@@ -17745,3 +17745,30 @@ body[data-page="doujin"] .browse-toolbar {
     gap: 8px !important;
   }
 }
+
+html[data-electron],
+html[data-electron] body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+html[data-electron] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html[data-electron] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html[data-electron] ::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.32);
+  background-clip: padding-box;
+}
+
+html[data-electron] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.46);
+  background-clip: padding-box;
+}
