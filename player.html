@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Stream your anime with episode details and tracking." />
     <title>AniTrack | Player</title>
-    <link rel="stylesheet" href="styles.css?v=site-fix-77" />
-    <script src="app.js?v=site-fix-77" defer></script>
+    <link rel="stylesheet" href="styles.css?v=site-fix-78" />
+    <script src="app.js?v=site-fix-78" defer></script>
   </head>
   <body data-page="player">
     <header class="topbar shell anilist-topbar">
@@ -256,6 +256,8 @@
         opacity: var(--ambient-opacity, 0.58);
         transform: scale(var(--ambient-scale, 1.03));
         pointer-events: none;
+        transition: opacity 240ms ease, filter 240ms ease, transform 240ms ease;
+        will-change: background-image, opacity, filter, transform;
       }
 
       .player-ambient-backdrop[hidden] {
@@ -1360,8 +1362,8 @@
       }
 
       .player-sidebar {
-        top: 78px;
-        max-height: calc(100vh - 92px);
+        top: 24px;
+        max-height: calc(100vh - 48px);
       }
 
       .episode-item {

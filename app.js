@@ -186,6 +186,8 @@ const playerRuntime = {
   ambientSampler: null,
   ambientCanvas: null,
   ambientContext: null,
+  ambientColors: null,
+  episodeSortDescending: false,
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -7010,23 +7012,47 @@ function setupPlayerEpisodeSearchControls() {
   const searchInput = document.querySelector("[data-episodes-search] input");
   const searchToggle = document.querySelector("[data-episodes-search-toggle]");
   const searchContainer = document.querySelector("[data-episodes-search]");
-  if (!searchInput || !searchToggle || !searchContainer || searchInput.dataset.bound) return;
-  searchInput.dataset.bound = "true";
+  const sortButton = document.querySelector("[data-sort-episodes]");
 
-  searchToggle.addEventListener("click", () => {
-    searchContainer.classList.toggle("show");
-    if (searchContainer.classList.contains("show")) searchInput.focus();
-  });
-
-  searchInput.addEventListener("input", (event) => {
-    const query = event.target.value.toLowerCase();
-    document.querySelectorAll("[data-episode-item]").forEach((item) => {
-      const title = item.dataset.episodeTitle.toLowerCase();
-      const number = item.dataset.episodeNumber;
-      const matches = title.includes(query) || number.includes(query);
-      item.style.display = matches ? "" : "none";
+  if (searchInput && searchToggle && searchContainer && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = "true";
+    searchToggle.addEventListener("click", () => {
+      searchContainer.classList.toggle("show");
+      if (searchContainer.classList.contains("show")) searchInput.focus();
     });
+
+    searchInput.addEventListener("input", (event) => {
+      applyEpisodeSearchFilter(event.target.value);
+    });
+  }
+
+  if (sortButton && !sortButton.dataset.bound) {
+    sortButton.dataset.bound = "true";
+    syncEpisodeSortButton(sortButton);
+    sortButton.addEventListener("click", () => {
+      playerRuntime.episodeSortDescending = !playerRuntime.episodeSortDescending;
+      syncEpisodeSortButton(sortButton);
+      renderEpisodesList(playerRuntime.episodes, playerRuntime.anime);
+      applyEpisodeSearchFilter(searchInput?.value || "");
+    });
+  }
+}
+
+function applyEpisodeSearchFilter(value = "") {
+  const query = String(value || "").toLowerCase();
+  document.querySelectorAll("[data-episode-item]").forEach((item) => {
+    const title = item.dataset.episodeTitle.toLowerCase();
+    const number = item.dataset.episodeNumber;
+    const matches = title.includes(query) || number.includes(query);
+    item.style.display = matches ? "" : "none";
   });
+}
+
+function syncEpisodeSortButton(button = document.querySelector("[data-sort-episodes]")) {
+  if (!button) return;
+  button.textContent = playerRuntime.episodeSortDescending ? "↓" : "↑";
+  button.setAttribute("aria-pressed", String(playerRuntime.episodeSortDescending));
+  button.setAttribute("aria-label", playerRuntime.episodeSortDescending ? "Sort episodes ascending" : "Sort episodes descending");
 }
 
 function animePlaybackSources(item = null) {
@@ -7152,13 +7178,16 @@ function renderEpisodesList(episodes, anime) {
     return;
   }
 
-  container.innerHTML = episodes
+  const activeNumber = String(playerRuntime.currentEpisodeNumber || "");
+  const renderedEpisodes = sortedPlayerEpisodes(episodes);
+  container.innerHTML = renderedEpisodes
     .map((ep, index) => {
       const isWatched = state.library[anime.id]?.progress >= ep.number;
       const image = ep.image || anime.banner || anime.image || fallbackImage;
+      const isActive = activeNumber ? String(ep.number) === activeNumber : index === 0;
       return `<button
         type="button"
-        class="episode-item ${index === 0 ? "active" : ""} ${isWatched ? "watched" : ""}"
+        class="episode-item ${isActive ? "active" : ""} ${isWatched ? "watched" : ""}"
         data-episode-item
         data-episode-number="${ep.number}"
         data-episode-title="${escapeAttr(ep.title)}"
@@ -7186,6 +7215,17 @@ function renderEpisodesList(episodes, anime) {
       const episode = JSON.parse(btn.dataset.episodeData);
       await loadEpisode(anime, episode, btn.dataset.episodeNumber);
     });
+  });
+}
+
+function sortedPlayerEpisodes(episodes) {
+  const items = [...episodes];
+  if (!playerRuntime.episodeSortDescending) return items;
+  return items.sort((a, b) => {
+    const left = Number.parseFloat(a?.number || "");
+    const right = Number.parseFloat(b?.number || "");
+    if (Number.isFinite(left) && Number.isFinite(right)) return right - left;
+    return String(b?.title || "").localeCompare(String(a?.title || ""));
   });
 }
 
@@ -8232,24 +8272,27 @@ function startPlayerAmbientSampler(video, backdrop) {
     try {
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       const frame = context.getImageData(0, 0, canvas.width, canvas.height).data;
-      const left = ambientFrameColor(frame, canvas.width, canvas.height, 0, 4);
-      const center = ambientFrameColor(frame, canvas.width, canvas.height, 4, 8);
-      const right = ambientFrameColor(frame, canvas.width, canvas.height, 8, 12);
+      const targetColors = [
+        ambientFrameColor(frame, canvas.width, canvas.height, 0, 4),
+        ambientFrameColor(frame, canvas.width, canvas.height, 4, 8),
+        ambientFrameColor(frame, canvas.width, canvas.height, 8, 12),
+      ];
+      const [left, center, right] = smoothAmbientColors(targetColors).map(formatAmbientColor);
       backdrop.style.backgroundImage = `radial-gradient(circle at 18% 26%, ${left}, transparent 42%), radial-gradient(circle at 50% 48%, ${center}, transparent 46%), radial-gradient(circle at 82% 30%, ${right}, transparent 42%)`;
     } catch (error) {
       stopPlayerAmbientSampler();
     }
   };
 
-  playerRuntime.ambientSampler = window.setInterval(sample, 650);
+  playerRuntime.ambientSampler = window.setInterval(sample, 220);
   video.addEventListener("loadeddata", sample, { once: true });
   sample();
 }
 
 function stopPlayerAmbientSampler() {
-  if (!playerRuntime.ambientSampler) return;
-  window.clearInterval(playerRuntime.ambientSampler);
+  if (playerRuntime.ambientSampler) window.clearInterval(playerRuntime.ambientSampler);
   playerRuntime.ambientSampler = null;
+  playerRuntime.ambientColors = null;
 }
 
 function ambientFrameColor(frame, width, height, startX, endX) {
@@ -8266,9 +8309,35 @@ function ambientFrameColor(frame, width, height, startX, endX) {
       count += 1;
     }
   }
-  if (!count) return "rgba(20, 185, 198, 0.7)";
+  if (!count) return { red: 20, green: 185, blue: 198, alpha: 0.72 };
   const lift = 28;
-  return `rgba(${Math.min(255, Math.round(red / count * 1.12 + lift))}, ${Math.min(255, Math.round(green / count * 1.12 + lift))}, ${Math.min(255, Math.round(blue / count * 1.12 + lift))}, 0.72)`;
+  return {
+    red: Math.min(255, Math.round(red / count * 1.12 + lift)),
+    green: Math.min(255, Math.round(green / count * 1.12 + lift)),
+    blue: Math.min(255, Math.round(blue / count * 1.12 + lift)),
+    alpha: 0.72,
+  };
+}
+
+function smoothAmbientColors(targetColors) {
+  const previousColors = playerRuntime.ambientColors || targetColors;
+  const amount = 0.18;
+  const colors = targetColors.map((target, index) => blendAmbientColor(previousColors[index] || target, target, amount));
+  playerRuntime.ambientColors = colors;
+  return colors;
+}
+
+function blendAmbientColor(previous, target, amount) {
+  return {
+    red: Math.round(previous.red + (target.red - previous.red) * amount),
+    green: Math.round(previous.green + (target.green - previous.green) * amount),
+    blue: Math.round(previous.blue + (target.blue - previous.blue) * amount),
+    alpha: previous.alpha + (target.alpha - previous.alpha) * amount,
+  };
+}
+
+function formatAmbientColor(color) {
+  return `rgba(${color.red}, ${color.green}, ${color.blue}, ${color.alpha.toFixed(2)})`;
 }
 
 function animeDexAudioVersionsForCurrentEpisode() {
