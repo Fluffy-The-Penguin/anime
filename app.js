@@ -195,6 +195,7 @@ document.addEventListener("DOMContentLoaded", init);
 
 function init() {
   applyThemeColor();
+  applyMotionPreferences();
   injectChrome();
   updateStats();
   setupMobileNavMode();
@@ -5480,6 +5481,7 @@ function defaultSettings() {
     autoPlay: true,
     autoPlayNext: false,
     playerAmbient: false,
+    smoothScrolling: true,
     ambientStyle: defaultAmbientStyle(),
     defaultAnimeSource: "animedex",
     defaultHentaiSource: "hstream",
@@ -5572,7 +5574,12 @@ function enabledDoujinProviderIds() {
 function persistSettings(sync = true) {
   if (sync) state.settings.updatedAt = Date.now();
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+  applyMotionPreferences();
   if (sync) scheduleAccountSync();
+}
+
+function applyMotionPreferences() {
+  document.documentElement.dataset.smoothScroll = state.settings.smoothScrolling === false ? "false" : "true";
 }
 
 function profileInitials() {
@@ -6568,6 +6575,16 @@ async function initSettingsPage() {
     persistSettings();
     showToast("Using default colors");
   });
+
+  const smoothScrollToggle = document.querySelector("[data-smooth-scroll-toggle]");
+  if (smoothScrollToggle) {
+    smoothScrollToggle.checked = state.settings.smoothScrolling !== false;
+    smoothScrollToggle.addEventListener("change", (e) => {
+      state.settings.smoothScrolling = e.target.checked;
+      persistSettings();
+      showToast(e.target.checked ? "Smooth scrolling enabled" : "Smooth scrolling disabled");
+    });
+  }
 
   // Content preferences
   const adultToggle = settingsRoot.querySelector("[data-section-content='content'] [data-adult-toggle]");

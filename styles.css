@@ -17752,6 +17752,21 @@ html[data-electron] body {
   scrollbar-color: rgba(143, 201, 207, 0.46) transparent;
 }
 
+html[data-smooth-scroll="true"] {
+  scroll-behavior: smooth;
+}
+
+html[data-smooth-scroll="true"] * {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-smooth-scroll="true"],
+  html[data-smooth-scroll="true"] * {
+    scroll-behavior: auto !important;
+  }
+}
+
 html[data-electron] body {
   padding-top: 34px;
 }

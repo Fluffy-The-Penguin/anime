@@ -9,6 +9,17 @@ const BACKEND_ORIGIN = "https://anime-api-proxy.aryanpanwar.workers.dev";
 const DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 const singleInstanceLock = app.requestSingleInstanceLock();
 const frontendApiHandler = require(path.join(APP_ROOT, "api", "adult", "[path].js"));
+const ELECTRON_SAFE_AREA_CSS = `
+  html, body { scrollbar-width: thin !important; scrollbar-color: rgba(143, 201, 207, 0.46) transparent !important; }
+  body { padding-top: 54px !important; }
+  .topbar.shell.anilist-topbar { top: 54px !important; padding-top: 18px !important; padding-right: 176px !important; }
+  .topbar.shell.anilist-topbar .top-actions { transform: translateY(10px) !important; }
+  ::-webkit-scrollbar { width: 5px !important; height: 5px !important; }
+  ::-webkit-scrollbar-button, ::-webkit-scrollbar-corner { display: none !important; width: 0 !important; height: 0 !important; background: transparent !important; }
+  ::-webkit-scrollbar-track { background: transparent !important; }
+  ::-webkit-scrollbar-thumb { min-height: 52px !important; border: 1px solid rgba(0, 0, 0, 0.22) !important; border-radius: 999px !important; background: linear-gradient(180deg, rgba(143, 201, 207, 0.74), rgba(143, 201, 207, 0.28)) !important; background-clip: padding-box !important; box-shadow: 0 0 12px rgba(143, 201, 207, 0.14) !important; }
+  ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(177, 235, 241, 0.86), rgba(143, 201, 207, 0.42)) !important; background-clip: padding-box !important; }
+`;
 let appOrigin = "";
 let mainWindow = null;
 
@@ -235,6 +246,12 @@ function createWindow() {
   mainWindow = win;
 
   win.webContents.setUserAgent(DESKTOP_USER_AGENT);
+  win.webContents.on("did-start-navigation", () => {
+    win.webContents.insertCSS(ELECTRON_SAFE_AREA_CSS).catch(() => null);
+  });
+  win.webContents.on("did-finish-load", () => {
+    win.webContents.insertCSS(ELECTRON_SAFE_AREA_CSS).catch(() => null);
+  });
   win.once("ready-to-show", () => win.show());
   win.webContents.once("did-finish-load", () => win.show());
   setTimeout(() => {
