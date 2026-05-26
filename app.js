@@ -183,6 +183,9 @@ const playerRuntime = {
   dash: null,
   resumeState: null,
   sourceToken: 0,
+  ambientSampler: null,
+  ambientCanvas: null,
+  ambientContext: null,
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -270,7 +273,7 @@ function injectChrome() {
     document.body.insertAdjacentHTML("beforeend", `<button class="browse-filter-overlay" data-browse-filter-overlay type="button" aria-label="Close filters"></button>`);
   }
 
-  if (["home", "anime", "manga", "doujin", "doujin-preview", "profile", "library", "history", "settings"].includes(page) && !document.querySelector(".details-side-rail")) {
+  if (["home", "anime", "manga", "doujin", "doujin-preview", "profile", "library", "history", "settings", "player"].includes(page) && !document.querySelector(".details-side-rail")) {
     document.body.insertAdjacentHTML("afterbegin", cinematicSideRailHtml());
   }
 
@@ -7848,6 +7851,7 @@ async function attemptPlayerAutoplay(video, streamToken) {
 }
 
 function destroyActiveStreamEngines() {
+  stopPlayerAmbientSampler();
   try { playerRuntime.hls?.destroy?.(); } catch (error) {}
   try { playerRuntime.dash?.reset?.(); } catch (error) {}
   playerRuntime.hls = null;
@@ -8202,6 +8206,69 @@ function applyPlayerAmbientMode(video = document.querySelector("[data-active-vid
   backdrop.style.setProperty("--ambient-brightness", String(style.brightness / 100));
   backdrop.style.setProperty("--ambient-scale", String(1 + Math.max(0, style.spread) / 1100));
   if (video) video.classList.toggle("ambient-video", enabled);
+  if (enabled && video) {
+    startPlayerAmbientSampler(video, backdrop);
+  } else {
+    stopPlayerAmbientSampler();
+  }
+}
+
+function startPlayerAmbientSampler(video, backdrop) {
+  stopPlayerAmbientSampler();
+  const canvas = playerRuntime.ambientCanvas || document.createElement("canvas");
+  canvas.width = 12;
+  canvas.height = 7;
+  const context = playerRuntime.ambientContext || canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return;
+  playerRuntime.ambientCanvas = canvas;
+  playerRuntime.ambientContext = context;
+
+  const sample = () => {
+    if (!state.settings.playerAmbient || !document.body.contains(video) || backdrop.hidden) {
+      stopPlayerAmbientSampler();
+      return;
+    }
+    if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
+    try {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const frame = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      const left = ambientFrameColor(frame, canvas.width, canvas.height, 0, 4);
+      const center = ambientFrameColor(frame, canvas.width, canvas.height, 4, 8);
+      const right = ambientFrameColor(frame, canvas.width, canvas.height, 8, 12);
+      backdrop.style.backgroundImage = `radial-gradient(circle at 18% 26%, ${left}, transparent 42%), radial-gradient(circle at 50% 48%, ${center}, transparent 46%), radial-gradient(circle at 82% 30%, ${right}, transparent 42%)`;
+    } catch (error) {
+      stopPlayerAmbientSampler();
+    }
+  };
+
+  playerRuntime.ambientSampler = window.setInterval(sample, 650);
+  video.addEventListener("loadeddata", sample, { once: true });
+  sample();
+}
+
+function stopPlayerAmbientSampler() {
+  if (!playerRuntime.ambientSampler) return;
+  window.clearInterval(playerRuntime.ambientSampler);
+  playerRuntime.ambientSampler = null;
+}
+
+function ambientFrameColor(frame, width, height, startX, endX) {
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let count = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = startX; x < endX; x += 1) {
+      const offset = (y * width + x) * 4;
+      red += frame[offset];
+      green += frame[offset + 1];
+      blue += frame[offset + 2];
+      count += 1;
+    }
+  }
+  if (!count) return "rgba(20, 185, 198, 0.7)";
+  const lift = 28;
+  return `rgba(${Math.min(255, Math.round(red / count * 1.12 + lift))}, ${Math.min(255, Math.round(green / count * 1.12 + lift))}, ${Math.min(255, Math.round(blue / count * 1.12 + lift))}, 0.72)`;
 }
 
 function animeDexAudioVersionsForCurrentEpisode() {
