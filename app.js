@@ -220,13 +220,17 @@ function setupMobileNavMode() {
   }
   const media = window.matchMedia?.("(max-width: 720px)");
   const update = () => {
+    if (!(media?.matches || window.innerWidth <= 720)) closeMobileMenu();
     document.body.classList.remove("is-scrolled", "mobile-nav-floating");
     window.requestAnimationFrame(syncMenuToggleVisibility);
   };
   update();
   window.addEventListener("scroll", update, { passive: true });
   window.addEventListener("resize", update);
+  window.visualViewport?.addEventListener?.("resize", update);
+  window.addEventListener("orientationchange", update);
   media?.addEventListener?.("change", update);
+  media?.addListener?.(update);
 }
 
 function syncMenuToggleVisibility() {
@@ -362,27 +366,27 @@ function cinematicSideRailHtml() {
         <a href="anime.html" aria-label="Anime" data-nav-label="Anime"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.8A1.8 1.8 0 0 1 8.7 3.2l10 6.2a1.9 1.9 0 0 1 0 3.2l-10 6.2A1.8 1.8 0 0 1 6 17.2V4.8Zm2 1.1v10.2l8.2-5.1L8 5.9Z"/></svg></a>
         <a href="manga.html" aria-label="Manga / Manhwa" data-nav-label="Manga / Manhwa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.2 4h6.1c1 0 1.9.3 2.7.9.8-.6 1.7-.9 2.7-.9h2.1A2.2 2.2 0 0 1 21 6.2v13.4h-5.3c-.9 0-1.7.3-2.3.9l-.4.4-.4-.4c-.6-.6-1.4-.9-2.3-.9H3V6.2A2.2 2.2 0 0 1 5.2 4ZM5 17.6h5.3c.6 0 1.2.1 1.7.4V6.5c-.2-.3-.6-.5-1.1-.5H5.2c-.1 0-.2.1-.2.2v11.4Zm9 .4c.5-.3 1.1-.4 1.7-.4H19V6.2c0-.1-.1-.2-.2-.2h-2.1c-1 0-1.9.8-2.7 1.4V18Z"/></svg></a>
         <a href="doujin.html" data-adult-nav hidden aria-label="Doujin" data-nav-label="Doujin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 4 6v6c0 5 3.4 8.6 8 9.5 4.6-.9 8-4.5 8-9.5V6l-8-3.5Zm0 2.2 6 2.6V12c0 3.8-2.4 6.4-6 7.4-3.6-1-6-3.6-6-7.4V7.3l6-2.6Zm0 4.1a2.7 2.7 0 0 0-1.2 5.1v2.6h2.4v-2.6A2.7 2.7 0 0 0 12 8.8Z"/></svg></a>
-        <a href="profile.html" aria-label="Profile" data-nav-label="Profile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12.2a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Zm0-7.4a2.7 2.7 0 1 1 0 5.4 2.7 2.7 0 0 1 0-5.4Zm-8.4 16a8.4 8.4 0 0 1 16.8 0h-2a6.4 6.4 0 0 0-12.8 0h-2Z"/></svg></a>
-        ${settingsRailLinkHtml()}
-      </div>
-      <div class="details-rail-bottom">
+        <a class="details-rail-favorites" href="profile-favorites.html" aria-label="Favorites" data-nav-label="Favorites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 20.7-1.3-1.2C6.1 15.3 3 12.5 3 9.1A4.8 4.8 0 0 1 7.9 4c1.6 0 3.1.8 4.1 2 1-1.2 2.5-2 4.1-2A4.8 4.8 0 0 1 21 9.1c0 3.4-3.1 6.2-7.7 10.4L12 20.7Z"/></svg></a>
         <div class="notification-menu details-rail-menu">
-          <button class="details-rail-action-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false" data-nav-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.7 2.7 0 0 0 2.5-1.7h-5A2.7 2.7 0 0 0 12 22Zm7-6.4-1.7-2.3V9a5.3 5.3 0 0 0-4-5.1V3a1.3 1.3 0 0 0-2.6 0v.9a5.3 5.3 0 0 0-4 5.1v4.3L5 15.6V18h14v-2.4Z"/></svg><span data-notification-count hidden>0</span></button>
+          <button class="details-rail-action-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false" data-nav-label="Notification"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.7 2.7 0 0 0 2.5-1.7h-5A2.7 2.7 0 0 0 12 22Zm7-6.4-1.7-2.3V9a5.3 5.3 0 0 0-4-5.1V3a1.3 1.3 0 0 0-2.6 0v.9a5.3 5.3 0 0 0-4 5.1v4.3L5 15.6V18h14v-2.4Z"/></svg><span data-notification-count hidden>0</span></button>
           <div class="notification-popover" data-notification-popover></div>
         </div>
-        <a class="details-rail-favorites" href="profile-favorites.html" aria-label="Favorites" data-nav-label="Favorites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 20.7-1.3-1.2C6.1 15.3 3 12.5 3 9.1A4.8 4.8 0 0 1 7.9 4c1.6 0 3.1.8 4.1 2 1-1.2 2.5-2 4.1-2A4.8 4.8 0 0 1 21 9.1c0 3.4-3.1 6.2-7.7 10.4L12 20.7Z"/></svg></a>
+      </div>
+      <div class="details-rail-bottom">
+        <button class="details-rail-theme-btn" data-theme-toggle type="button" aria-label="Toggle theme" data-nav-label="Theme">${themeIcon()}</button>
         <div class="history-menu details-rail-menu">
           <button class="details-rail-action-btn history-btn" data-history-toggle type="button" aria-label="Open history" aria-expanded="false" data-nav-label="History"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.1-5L14 10h7V3l-2.7 2.7A8.9 8.9 0 0 0 12 3Zm-1 4v6l5 3 .9-1.6-3.9-2.3V7h-2Z"/></svg></button>
           <div class="history-popover" data-history-popover></div>
         </div>
-        <button class="details-rail-theme-btn" data-theme-toggle type="button" aria-label="Toggle theme" data-nav-label="Theme">${themeIcon()}</button>
+        ${settingsRailLinkHtml()}
+        <a href="profile.html" aria-label="Profile" data-nav-label="Profile"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12.2a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Zm0-7.4a2.7 2.7 0 1 1 0 5.4 2.7 2.7 0 0 1 0-5.4Zm-8.4 16a8.4 8.4 0 0 1 16.8 0h-2a6.4 6.4 0 0 0-12.8 0h-2Z"/></svg></a>
       </div>
     </nav>
   `;
 }
 
 function settingsRailLinkHtml() {
-  return `<a href="settings.html" data-settings-rail aria-label="Settings" data-nav-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.7 7.7 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.7 7.7 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.7 7.7 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.7 7.7 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg></a>`;
+  return `<a href="settings.html" data-settings-rail aria-label="Settings" data-nav-label="Setting"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.7 7.7 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.7 7.7 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.7 7.7 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.7 7.7 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg></a>`;
 }
 
 function profileMenuHtml(buttonClass = "icon-btn profile-btn", menuClass = "") {
@@ -421,26 +425,47 @@ function syncProfileToggleButtons() {
 
 function enhanceCinematicSideRail() {
   const rail = document.querySelector(".details-side-rail");
-  const profileLink = rail?.querySelector('.details-rail-main a[href="profile.html"]');
+  const main = rail?.querySelector(".details-rail-main");
+  const bottom = rail?.querySelector(".details-rail-bottom");
+  const profileLink = rail?.querySelector('a[href="profile.html"]');
   if (profileLink && !rail.querySelector(".details-rail-profile-menu")) {
     profileLink.insertAdjacentHTML("afterend", profileMenuHtml("details-rail-profile-btn", "details-rail-profile-menu"));
     profileLink.remove();
   }
-  const bottom = rail?.querySelector(".details-rail-bottom");
   const directHistoryLink = bottom ? [...bottom.children].find((item) => item.matches?.('a[href="history.html"]')) : null;
   if (directHistoryLink && !bottom.querySelector("[data-history-toggle]")) {
     directHistoryLink.outerHTML = historyRailMenuHtml();
   }
-  if (bottom && !bottom.querySelector("[data-notification-toggle]")) bottom.insertAdjacentHTML("afterbegin", notificationRailMenuHtml());
-  if (bottom && !bottom.querySelector("[data-theme-toggle]")) bottom.insertAdjacentHTML("beforeend", themeRailButtonHtml());
-  if (bottom && rail && !rail.querySelector("[data-settings-rail]")) bottom.insertAdjacentHTML("beforeend", settingsRailLinkHtml());
+  if (main && !rail.querySelector("[data-notification-toggle]")) main.insertAdjacentHTML("beforeend", notificationRailMenuHtml());
+  if (bottom && !rail.querySelector("[data-theme-toggle]")) bottom.insertAdjacentHTML("beforeend", themeRailButtonHtml());
+  if (bottom && !rail.querySelector("[data-history-toggle]")) bottom.insertAdjacentHTML("beforeend", historyRailMenuHtml());
+  if (bottom && !rail.querySelector("[data-settings-rail]")) bottom.insertAdjacentHTML("beforeend", settingsRailLinkHtml());
+
+  if (main) {
+    [
+      'a[href="index.html"]',
+      'a[href="anime.html"]',
+      'a[href="manga.html"]',
+      'a[href="doujin.html"]',
+      'a[href="profile-favorites.html"]',
+      ".notification-menu.details-rail-menu",
+    ].map((selector) => rail.querySelector(selector)).filter(Boolean).forEach((item) => main.appendChild(item));
+  }
+  if (bottom) {
+    [
+      "[data-theme-toggle]",
+      ".history-menu.details-rail-menu",
+      "[data-settings-rail]",
+      ".details-rail-profile-menu",
+    ].map((selector) => rail.querySelector(selector)).filter(Boolean).forEach((item) => bottom.appendChild(item));
+  }
   syncThemeToggleButtons();
 }
 
 function notificationRailMenuHtml() {
   return `
         <div class="notification-menu details-rail-menu">
-          <button class="details-rail-action-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false" data-nav-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.7 2.7 0 0 0 2.5-1.7h-5A2.7 2.7 0 0 0 12 22Zm7-6.4-1.7-2.3V9a5.3 5.3 0 0 0-4-5.1V3a1.3 1.3 0 0 0-2.6 0v.9a5.3 5.3 0 0 0-4 5.1v4.3L5 15.6V18h14v-2.4Z"/></svg><span data-notification-count hidden>0</span></button>
+          <button class="details-rail-action-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false" data-nav-label="Notification"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.7 2.7 0 0 0 2.5-1.7h-5A2.7 2.7 0 0 0 12 22Zm7-6.4-1.7-2.3V9a5.3 5.3 0 0 0-4-5.1V3a1.3 1.3 0 0 0-2.6 0v.9a5.3 5.3 0 0 0-4 5.1v4.3L5 15.6V18h14v-2.4Z"/></svg><span data-notification-count hidden>0</span></button>
           <div class="notification-popover" data-notification-popover></div>
         </div>`;
 }
@@ -7927,12 +7952,21 @@ function setupVideoBufferingState(video, resumeState = null) {
   const overlay = player?.querySelector("[data-player-buffering]");
   if (!player || !overlay) return;
   let restored = false;
+  let showTimer = null;
 
-  const show = (label = "Buffering...") => {
+  const show = (label = "Buffering...", delay = 180) => {
+    clearTimeout(showTimer);
     overlay.querySelector("span").textContent = label;
-    player.classList.add("is-buffering");
+    if (delay <= 0) {
+      player.classList.add("is-buffering");
+      return;
+    }
+    showTimer = window.setTimeout(() => player.classList.add("is-buffering"), delay);
   };
-  const hide = () => player.classList.remove("is-buffering");
+  const hide = () => {
+    clearTimeout(showTimer);
+    player.classList.remove("is-buffering");
+  };
   const restore = async () => {
     if (restored || !resumeState) return;
     const time = Math.max(0, Number(resumeState.time) || 0);
@@ -7943,15 +7977,15 @@ function setupVideoBufferingState(video, resumeState = null) {
     }
   };
 
-  show("Loading video...");
+  show("Loading video...", 0);
   video.addEventListener("loadedmetadata", restore, { once: true });
   video.addEventListener("canplay", () => { hide(); restore(); });
   video.addEventListener("playing", hide);
-  video.addEventListener("waiting", () => show("Buffering..."));
-  video.addEventListener("stalled", () => show("Reconnecting..."));
-  video.addEventListener("seeking", () => show("Seeking..."));
+  video.addEventListener("waiting", () => show("Buffering...", 260));
+  video.addEventListener("stalled", () => show("Reconnecting...", 320));
+  video.addEventListener("seeking", () => show("Seeking...", 140));
   video.addEventListener("seeked", hide);
-  video.addEventListener("error", () => show("Could not load video"));
+  video.addEventListener("error", () => show("Could not load video", 0));
 }
 
 function capturePlaybackState(video) {
@@ -8019,10 +8053,19 @@ function setupCustomVideoControls(video) {
   let hideTimer = null;
   let emptyPointerStartedIdle = null;
 
+  const isPlayerMenuOpen = () => Boolean((panel && !panel.hidden) || (volumePanel && !volumePanel.hidden));
+
+  const notifyPlayerMenuState = () => {
+    player.classList.toggle("player-volume-open", Boolean(volumePanel && !volumePanel.hidden));
+    player.dispatchEvent(new CustomEvent("player-menu-state-change"));
+  };
+
   const hideVolumePanel = () => {
-    if (!volumePanel) return;
+    if (!volumePanel || volumePanel.hidden) return;
     volumePanel.hidden = true;
     volumeControl?.classList.remove("volume-open");
+    player.classList.remove("player-volume-open");
+    notifyPlayerMenuState();
   };
 
   const showVolumePanel = () => {
@@ -8030,6 +8073,8 @@ function setupCustomVideoControls(video) {
     hidePlayerSettingsPanel();
     volumePanel.hidden = false;
     volumeControl?.classList.add("volume-open");
+    player.classList.add("player-volume-open");
+    notifyPlayerMenuState();
     showControls();
   };
 
@@ -8042,6 +8087,10 @@ function setupCustomVideoControls(video) {
 
   const hideControls = () => {
     clearTimeout(hideTimer);
+    if (isPlayerMenuOpen()) {
+      player.classList.remove("video-controls-idle");
+      return;
+    }
     player.classList.add("video-controls-idle");
     hidePlayerSettingsPanel();
     hideVolumePanel();
@@ -8050,7 +8099,12 @@ function setupCustomVideoControls(video) {
   const showControls = () => {
     player.classList.remove("video-controls-idle");
     clearTimeout(hideTimer);
+    if (isPlayerMenuOpen()) return;
     hideTimer = setTimeout(() => {
+      if (isPlayerMenuOpen()) {
+        player.classList.remove("video-controls-idle");
+        return;
+      }
       player.classList.add("video-controls-idle");
       hidePlayerSettingsPanel();
       hideVolumePanel();
@@ -8156,6 +8210,7 @@ function setupCustomVideoControls(video) {
   panel?.addEventListener("mousemove", showControls);
   panel?.addEventListener("touchstart", showControls, { passive: true });
   panel?.addEventListener("focusin", showControls);
+  player.addEventListener("player-menu-state-change", showControls);
   wrapper?.addEventListener("fullscreenchange", showControls);
   update();
   showControls();
@@ -8207,6 +8262,7 @@ function hidePlayerSettingsPanel() {
   panel.inert = true;
   toggle?.setAttribute("aria-expanded", "false");
   player?.classList.remove("player-settings-open");
+  player?.dispatchEvent(new CustomEvent("player-menu-state-change"));
 }
 
 function formatPlayerTime(seconds) {
@@ -8236,7 +8292,10 @@ function setupPlayerSettingsControls(video, tracks = [], sources = [], currentIn
       panel.hidden = !isHidden;
       panel.inert = !isHidden;
       toggle.setAttribute("aria-expanded", String(isHidden));
-      video.closest("[data-video-player]")?.classList.toggle("player-settings-open", isHidden);
+      const player = video.closest("[data-video-player]");
+      player?.classList.toggle("player-settings-open", isHidden);
+      if (isHidden) player?.classList.remove("video-controls-idle");
+      player?.dispatchEvent(new CustomEvent("player-menu-state-change"));
     };
   }
 
@@ -8518,7 +8577,11 @@ function setupPlayerChromeControls() {
     wrapper.classList.remove("player-fs-idle");
     clearTimeout(hideTimer);
     hideTimer = setTimeout(() => {
-      if (!document.querySelector("[data-player-settings-panel]")?.hidden) return;
+      const settingsPanel = document.querySelector("[data-player-settings-panel]");
+      const volumePanel = document.querySelector("[data-video-volume-panel]");
+      const settingsOpen = Boolean(settingsPanel && !settingsPanel.hidden);
+      const volumeOpen = Boolean(volumePanel && !volumePanel.hidden);
+      if (settingsOpen || volumeOpen) return;
       wrapper.classList.add("player-fs-idle");
     }, 2200);
   };
