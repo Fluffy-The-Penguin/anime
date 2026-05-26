@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
@@ -10,19 +10,22 @@ const DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKi
 const singleInstanceLock = app.requestSingleInstanceLock();
 const frontendApiHandler = require(path.join(APP_ROOT, "api", "adult", "[path].js"));
 const ELECTRON_SAFE_AREA_CSS = `
-  html, body { scrollbar-width: thin !important; scrollbar-color: rgba(143, 201, 207, 0.46) transparent !important; }
+  html, body, * { scrollbar-width: none !important; }
   body { padding-top: 0 !important; }
   .topbar.shell.anilist-topbar { top: 0 !important; padding-top: 18px !important; padding-right: 176px !important; }
   .topbar.shell.anilist-topbar .top-actions { transform: none !important; }
-  body[data-page="anime"] .browse-filter-fab, body[data-page="manga"] .browse-filter-fab, body[data-page="doujin"] .browse-filter-fab { top: 72px !important; right: 176px !important; }
-  ::-webkit-scrollbar { width: 5px !important; height: 5px !important; }
+  body[data-page="anime"] .browse-filter-fab, body[data-page="manga"] .browse-filter-fab, body[data-page="doujin"] .browse-filter-fab { right: 24px !important; bottom: 24px !important; }
+  ::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
   ::-webkit-scrollbar-button, ::-webkit-scrollbar-corner { display: none !important; width: 0 !important; height: 0 !important; background: transparent !important; }
   ::-webkit-scrollbar-track { background: transparent !important; }
-  ::-webkit-scrollbar-thumb { min-height: 52px !important; border: 1px solid rgba(0, 0, 0, 0.22) !important; border-radius: 999px !important; background: linear-gradient(180deg, rgba(143, 201, 207, 0.74), rgba(143, 201, 207, 0.28)) !important; background-clip: padding-box !important; box-shadow: 0 0 12px rgba(143, 201, 207, 0.14) !important; }
-  ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(177, 235, 241, 0.86), rgba(143, 201, 207, 0.42)) !important; background-clip: padding-box !important; }
+  ::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb:hover { background: transparent !important; }
 `;
 let appOrigin = "";
 let mainWindow = null;
+let webTorrentClientPromise = null;
+
+const torrentSessions = new Map();
+const TORRENT_VIDEO_EXTENSIONS = new Set([".mp4", ".m4v", ".webm", ".mkv", ".mov", ".avi", ".ogv", ".ts"]);
 
 if (!singleInstanceLock) {
   app.quit();
@@ -37,6 +40,154 @@ const MIME_TYPES = {
   ".svg": "image/svg+xml",
   ".webmanifest": "application/manifest+json; charset=utf-8"
 };
+
+const TORRENT_STREAM_MIME_TYPES = {
+  ".avi": "video/x-msvideo",
+  ".m4v": "video/x-m4v",
+  ".mkv": "video/x-matroska",
+  ".mov": "video/quicktime",
+  ".mp4": "video/mp4",
+  ".ogv": "video/ogg",
+  ".ts": "video/mp2t",
+  ".webm": "video/webm"
+};
+
+async function getWebTorrentClient() {
+  if (!webTorrentClientPromise) {
+    webTorrentClientPromise = import("webtorrent").then(({ default: WebTorrent }) => {
+      const downloadPath = path.join(app.getPath("userData"), "torrents");
+      fs.mkdirSync(downloadPath, { recursive: true });
+      return new WebTorrent({ path: downloadPath });
+    });
+  }
+
+  return webTorrentClientPromise;
+}
+
+function isTorrentInput(value = "") {
+  const text = String(value || "").trim();
+  return /^magnet:\?xt=urn:btih:/i.test(text) || /^https?:\/\//i.test(text);
+}
+
+function isTorrentFilePath(value = "") {
+  return path.extname(String(value || "")).toLowerCase() === ".torrent";
+}
+
+function torrentVideoFiles(torrent) {
+  return (torrent.files || [])
+    .map((file, index) => ({ file, index, ext: path.extname(file.name || "").toLowerCase() }))
+    .filter(({ ext }) => TORRENT_VIDEO_EXTENSIONS.has(ext));
+}
+
+function torrentSummary(torrent) {
+  const torrentId = torrent.infoHash || torrent.magnetURI || "";
+  const files = torrentVideoFiles(torrent).map(({ file, index, ext }) => ({
+    index,
+    name: file.name,
+    path: file.path || file.name,
+    size: file.length || 0,
+    mimeType: TORRENT_STREAM_MIME_TYPES[ext] || "application/octet-stream",
+    streamUrl: `${appOrigin}/__torrent/stream/${encodeURIComponent(torrentId)}/${index}/${encodeURIComponent(path.basename(file.name || `file-${index}`))}`
+  }));
+
+  return {
+    torrentId,
+    infoHash: torrent.infoHash || "",
+    name: torrent.name || "Torrent",
+    progress: Number(torrent.progress || 0),
+    downloadSpeed: Number(torrent.downloadSpeed || 0),
+    numPeers: Number(torrent.numPeers || 0),
+    ready: Boolean(torrent.ready || torrent.files?.length),
+    files
+  };
+}
+
+function waitForTorrentMetadata(torrent, timeoutMs = 45000) {
+  if (torrent.files?.length) return Promise.resolve(torrent);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => cleanup(() => reject(new Error("Timed out waiting for torrent metadata"))), timeoutMs);
+    const done = () => cleanup(() => resolve(torrent));
+    const fail = (error) => cleanup(() => reject(error));
+    const cleanup = (callback) => {
+      clearTimeout(timer);
+      torrent.off("metadata", done);
+      torrent.off("ready", done);
+      torrent.off("error", fail);
+      callback();
+    };
+    torrent.once("metadata", done);
+    torrent.once("ready", done);
+    torrent.once("error", fail);
+  });
+}
+
+async function addTorrentSource(payload = {}) {
+  const input = String(payload.input || "").trim();
+  const filePath = String(payload.filePath || "").trim();
+  const savedTorrentId = String(payload.torrentId || "").trim();
+  const source = filePath || input;
+  if (filePath && !isTorrentFilePath(filePath)) throw new Error("Choose a .torrent file");
+  if (!filePath && !isTorrentInput(input)) throw new Error("Paste a magnet link or torrent URL");
+
+  const client = await getWebTorrentClient();
+  const existing = (savedTorrentId && torrentSessions.get(savedTorrentId)) || (input && /^magnet:/i.test(input) ? client.get(input) : null);
+  const torrent = existing || client.add(source, { path: path.join(app.getPath("userData"), "torrents") });
+  await waitForTorrentMetadata(torrent);
+  if (torrent.infoHash) torrentSessions.set(torrent.infoHash, torrent);
+  torrent.files?.forEach((file) => file.deselect?.());
+  return torrentSummary(torrent);
+}
+
+async function handleTorrentStreamRequest(request, response) {
+  const parsed = new URL(request.url || "/", appOrigin || "http://127.0.0.1");
+  const parts = parsed.pathname.split("/").filter(Boolean);
+  const torrentId = decodeURIComponent(parts[2] || "");
+  const fileIndex = Number(decodeURIComponent(parts[3] || ""));
+  const torrent = torrentSessions.get(torrentId);
+  const file = torrent?.files?.[fileIndex];
+  if (!torrent || !file) {
+    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Torrent file not found");
+    return;
+  }
+
+  file.select?.();
+  const total = file.length || 0;
+  const range = request.headers.range || "";
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(range);
+  const start = match && match[1] ? Number(match[1]) : 0;
+  const end = match && match[2] ? Math.min(Number(match[2]), total - 1) : Math.max(0, total - 1);
+  const hasRange = Boolean(match);
+  const ext = path.extname(file.name || "").toLowerCase();
+  const headers = {
+    "Accept-Ranges": "bytes",
+    "Access-Control-Allow-Origin": appOrigin,
+    "Cache-Control": "no-store",
+    "Content-Type": TORRENT_STREAM_MIME_TYPES[ext] || "application/octet-stream"
+  };
+
+  if (hasRange) {
+    headers["Content-Range"] = `bytes ${start}-${end}/${total}`;
+    headers["Content-Length"] = Math.max(0, end - start + 1);
+    response.writeHead(206, headers);
+  } else {
+    headers["Content-Length"] = total;
+    response.writeHead(200, headers);
+  }
+
+  if ((request.method || "GET") === "HEAD") {
+    response.end();
+    return;
+  }
+
+  const stream = file.createReadStream({ start, end });
+  stream.on("error", () => {
+    if (!response.headersSent) response.writeHead(500);
+    response.end();
+  });
+  request.on("close", () => stream.destroy?.());
+  stream.pipe(response);
+}
 
 function isLocalAppUrl(targetUrl) {
   try {
@@ -169,6 +320,14 @@ async function proxyBackendRequest(request, response) {
 function startLocalServer(port = LOCAL_APP_PORT) {
   return new Promise((resolve, reject) => {
     const server = http.createServer((request, response) => {
+      if ((request.url || "").startsWith("/__torrent/stream/")) {
+        handleTorrentStreamRequest(request, response).catch((error) => {
+          response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+          response.end(JSON.stringify({ error: "Torrent stream failed", detail: error.message || String(error) }));
+        });
+        return;
+      }
+
       if ((request.url || "").startsWith("/api/anime/") || (request.url || "").startsWith("/api/anilist")) {
         handleFrontendApiRequest(request, response).catch((error) => {
           response.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
@@ -281,6 +440,34 @@ function createWindow() {
   win.loadURL(`${appOrigin}/index.html`);
 }
 
+ipcMain.handle("torrent:choose-file", async () => {
+  const result = await dialog.showOpenDialog(mainWindow || undefined, {
+    title: "Choose torrent file",
+    properties: ["openFile"],
+    filters: [{ name: "Torrent files", extensions: ["torrent"] }]
+  });
+  if (result.canceled || !result.filePaths?.[0]) return null;
+  return { filePath: result.filePaths[0], name: path.basename(result.filePaths[0]) };
+});
+
+ipcMain.handle("torrent:add", async (event, payload) => addTorrentSource(payload));
+
+ipcMain.handle("torrent:status", async (event, payload = {}) => {
+  const torrentId = String(payload.torrentId || "");
+  const torrent = torrentSessions.get(torrentId);
+  if (!torrent) return null;
+  return torrentSummary(torrent);
+});
+
+ipcMain.handle("torrent:remove", async (event, payload = {}) => {
+  const torrentId = String(payload.torrentId || "");
+  const torrent = torrentSessions.get(torrentId);
+  if (!torrent) return false;
+  torrentSessions.delete(torrentId);
+  torrent.destroy({ destroyStore: false });
+  return true;
+});
+
 app.whenReady().then(async () => {
   if (!singleInstanceLock) return;
   await startLocalServer();
@@ -303,5 +490,14 @@ app.on("second-instance", () => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
+  }
+});
+
+app.on("before-quit", async () => {
+  try {
+    const client = webTorrentClientPromise ? await webTorrentClientPromise : null;
+    client?.destroy?.();
+  } catch {
+    // Quit should not be blocked by torrent cleanup failures.
   }
 });

@@ -1,9 +1,15 @@
-const { contextBridge } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("anitrackDesktop", {
   experimental: true,
   apiBaseUrl: "https://anime-api-proxy.aryanpanwar.workers.dev",
-  platform: process.platform
+  platform: process.platform,
+  torrents: {
+    add: (payload) => ipcRenderer.invoke("torrent:add", payload),
+    chooseFile: () => ipcRenderer.invoke("torrent:choose-file"),
+    remove: (torrentId) => ipcRenderer.invoke("torrent:remove", { torrentId }),
+    status: (torrentId) => ipcRenderer.invoke("torrent:status", { torrentId })
+  }
 });
 
 contextBridge.exposeInMainWorld("ANITRACK_API_BASE_URL", "https://anime-api-proxy.aryanpanwar.workers.dev");

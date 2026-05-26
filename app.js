@@ -275,7 +275,7 @@ function injectChrome() {
   }
 
   if (["anime", "manga", "doujin"].includes(page) && !document.querySelector(".browse-filter-fab")) {
-    document.body.insertAdjacentHTML("beforeend", `<button class="browse-filter-fab" data-browse-filter-toggle type="button" aria-label="Show search and filters" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm3 5h10v2H7v-2Zm3 5h4v2h-4v-2Z"/></svg><span>Filters</span></button>`);
+    document.body.insertAdjacentHTML("beforeend", `<button class="browse-filter-fab" data-browse-filter-toggle type="button" aria-label="Show search and filters" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.7 18.4a7.7 7.7 0 1 1 5.4-13.1 7.7 7.7 0 0 1 0 10.8l4.1 4.1-2 2-4.1-4.1a7.6 7.6 0 0 1-3.4.8Zm0-3a4.7 4.7 0 1 0 0-9.4 4.7 4.7 0 0 0 0 9.4Z"/></svg></button>`);
   }
 
   if (["anime", "manga", "doujin"].includes(page) && !document.querySelector("[data-browse-filter-overlay]")) {
@@ -7466,9 +7466,16 @@ async function loadEpisode(anime, episode, episodeNumber) {
   sources.innerHTML = '<p class="muted">Searching sources...</p>';
   setupMarkWatchedButton(anime, episodeNumber);
 
+  if (loadSavedEpisodeTorrent(anime, episodeNumber) && desktopTorrentApi()) {
+    sources.innerHTML = torrentEpisodeSourceHtml(anime, episodeNumber);
+    bindTorrentSourceControls(sources, anime, episodeNumber);
+    if (await autoPlaySavedEpisodeTorrent(sources, anime, episodeNumber)) return;
+  }
+
   if (episode.sourceUrl) {
-    sources.innerHTML = adultSourceCards([episode.sourceMatch || episode]);
+    sources.innerHTML = adultSourceCards([episode.sourceMatch || episode]) + torrentEpisodeSourceHtml(anime, episodeNumber);
     bindAdultSourceButtons(sources, { autoplayUrl: playerAutoPlayEnabled() ? episode.sourceUrl : "" });
+    bindTorrentSourceControls(sources, anime, episodeNumber);
     return;
   }
 
@@ -7484,14 +7491,15 @@ async function loadEpisode(anime, episode, episodeNumber) {
           : await fetchApiJson(`/api/anime/anizone/streams?episodeUrl=${encodeURIComponent(episode.episodeUrl || episode.id || "")}${subtitleParams}`);
       if (!Array.isArray(data.sources) || !data.sources.some((source) => source?.url)) {
         if (await tryAnimeStreamFallback(anime, episode.source, episodeNumber)) return;
-        renderDirectAnimeStreams(sources, data, episode.source, playerAutoPlayEnabled());
+        renderDirectAnimeStreams(sources, data, episode.source, playerAutoPlayEnabled(), anime, episodeNumber);
         videoPlayer.innerHTML = '<div class="player-loading"><p style="color: var(--red);">No playable source found</p></div>';
         return;
       }
-      renderDirectAnimeStreams(sources, data, episode.source, playerAutoPlayEnabled());
+      renderDirectAnimeStreams(sources, data, episode.source, playerAutoPlayEnabled(), anime, episodeNumber);
     } catch (error) {
       if (await tryAnimeStreamFallback(anime, episode.source, episodeNumber)) return;
-      sources.innerHTML = `<div class="empty">Could not load ${escapeHtml(animeSourceLabel(episode.source))} streams for this episode.</div>`;
+      sources.innerHTML = `<div class="empty">Could not load ${escapeHtml(animeSourceLabel(episode.source))} streams for this episode.</div>${torrentEpisodeSourceHtml(anime, episodeNumber)}`;
+      bindTorrentSourceControls(sources, anime, episodeNumber);
       videoPlayer.innerHTML = '<div class="player-loading"><p style="color: var(--red);">No playable source found</p></div>';
     }
     return;
@@ -7534,7 +7542,7 @@ async function tryAnimeStreamFallback(anime, failedSource, episodeNumber) {
     const subtitleParams = animeStreamSubtitleParams(anime, fallbackEpisode.number || episodeNumber);
     const data = await fetchApiJson(`/api/anime/anizone/streams?episodeUrl=${encodeURIComponent(fallbackEpisode.episodeUrl || fallbackEpisode.id || "")}${subtitleParams}`);
     if (!Array.isArray(data.sources) || !data.sources.some((source) => source?.url)) return false;
-    renderDirectAnimeStreams(sources, data, "anizone", playerAutoPlayEnabled());
+    renderDirectAnimeStreams(sources, data, "anizone", playerAutoPlayEnabled(), anime, episodeNumber);
     showToast("AnimeDex stream blocked. Using AniZone fallback.");
     return true;
   } catch (error) {
@@ -7651,11 +7659,251 @@ function romajiSpacingVariants(title) {
   return uniqueStrings(variants).slice(0, 4);
 }
 
+function desktopTorrentApi() {
+  return window.anitrackDesktop?.torrents || null;
+}
+
+function torrentEpisodeStorageKey(anime, episodeNumber) {
+  return `episode-torrent:${anime?.id || anime?.apiId || anime?.title || "anime"}:${episodeNumber || "current"}`;
+}
+
+function loadSavedEpisodeTorrent(anime, episodeNumber) {
+  try {
+    return JSON.parse(localStorage.getItem(torrentEpisodeStorageKey(anime, episodeNumber)) || "null");
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveEpisodeTorrent(anime, episodeNumber, data) {
+  localStorage.setItem(torrentEpisodeStorageKey(anime, episodeNumber), JSON.stringify({ ...data, savedAt: Date.now() }));
+}
+
+function saveTorrentBatchEpisodeMappings(result, selectedFile, anime, episodeNumber, sourcePayload) {
+  const files = Array.isArray(result?.files) ? [...result.files] : [];
+  if (!files.length) return 0;
+  const baseData = {
+    input: sourcePayload.input || "",
+    filePath: sourcePayload.filePath || "",
+    torrentId: result.torrentId || result.infoHash || "",
+    torrentName: result.name || "Torrent"
+  };
+  const total = Number(anime?.total || anime?.episodes || 0) || 0;
+  const savedEpisodes = new Set();
+
+  files.forEach((file) => {
+    const mappedEpisode = torrentEpisodeNumberFromFile(file.name || file.path || "");
+    if (!mappedEpisode || (total && mappedEpisode > total)) return;
+    saveEpisodeTorrent(anime, mappedEpisode, {
+      ...baseData,
+      fileIndex: file.index,
+      fileName: file.name || "Video file"
+    });
+    savedEpisodes.add(String(mappedEpisode));
+  });
+
+  const currentEpisode = Number.parseFloat(episodeNumber || "");
+  const selectedPosition = files.findIndex((file) => Number(file.index) === Number(selectedFile?.index));
+  if (Number.isFinite(currentEpisode) && selectedPosition >= 0) {
+    files.forEach((file, position) => {
+      const mappedEpisode = currentEpisode + (position - selectedPosition);
+      if (!Number.isFinite(mappedEpisode) || mappedEpisode <= 0 || (total && mappedEpisode > total)) return;
+      if (savedEpisodes.has(String(mappedEpisode))) return;
+      saveEpisodeTorrent(anime, mappedEpisode, {
+        ...baseData,
+        fileIndex: file.index,
+        fileName: file.name || "Video file"
+      });
+      savedEpisodes.add(String(mappedEpisode));
+    });
+  }
+
+  return savedEpisodes.size;
+}
+
+function torrentEpisodeNumberFromFile(name) {
+  const text = String(name || "").replace(/\.[a-z0-9]{2,5}$/i, " ");
+  const seasonEpisode = text.match(/\bS\d{1,2}E(\d{1,4})(?:\b|[^0-9])/i);
+  if (seasonEpisode) return Number(seasonEpisode[1]);
+  const episodeLabel = text.match(/\b(?:ep|episode)\s*[._ -]?(\d{1,4})(?:\b|[^0-9])/i);
+  if (episodeLabel) return Number(episodeLabel[1]);
+  const bracketed = [...text.matchAll(/[\[(]\s*(\d{1,4})(?:v\d+)?\s*[\])]/gi)].map((match) => Number(match[1])).filter((value) => value > 0 && value < 2000);
+  if (bracketed.length) return bracketed[bracketed.length - 1];
+  return extractEpisodeNumberFromText(text);
+}
+
+function removeSavedEpisodeTorrent(anime, episodeNumber) {
+  localStorage.removeItem(torrentEpisodeStorageKey(anime, episodeNumber));
+}
+
+function torrentEpisodeSourceHtml(anime, episodeNumber) {
+  if (!desktopTorrentApi()) return "";
+  const saved = loadSavedEpisodeTorrent(anime, episodeNumber);
+  const savedLabel = saved?.fileName ? `Saved: ${saved.fileName}` : "No saved torrent for this episode";
+  return `
+    <div class="torrent-source-list scrollable-source-section" data-torrent-source>
+      <div class="source-section-head"><h4>Local torrent</h4><span>Electron only</span></div>
+      <form data-torrent-form style="display: grid; gap: 8px;">
+        <input data-torrent-input type="text" placeholder="Paste a magnet link or legal .torrent URL" autocomplete="off" style="width: 100%; min-height: 38px; border-radius: 10px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn" data-torrent-add type="submit" style="min-height: 36px; padding: 7px 12px;">Add link</button>
+          <button class="btn secondary" data-torrent-file type="button" style="min-height: 36px; padding: 7px 12px;">Choose .torrent</button>
+          <button class="btn secondary" data-torrent-load-saved type="button" ${saved ? "" : "hidden"} style="min-height: 36px; padding: 7px 12px;">Load saved</button>
+          <button class="btn secondary" data-torrent-clear-saved type="button" ${saved ? "" : "hidden"} style="min-height: 36px; padding: 7px 12px;">Clear saved</button>
+        </div>
+      </form>
+      <p class="muted" style="font-size: 12px; margin: 0;">Use only legal or user-provided torrents. After metadata loads, choose the video file for episode ${escapeHtml(episodeNumber)}.</p>
+      <div class="muted" data-torrent-saved style="font-size: 12px;">${escapeHtml(savedLabel)}</div>
+      <div data-torrent-files style="display: grid; gap: 8px;"></div>
+    </div>
+  `;
+}
+
+function bindTorrentSourceControls(container, anime, episodeNumber) {
+  const api = desktopTorrentApi();
+  const section = container?.querySelector?.("[data-torrent-source]");
+  if (!api || !section || section.dataset.bound) return;
+  section.dataset.bound = "true";
+  const form = section.querySelector("[data-torrent-form]");
+  const input = section.querySelector("[data-torrent-input]");
+  const fileButton = section.querySelector("[data-torrent-file]");
+  const loadSavedButton = section.querySelector("[data-torrent-load-saved]");
+  const clearSavedButton = section.querySelector("[data-torrent-clear-saved]");
+  const savedLabel = section.querySelector("[data-torrent-saved]");
+  const filesTarget = section.querySelector("[data-torrent-files]");
+
+  const setBusy = (busy, label = "Loading torrent metadata...") => {
+    section.classList.toggle("is-loading", busy);
+    if (filesTarget && busy) filesTarget.innerHTML = `<p class="muted" style="margin: 0;">${escapeHtml(label)}</p>`;
+    section.querySelectorAll("button, input").forEach((control) => { control.disabled = busy; });
+  };
+  const syncSavedControls = () => {
+    const saved = loadSavedEpisodeTorrent(anime, episodeNumber);
+    if (savedLabel) savedLabel.textContent = saved?.fileName ? `Saved: ${saved.fileName}` : "No saved torrent for this episode";
+    if (loadSavedButton) loadSavedButton.hidden = !saved;
+    if (clearSavedButton) clearSavedButton.hidden = !saved;
+  };
+  const addTorrent = async (payload, playSavedIndex = null) => {
+    setBusy(true);
+    try {
+      const result = await api.add(payload);
+      renderTorrentFileChoices(section, result, anime, episodeNumber, payload);
+      syncSavedControls();
+      const fileIndex = playSavedIndex ?? null;
+      if (fileIndex !== null) {
+        const file = result.files?.find((item) => Number(item.index) === Number(fileIndex));
+        if (file) playTorrentFile(result, file, anime, episodeNumber, payload);
+      }
+      if (!result.files?.length) showToast("No video files found in this torrent");
+    } catch (error) {
+      if (filesTarget) filesTarget.innerHTML = `<div class="empty">${escapeHtml(error.message || "Could not load torrent")}</div>`;
+      showToast(error.message || "Could not load torrent");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const value = input?.value.trim() || "";
+    if (!value) return showToast("Paste a magnet link or torrent URL");
+    addTorrent({ input: value });
+  });
+  fileButton?.addEventListener("click", async () => {
+    const chosen = await api.chooseFile();
+    if (!chosen?.filePath) return;
+    addTorrent({ filePath: chosen.filePath });
+  });
+  loadSavedButton?.addEventListener("click", () => {
+    const saved = loadSavedEpisodeTorrent(anime, episodeNumber);
+    if (!saved) return syncSavedControls();
+    addTorrent({ input: saved.input || "", filePath: saved.filePath || "", torrentId: saved.torrentId || "" }, saved.fileIndex);
+  });
+  clearSavedButton?.addEventListener("click", () => {
+    removeSavedEpisodeTorrent(anime, episodeNumber);
+    syncSavedControls();
+    showToast("Saved torrent cleared for this episode");
+  });
+  syncSavedControls();
+}
+
+async function autoPlaySavedEpisodeTorrent(container, anime, episodeNumber) {
+  const api = desktopTorrentApi();
+  const saved = loadSavedEpisodeTorrent(anime, episodeNumber);
+  if (!api || !saved) return false;
+  const section = container?.querySelector?.("[data-torrent-source]");
+  const filesTarget = section?.querySelector("[data-torrent-files]");
+  const videoPlayer = document.querySelector("[data-video-player]");
+  if (filesTarget) filesTarget.innerHTML = '<p class="muted" style="margin: 0;">Loading saved torrent...</p>';
+  if (videoPlayer) videoPlayer.innerHTML = '<div class="player-loading"><div class="spinner"></div><p>Loading saved torrent...</p></div>';
+  try {
+    const payload = { input: saved.input || "", filePath: saved.filePath || "", torrentId: saved.torrentId || "" };
+    const result = await api.add(payload);
+    if (section) renderTorrentFileChoices(section, result, anime, episodeNumber, payload);
+    const file = result.files?.find((item) => Number(item.index) === Number(saved.fileIndex));
+    if (!file) throw new Error("Saved torrent file is unavailable");
+    playTorrentFile(result, file, anime, episodeNumber, payload, { toast: false });
+    return true;
+  } catch (error) {
+    if (filesTarget) filesTarget.innerHTML = `<div class="empty">${escapeHtml(error.message || "Could not load saved torrent")}</div>`;
+    if (videoPlayer) videoPlayer.innerHTML = '<div class="player-loading"><p style="color: var(--red);">Saved torrent could not be loaded</p></div>';
+    showToast(error.message || "Could not load saved torrent");
+    return false;
+  }
+}
+
+function renderTorrentFileChoices(section, result, anime, episodeNumber, sourcePayload) {
+  const filesTarget = section.querySelector("[data-torrent-files]");
+  if (!filesTarget) return;
+  const files = Array.isArray(result?.files) ? result.files : [];
+  if (!files.length) {
+    filesTarget.innerHTML = '<div class="empty">No video files found in this torrent.</div>';
+    return;
+  }
+  filesTarget.innerHTML = files.map((file) => `
+    <div class="source-item">
+      <div class="source-info">
+        <h4>${escapeHtml(file.name || `File ${file.index + 1}`)}</h4>
+        <p>${escapeHtml([formatByteSize(file.size), file.mimeType].filter(Boolean).join(" / "))}</p>
+      </div>
+      <button class="source-play-direct" data-torrent-file-index="${escapeAttr(file.index)}" type="button" style="padding: 6px 12px; border-radius: 8px; background: linear-gradient(135deg, var(--blue), var(--mint)); color: #06101a; border: none; font-weight: 700; cursor: pointer; font-size: 12px; white-space: nowrap;">Play</button>
+    </div>
+  `).join("");
+  filesTarget.querySelectorAll("[data-torrent-file-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const file = files.find((item) => Number(item.index) === Number(button.dataset.torrentFileIndex));
+      if (file) playTorrentFile(result, file, anime, episodeNumber, sourcePayload);
+    });
+  });
+}
+
+function playTorrentFile(result, file, anime, episodeNumber, sourcePayload, options = {}) {
+  const mappedCount = saveTorrentBatchEpisodeMappings(result, file, anime, episodeNumber, sourcePayload);
+  const sources = (result.files || []).map((item) => ({ url: item.streamUrl, name: item.name, quality: formatByteSize(item.size) }));
+  const currentIndex = Math.max(0, sources.findIndex((item) => item.url === file.streamUrl));
+  playHttpStream(file.streamUrl, [], { sources, currentIndex });
+  if (options.toast !== false) showToast(mappedCount > 1 ? `Mapped ${mappedCount} batch episodes` : "Loading local torrent stream");
+}
+
+function formatByteSize(value) {
+  const bytes = Number(value) || 0;
+  if (!bytes) return "";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let size = bytes;
+  let unit = 0;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit += 1;
+  }
+  return `${size >= 10 || unit === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[unit]}`;
+}
+
 function renderStreamingSources(container, anime, episodeNumber, aniwavesMatches = [], animeKaiMatches = [], adultMatches = []) {
   const extensionHtml = extensionSourceCards("anime");
   const externalHtml = externalAnimeSourceCards(anime, episodeNumber, { aniwaves: aniwavesMatches, animekai: animeKaiMatches });
   const adultHtml = adultSourceCards(adultMatches);
-  if (!externalHtml && !adultMatches.length) {
+  const torrentHtml = torrentEpisodeSourceHtml(anime, episodeNumber);
+  if (!externalHtml && !adultMatches.length && !torrentHtml) {
     container.innerHTML = `
       ${extensionHtml}
       ${externalHtml}
@@ -7677,12 +7925,13 @@ function renderStreamingSources(container, anime, episodeNumber, aniwavesMatches
     return;
   }
 
-  container.innerHTML = `${extensionHtml}${externalHtml}${adultHtml}`;
+  container.innerHTML = `${extensionHtml}${externalHtml}${adultHtml}${torrentHtml}`;
 
   // Add play button handlers
   bindExtensionSourceButtons(container);
   bindExternalAnimeSourceButtons(container);
   bindAdultSourceButtons(container);
+  bindTorrentSourceControls(container, anime, episodeNumber);
   document.querySelector("[data-video-player]").innerHTML = `
     <div class="player-loading">
       <p>Select a stream below</p>
@@ -7742,10 +7991,12 @@ function bindExternalAnimeSourceButtons(container) {
   });
 }
 
-function renderDirectAnimeStreams(container, data, provider, autoplay = false) {
+function renderDirectAnimeStreams(container, data, provider, autoplay = false, anime = null, episodeNumber = "") {
   const streams = Array.isArray(data.sources) ? data.sources.filter((source) => source?.url) : [];
+  const torrentHtml = torrentEpisodeSourceHtml(anime, episodeNumber);
   if (!streams.length) {
-    container.innerHTML = `<div class="empty">No playable ${escapeHtml(animeSourceLabel(provider))} streams returned.</div>`;
+    container.innerHTML = `<div class="empty">No playable ${escapeHtml(animeSourceLabel(provider))} streams returned.</div>${torrentHtml}`;
+    bindTorrentSourceControls(container, anime, episodeNumber);
     return;
   }
 
@@ -7764,6 +8015,7 @@ function renderDirectAnimeStreams(container, data, provider, autoplay = false) {
         `).join("")}
       </div>
     </div>
+    ${torrentHtml}
   `;
 
   container.querySelectorAll("[data-direct-stream-index]").forEach((button) => {
@@ -7780,6 +8032,7 @@ function renderDirectAnimeStreams(container, data, provider, autoplay = false) {
     const stream = streams[index] || streams[0];
     playHttpStream(stream.url, stream.tracks || data.tracks || [], { sources: streams, currentIndex: index });
   }
+  bindTorrentSourceControls(container, anime, episodeNumber);
 }
 
 function adultSourceCards(matches) {
