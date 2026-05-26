@@ -57,6 +57,7 @@ const ANIME_SOURCES = [
   { id: "miruro", name: "Miruro", description: "Adds a quick external Miruro search fallback from the player.", badge: "Search" },
   { id: "hstream", name: "hstream.moe", description: "Adult-only direct playback source shown only when 18+ content is enabled.", badge: "+18", adult: true },
 ];
+const DISABLED_DEFAULT_ANIME_SOURCES = new Set(["anilibria", "tokyoinsider"]);
 const MANGA_SOURCES = [
   { id: "mangadex", name: "MangaDex", description: "Official open manga API. Best for licensed scanlation metadata and stable pages." },
   { id: "asura", name: "Asura Scans", description: "Good for webtoon/manhwa titles hosted by Asura." },
@@ -4895,12 +4896,64 @@ function toggleProfileMenu(event) {
   closeProfileMenu();
   popover.classList.toggle("show", shouldOpen);
   event.currentTarget.setAttribute("aria-expanded", String(shouldOpen));
+  if (shouldOpen) window.requestAnimationFrame(() => clampProfilePopover(popover));
 }
 
 function closeProfileMenu() {
-  document.querySelectorAll("[data-profile-popover]").forEach((popover) => popover.classList.remove("show"));
+  document.querySelectorAll("[data-profile-popover]").forEach((popover) => {
+    popover.classList.remove("show");
+    resetProfilePopoverPosition(popover);
+  });
   document.querySelectorAll("[data-profile-toggle]").forEach((button) => button.setAttribute("aria-expanded", "false"));
 }
+
+function resetProfilePopoverPosition(popover) {
+  popover.style.top = "";
+  popover.style.left = "";
+  popover.style.right = "";
+  popover.style.maxHeight = "";
+  popover.style.overflowY = "";
+}
+
+function clampProfilePopover(popover) {
+  const menu = popover.closest(".profile-menu");
+  if (!menu || !popover.classList.contains("show")) return;
+
+  resetProfilePopoverPosition(popover);
+  const margin = 16;
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const menuRect = menu.getBoundingClientRect();
+  let rect = popover.getBoundingClientRect();
+
+  popover.style.maxHeight = `${Math.max(160, viewportHeight - margin * 2)}px`;
+  popover.style.overflowY = "auto";
+
+  if (rect.bottom > viewportHeight - margin) {
+    const top = Math.max(margin - menuRect.top, viewportHeight - margin - rect.height - menuRect.top);
+    popover.style.top = `${top}px`;
+  }
+
+  if (rect.top < margin) {
+    popover.style.top = `${margin - menuRect.top}px`;
+  }
+
+  rect = popover.getBoundingClientRect();
+  if (rect.right > viewportWidth - margin) {
+    popover.style.right = "auto";
+    popover.style.left = `${viewportWidth - margin - rect.width - menuRect.left}px`;
+  }
+
+  rect = popover.getBoundingClientRect();
+  if (rect.left < margin) {
+    popover.style.right = "auto";
+    popover.style.left = `${margin - menuRect.left}px`;
+  }
+}
+
+window.addEventListener("resize", () => {
+  document.querySelectorAll("[data-profile-popover].show").forEach(clampProfilePopover);
+});
 
 function toggleNotifications(event) {
   event.stopPropagation();
@@ -5387,7 +5440,7 @@ function loadSettings() {
       subtitleStyle: { ...defaults.subtitleStyle, ...(saved.subtitleStyle || {}) },
       ambientStyle: { ...defaults.ambientStyle, ...(saved.ambientStyle || {}) },
     };
-    settings.apiBaseUrl = normalizeApiBaseUrl(settings.apiBaseUrl || localStorage.getItem(API_BASE_KEY) || DEFAULT_API_BASE_URL);
+    settings.apiBaseUrl = normalizeApiBaseUrl(settings.apiBaseUrl || localStorage.getItem(API_BASE_KEY) || window.anitrackDesktop?.apiBaseUrl || window.ANITRACK_API_BASE_URL || DEFAULT_API_BASE_URL);
     return settings;
   } catch (error) {
     return defaultSettings();
@@ -5426,7 +5479,7 @@ function defaultAmbientStyle() {
 }
 
 function defaultAnimeSources() {
-  return Object.fromEntries(ANIME_SOURCES.map((source) => [source.id, true]));
+  return Object.fromEntries(ANIME_SOURCES.map((source) => [source.id, !DISABLED_DEFAULT_ANIME_SOURCES.has(source.id)]));
 }
 
 function animeSourceEnabled(id) {

@@ -1,0 +1,41 @@
+{
+  "name": "anitrack-desktop-experimental",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Experimental Electron shell for the AniTrack web app.",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "electron": "electron .",
+    "desktop": "electron .",
+    "dist:win": "electron-builder --win nsis portable",
+    "check:electron": "node --check electron/main.js && node --check electron/preload.js"
+  },
+  "devDependencies": {
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "dev.anitrack.experimental",
+    "productName": "AniTrack Experimental",
+    "directories": {
+      "output": "dist/electron"
+    },
+    "files": [
+      "electron/**/*",
+      "*.html",
+      "app.js",
+      "styles.css",
+      "manifest.webmanifest",
+      "sw.js",
+      "!dist/**/*"
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
+  }
+}
