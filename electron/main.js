@@ -11,9 +11,9 @@ const singleInstanceLock = app.requestSingleInstanceLock();
 const frontendApiHandler = require(path.join(APP_ROOT, "api", "adult", "[path].js"));
 const ELECTRON_SAFE_AREA_CSS = `
   html, body { scrollbar-width: thin !important; scrollbar-color: rgba(143, 201, 207, 0.46) transparent !important; }
-  body { padding-top: 54px !important; }
-  .topbar.shell.anilist-topbar { top: 54px !important; padding-top: 18px !important; padding-right: 176px !important; }
-  .topbar.shell.anilist-topbar .top-actions { transform: translateY(10px) !important; }
+  body { padding-top: 0 !important; }
+  .topbar.shell.anilist-topbar { top: 0 !important; padding-top: 18px !important; padding-right: 176px !important; }
+  .topbar.shell.anilist-topbar .top-actions { transform: none !important; }
   body[data-page="anime"] .browse-filter-fab, body[data-page="manga"] .browse-filter-fab, body[data-page="doujin"] .browse-filter-fab { top: 72px !important; right: 176px !important; }
   ::-webkit-scrollbar { width: 5px !important; height: 5px !important; }
   ::-webkit-scrollbar-button, ::-webkit-scrollbar-corner { display: none !important; width: 0 !important; height: 0 !important; background: transparent !important; }

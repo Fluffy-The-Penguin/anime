@@ -8206,9 +8206,11 @@ function setupCustomVideoControls(video) {
   const update = () => {
     const total = Number.isFinite(video.duration) ? video.duration : 0;
     const now = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+    const progressValue = total ? Math.max(0, Math.min(1000, Math.round((now / total) * 1000))) : 0;
     if (current) current.textContent = formatPlayerTime(now);
     if (duration) duration.textContent = formatPlayerTime(total);
-    if (progress && !seeking) progress.value = total ? String(Math.round((now / total) * 1000)) : "0";
+    if (progress && !seeking) progress.value = String(progressValue);
+    if (progress) progress.style.setProperty("--video-progress", `${progressValue / 10}%`);
     if (play) play.textContent = video.paused ? "▶" : "❚❚";
     if (centerToggle) centerToggle.textContent = video.paused ? "▶" : "❚❚";
     if (mute) mute.textContent = video.muted || video.volume === 0 ? "×" : "♪";
@@ -8263,6 +8265,7 @@ function setupCustomVideoControls(video) {
   progress?.addEventListener("input", () => {
     seeking = true;
     const total = Number.isFinite(video.duration) ? video.duration : 0;
+    progress.style.setProperty("--video-progress", `${Math.max(0, Math.min(100, Number(progress.value) / 10))}%`);
     if (total) video.currentTime = (Number(progress.value) / 1000) * total;
     showControls();
   });

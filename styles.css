@@ -17767,14 +17767,6 @@ html[data-smooth-scroll="true"] * {
   }
 }
 
-html[data-electron] body {
-  padding-top: 34px;
-}
-
-html[data-electron] .topbar {
-  top: 34px;
-}
-
 html[data-electron] ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
