@@ -5,6 +5,7 @@ const path = require("path");
 
 const APP_ROOT = path.resolve(__dirname, "..");
 const LOCAL_APP_PORT = 47931;
+const BACKEND_ORIGIN = "https://anime-api-proxy.aryanpanwar.workers.dev";
 const DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 const singleInstanceLock = app.requestSingleInstanceLock();
 let appOrigin = "";
@@ -51,9 +52,68 @@ function resolveStaticPath(requestUrl) {
   return filePath;
 }
 
+function requestBody(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    request.on("data", (chunk) => chunks.push(chunk));
+    request.on("end", () => resolve(chunks.length ? Buffer.concat(chunks) : undefined));
+    request.on("error", reject);
+  });
+}
+
+function proxiedRequestHeaders(headers) {
+  const forwarded = { ...headers };
+  delete forwarded.host;
+  delete forwarded.origin;
+  delete forwarded.referer;
+  forwarded["user-agent"] = DESKTOP_USER_AGENT;
+  return forwarded;
+}
+
+async function proxyBackendRequest(request, response) {
+  try {
+    const targetUrl = new URL(request.url || "/", BACKEND_ORIGIN);
+    const method = request.method || "GET";
+    const responseHeaders = {};
+    responseHeaders["access-control-allow-origin"] = appOrigin;
+    responseHeaders["access-control-allow-headers"] = "Content-Type, Authorization, Range";
+    responseHeaders["access-control-allow-methods"] = "GET, HEAD, POST, PUT, OPTIONS";
+
+    if (method === "OPTIONS") {
+      response.writeHead(204, responseHeaders);
+      response.end();
+      return;
+    }
+
+    const body = method === "GET" || method === "HEAD" ? undefined : await requestBody(request);
+    const backendResponse = await fetch(targetUrl, {
+      method,
+      headers: proxiedRequestHeaders(request.headers),
+      body,
+      redirect: "manual"
+    });
+    ["accept-ranges", "cache-control", "content-length", "content-range", "content-type", "location"].forEach((header) => {
+      const value = backendResponse.headers.get(header);
+      if (value) responseHeaders[header] = header === "location" && value.startsWith(BACKEND_ORIGIN) ? value.replace(BACKEND_ORIGIN, appOrigin) : value;
+    });
+
+    const data = Buffer.from(await backendResponse.arrayBuffer());
+    response.writeHead(backendResponse.status, responseHeaders);
+    response.end(data);
+  } catch (error) {
+    response.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+    response.end(JSON.stringify({ error: "Backend proxy failed", detail: error.message || String(error) }));
+  }
+}
+
 function startLocalServer(port = LOCAL_APP_PORT) {
   return new Promise((resolve, reject) => {
     const server = http.createServer((request, response) => {
+      if ((request.url || "").startsWith("/api/") || (request.url || "") === "/health") {
+        proxyBackendRequest(request, response);
+        return;
+      }
+
       const filePath = resolveStaticPath(request.url || "/");
       if (!filePath) {
         response.writeHead(403);
