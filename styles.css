@@ -17753,8 +17753,8 @@ html[data-electron] body {
 }
 
 html[data-electron] ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 4px;
+  height: 4px;
 }
 
 html[data-electron] ::-webkit-scrollbar-track {
@@ -17762,7 +17762,7 @@ html[data-electron] ::-webkit-scrollbar-track {
 }
 
 html[data-electron] ::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.32);
   background-clip: padding-box;
