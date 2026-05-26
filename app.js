@@ -207,6 +207,7 @@ function init() {
   if (page === "details") initDetailsPage();
   if (page === "settings") initSettingsPage();
   if (page === "history") initHistoryPage();
+  if (page === "notifications") initNotificationsPage();
   if (page === "player") initPlayerPage();
   if (page === "reader") initReaderPage();
 }
@@ -275,7 +276,7 @@ function injectChrome() {
     document.body.insertAdjacentHTML("beforeend", `<button class="browse-filter-overlay" data-browse-filter-overlay type="button" aria-label="Close filters"></button>`);
   }
 
-  if (["home", "anime", "manga", "doujin", "doujin-preview", "profile", "library", "history", "settings", "player"].includes(page) && !document.querySelector(".details-side-rail")) {
+  if (["home", "anime", "manga", "doujin", "doujin-preview", "profile", "library", "history", "notifications", "settings", "player"].includes(page) && !document.querySelector(".details-side-rail")) {
     document.body.insertAdjacentHTML("afterbegin", cinematicSideRailHtml());
   }
 
@@ -426,7 +427,34 @@ function enhanceCinematicSideRail() {
     profileLink.remove();
   }
   const bottom = rail?.querySelector(".details-rail-bottom");
+  const directHistoryLink = bottom ? [...bottom.children].find((item) => item.matches?.('a[href="history.html"]')) : null;
+  if (directHistoryLink && !bottom.querySelector("[data-history-toggle]")) {
+    directHistoryLink.outerHTML = historyRailMenuHtml();
+  }
+  if (bottom && !bottom.querySelector("[data-notification-toggle]")) bottom.insertAdjacentHTML("afterbegin", notificationRailMenuHtml());
+  if (bottom && !bottom.querySelector("[data-theme-toggle]")) bottom.insertAdjacentHTML("beforeend", themeRailButtonHtml());
   if (bottom && rail && !rail.querySelector("[data-settings-rail]")) bottom.insertAdjacentHTML("beforeend", settingsRailLinkHtml());
+  syncThemeToggleButtons();
+}
+
+function notificationRailMenuHtml() {
+  return `
+        <div class="notification-menu details-rail-menu">
+          <button class="details-rail-action-btn notification-btn" data-notification-toggle type="button" aria-label="Open notifications" aria-expanded="false" data-nav-label="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.7 2.7 0 0 0 2.5-1.7h-5A2.7 2.7 0 0 0 12 22Zm7-6.4-1.7-2.3V9a5.3 5.3 0 0 0-4-5.1V3a1.3 1.3 0 0 0-2.6 0v.9a5.3 5.3 0 0 0-4 5.1v4.3L5 15.6V18h14v-2.4Z"/></svg><span data-notification-count hidden>0</span></button>
+          <div class="notification-popover" data-notification-popover></div>
+        </div>`;
+}
+
+function historyRailMenuHtml() {
+  return `
+        <div class="history-menu details-rail-menu">
+          <button class="details-rail-action-btn history-btn" data-history-toggle type="button" aria-label="Open history" aria-expanded="false" data-nav-label="History"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-2.1-5L14 10h7V3l-2.7 2.7A8.9 8.9 0 0 0 12 3Zm-1 4v6l5 3 .9-1.6-3.9-2.3V7h-2Z"/></svg></button>
+          <div class="history-popover" data-history-popover></div>
+        </div>`;
+}
+
+function themeRailButtonHtml() {
+  return `<button class="details-rail-theme-btn" data-theme-toggle type="button" aria-label="Toggle theme" data-nav-label="Theme">${themeIcon()}</button>`;
 }
 
 function searchOverlayHtml() {
@@ -4893,13 +4921,16 @@ function renderNotifications() {
   });
   const html = `
     <strong>Notifications</strong>
-    ${visibleItems.length ? visibleItems.map((item) => `
-      <button class="notification-row" data-notification-index="${visibleItems.indexOf(item)}" type="button">
-        <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
-        <span>${escapeHtml(notificationText(item))}<small>${escapeHtml(relativeTime(item.updatedAt))}</small></span>
-      </button>
-    `).join("") : `<p class="notification-empty">No notifications yet.</p>`}
-    ${hasMore ? `<button class="notification-more" data-notification-more type="button">Load more notifications</button>` : ""}
+    <div class="notification-popover-list" data-notification-popover-list>
+      ${visibleItems.length ? visibleItems.map((item, index) => `
+        <button class="notification-row" data-notification-index="${index}" type="button">
+          <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
+          <span>${escapeHtml(notificationText(item))}<small>${escapeHtml(relativeTime(item.updatedAt))}</small></span>
+        </button>
+      `).join("") : `<p class="notification-empty">No notifications yet.</p>`}
+      ${hasMore ? `<button class="notification-more" data-notification-more type="button">Load more notifications</button>` : ""}
+    </div>
+    <a class="notification-more notification-details-link" href="notifications.html">Details</a>
   `;
   popovers.forEach((popover) => {
     popover.innerHTML = html;
@@ -4912,8 +4943,9 @@ function renderNotifications() {
       renderNotifications();
       popover.classList.add("show");
     });
-    popover.onscroll = () => {
-      if (!hasMore || popover.scrollTop + popover.clientHeight < popover.scrollHeight - 32) return;
+    const list = popover.querySelector("[data-notification-popover-list]");
+    if (list) list.onscroll = () => {
+      if (!hasMore || list.scrollTop + list.clientHeight < list.scrollHeight - 32) return;
       state.notificationPage += 1;
       renderNotifications();
       popover.classList.add("show");
@@ -4923,6 +4955,40 @@ function renderNotifications() {
 
 function notificationItems() {
   return loadNotificationsStore().filter(contentVisibleItem);
+}
+
+function initNotificationsPage() {
+  const list = document.querySelector("[data-notification-list]");
+  const count = document.querySelector("[data-notification-count-page]");
+  if (!list) return;
+  localStorage.setItem(NOTIFICATION_READ_KEY, String(Date.now()));
+  const items = notificationItems();
+  if (count) count.textContent = `${items.length} ${items.length === 1 ? "alert" : "alerts"}`;
+  if (!items.length) {
+    list.innerHTML = `<div class="empty"><h3>No notifications yet</h3><p class="muted">New chapter alerts and title updates will appear here.</p></div>`;
+    renderNotifications();
+    return;
+  }
+  list.innerHTML = items.map((item, index) => `
+    <button class="history-page-row notification-page-row" data-notification-page-index="${index}" type="button">
+      <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
+      <span>
+        <strong>${escapeHtml(item.title || "Untitled")}</strong>
+        <small>${escapeHtml(notificationText(item))} &middot; ${escapeHtml(relativeTime(item.updatedAt))}</small>
+      </span>
+      <em>${escapeHtml(notificationTypeText(item))}</em>
+    </button>
+  `).join("");
+  list.querySelectorAll("[data-notification-page-index]").forEach((row) => row.addEventListener("click", () => {
+    const item = resolveNavigableItem(items[Number(row.dataset.notificationPageIndex)]);
+    if (item) openLibraryItem(item);
+  }));
+  renderNotifications();
+}
+
+function notificationTypeText(item) {
+  if (item.kind === "chapter") return "Chapter alert";
+  return libraryTypeText(item);
 }
 
 function toggleHistory(event) {
@@ -4956,13 +5022,15 @@ function renderHistory() {
   const hasMore = visibleItems.length < items.length;
   const html = `
     <strong>History</strong>
-    ${visibleItems.length ? visibleItems.map((item) => `
-      <button class="history-row" data-history-index="${visibleItems.indexOf(item)}" type="button">
-        <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
-        <span>${escapeHtml(historyText(item))}<small>${escapeHtml(relativeTime(item.activityTime || item.updatedAt))}</small></span>
-      </button>
-    `).join("") : `<p class="notification-empty">No library history yet.</p>`}
-    ${hasMore ? `<button class="notification-more" data-history-more type="button">Load more history</button>` : ""}
+    <div class="history-popover-list" data-history-popover-list>
+      ${visibleItems.length ? visibleItems.map((item, index) => `
+        <button class="history-row" data-history-index="${index}" type="button">
+          <img src="${escapeAttr(item.image || fallbackImage)}" alt="${escapeAttr(item.title)} poster" loading="lazy">
+          <span>${escapeHtml(historyText(item))}<small>${escapeHtml(relativeTime(item.activityTime || item.updatedAt))}</small></span>
+        </button>
+      `).join("") : `<p class="notification-empty">No library history yet.</p>`}
+      ${hasMore ? `<button class="notification-more" data-history-more type="button">Load more history</button>` : ""}
+    </div>
     <a class="notification-more history-details-link" href="history.html">Details</a>
   `;
   popovers.forEach((popover) => {
@@ -4976,8 +5044,9 @@ function renderHistory() {
       renderHistory();
       popover.classList.add("show");
     });
-    popover.onscroll = () => {
-      if (!hasMore || popover.scrollTop + popover.clientHeight < popover.scrollHeight - 32) return;
+    const list = popover.querySelector("[data-history-popover-list]");
+    if (list) list.onscroll = () => {
+      if (!hasMore || list.scrollTop + list.clientHeight < list.scrollHeight - 32) return;
       state.historyPage += 1;
       renderHistory();
       popover.classList.add("show");
@@ -5571,8 +5640,10 @@ function applyAccountData(data) {
   persistLibrary(false);
   persistSettings(false);
   renderHistory();
+  renderNotifications();
   if (page === "profile") renderProfileOverview();
   if (page === "history") initHistoryPage();
+  if (page === "notifications") initNotificationsPage();
   applyThemeColor();
   hydrateProfileShell();
   syncAdultControls();

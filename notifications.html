@@ -3,33 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Preview an English doujinshi gallery before reading." />
-    <title>AniTrack | Doujin Preview</title>
+    <meta name="description" content="Review your AniTrack notifications." />
+    <title>AniTrack | Notifications</title>
     <link rel="stylesheet" href="styles.css?v=site-fix-82" />
     <script src="app.js?v=site-fix-82" defer></script>
   </head>
-  <body data-page="doujin-preview">
+  <body data-page="notifications">
     <header class="topbar shell anilist-topbar">
       <a class="brand anilist-brand" href="index.html" aria-label="AniTrack home"><span>AT</span><b>AniTrack</b></a>
       <nav class="nav anilist-nav" aria-label="Primary navigation">
         <a href="index.html">Home</a>
         <a href="anime.html">Anime</a>
         <a href="manga.html">Manga / Manhwa</a>
-        <a class="active" href="doujin.html" data-adult-nav hidden>Doujin</a>
+        <a href="doujin.html" data-adult-nav hidden>Doujin</a>
         <a href="profile.html">Profile</a>
         <a href="settings.html">Settings</a>
       </nav>
     </header>
 
-    <main class="shell">
-      <div class="details-shell" data-doujin-preview>
-        <section class="panel section">
-          <div class="reader-loading">
-            <div class="spinner"></div>
-            <p>Loading doujinshi preview...</p>
-          </div>
-        </section>
-      </div>
+    <main class="shell history-page-main notification-page-main">
+      <section class="profile-subpage-hero">
+        <span class="eyebrow">Alerts</span>
+        <h1>Notifications</h1>
+        <p class="muted">Full local list of chapter alerts and tracked-title updates.</p>
+        <strong data-notification-count-page>0 alerts</strong>
+      </section>
+
+      <section class="history-page-panel notification-page-panel">
+        <div class="history-page-list notification-page-list" data-notification-list></div>
+      </section>
     </main>
   </body>
 </html>
